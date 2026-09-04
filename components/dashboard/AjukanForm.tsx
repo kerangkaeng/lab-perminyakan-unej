@@ -60,17 +60,17 @@ export function AjukanForm() {
 
       <div>
         <label className="block text-xs font-mono uppercase text-core mb-1">
-          Laboratorium / Praktikum
+          Praktikum
         </label>
         <select
           name="praktikum_nama"
           required
           className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
         >
-          <option value="">Pilih laboratorium</option>
-          {facilities.map((f) => (
-            <option key={f.slug} value={f.name}>
-              {f.name}
+          <option value="">Pilih praktikum</option>
+          {facilities.flatMap((f) => f.modules ?? []).map((praktikum) => (
+            <option key={praktikum} value={praktikum}>
+              {praktikum}
             </option>
           ))}
         </select>
@@ -117,12 +117,19 @@ export function AjukanForm() {
       </div>
 
       <div>
-        <label className="block text-xs font-mono uppercase text-core mb-1">Lokasi (opsional)</label>
-        <input
+        <label className="block text-xs font-mono uppercase text-core mb-1">Laboratorium</label>
+        <select
           name="lokasi"
-          placeholder="mis. Gedung Lab Perminyakan Lt. 2"
+          required
           className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
-        />
+        >
+          <option value="">Pilih laboratorium</option>
+          {facilities.map((f) => (
+            <option key={f.slug} value={f.name}>
+              {f.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <Button type="submit">{loading ? "Mengirim..." : "Kirim Pengajuan"}</Button>
