@@ -19,7 +19,8 @@ export function getCasLogoutUrl(serviceUrl?: string) {
 }
 
 export type CasUser = {
-  nim: string;
+  /** Identitas mentah dari <cas:user> — bisa berupa NIM (mahasiswa) atau NIP (staf/laboran). */
+  identifier: string;
   nama?: string;
   prodi?: string;
 };
@@ -56,11 +57,11 @@ export async function validateCasTicket(
     xml.match(/<cas:user>([^<]+)<\/cas:user>/) || xml.match(/<user>([^<]+)<\/user>/);
   if (!userMatch) return null;
 
-  const nim = userMatch[1].trim();
+  const identifier = userMatch[1].trim();
   const nama = extractAttribute(xml, ["nama", "name", "fullname", "cn", "displayName"]);
   const prodi = extractAttribute(xml, ["prodi", "program_studi", "programStudi", "department"]);
 
-  return { nim, nama, prodi };
+  return { identifier, nama, prodi };
 }
 
 function extractAttribute(xml: string, keys: string[]): string | undefined {
