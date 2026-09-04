@@ -77,27 +77,24 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
                   <StatusBadge status={r.status} />
                 </td>
                 <td className="p-4">
-                  {r.status === "pending" ? (
-                    <div className="flex gap-2">
-                      <button
-                        disabled={loadingId === r.id}
-                        onClick={() => updateStatus(r.id, "approved")}
-                        className="text-xs border border-petrol text-petrol px-3 py-1.5 hover:bg-petrol hover:text-paper transition-colors disabled:opacity-50"
-                      >
-                        Setujui
-                      </button>
-                      <button
-                        disabled={loadingId === r.id}
-                        onClick={() => updateStatus(r.id, "rejected")}
-                        className="text-xs border border-red-400 text-red-700 px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50"
-                      >
-                        Tolak
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-core">
-                      {r.catatan_admin ? r.catatan_admin : "Selesai ditinjau"}
-                    </span>
+                  <div className="flex gap-2 mb-1">
+                    <button
+                      disabled={loadingId === r.id || r.status === "approved"}
+                      onClick={() => updateStatus(r.id, "approved")}
+                      className="text-xs border border-petrol text-petrol px-3 py-1.5 hover:bg-petrol hover:text-paper transition-colors disabled:opacity-50"
+                    >
+                      Setujui
+                    </button>
+                    <button
+                      disabled={loadingId === r.id || r.status === "rejected"}
+                      onClick={() => updateStatus(r.id, "rejected")}
+                      className="text-xs border border-red-400 text-red-700 px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      Tolak
+                    </button>
+                  </div>
+                  {r.catatan_admin && (
+                    <p className="text-xs text-core">{r.catatan_admin}</p>
                   )}
                 </td>
               </tr>
