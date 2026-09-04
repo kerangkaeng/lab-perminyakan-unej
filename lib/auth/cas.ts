@@ -4,8 +4,12 @@
 
 const CAS_BASE_URL = process.env.CAS_BASE_URL || "https://sso.unej.ac.id/cas";
 
-export function getCasLoginUrl(serviceUrl: string) {
-  return `${CAS_BASE_URL}/login?service=${encodeURIComponent(serviceUrl)}`;
+export function getCasLoginUrl(serviceUrl: string, options?: { renew?: boolean }) {
+  const url = `${CAS_BASE_URL}/login?service=${encodeURIComponent(serviceUrl)}`;
+  // `renew=true` memaksa CAS menampilkan form login (NIM/password + 2FA jika ada)
+  // walau sesi SSO di browser masih aktif — tanpa ini, CAS akan skip form
+  // selama cookie TGT di sso.unej.ac.id belum expired/di-logout.
+  return options?.renew ? `${url}&renew=true` : url;
 }
 
 export function getCasLogoutUrl(serviceUrl?: string) {
