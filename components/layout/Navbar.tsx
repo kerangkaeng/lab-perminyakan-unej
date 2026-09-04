@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import { MobileMenu } from "./MobileMenu";
 
 const links = [
@@ -16,7 +16,9 @@ const links = [
   { href: "/contact", label: "Contact" },
 ];
 
-export function Navbar() {
+export type NavSession = { nama: string; appRole: "mahasiswa" | "admin" } | null;
+
+export function Navbar({ session }: { session: NavSession }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -37,18 +39,23 @@ export function Navbar() {
               {l.label}
             </Link>
           ))}
+          {session ? (
+            <Link href="/practicum/status" className="text-sm text-petrol hover:text-rig">
+              {session.nama.split(" ")[0]}
+            </Link>
+          ) : (
+            <Link href="/login" className="text-sm text-petrol hover:text-rig">
+              Masuk
+            </Link>
+          )}
         </nav>
 
-        <button
-          aria-label="Buka menu"
-          className="lg:hidden text-ink"
-          onClick={() => setOpen(true)}
-        >
+        <button aria-label="Buka menu" className="lg:hidden text-ink" onClick={() => setOpen(true)}>
           <Menu size={22} />
         </button>
       </div>
 
-      <MobileMenu open={open} onClose={() => setOpen(false)} links={links} />
+      <MobileMenu open={open} onClose={() => setOpen(false)} links={links} session={session} />
     </header>
   );
 }

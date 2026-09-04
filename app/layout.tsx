@@ -3,6 +3,7 @@ import { Fraunces, Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { getSession } from "@/lib/auth/session";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -27,15 +28,17 @@ export const metadata: Metadata = {
     "Pusat pembelajaran, penelitian, dan pengembangan teknologi perminyakan.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getSession();
+
   return (
     <html lang="id" className={`${fraunces.variable} ${inter.variable} ${mono.variable}`}>
       <body>
-        <Navbar />
+        <Navbar session={session ? { nama: session.nama, appRole: session.appRole } : null} />
         <main>{children}</main>
         <Footer />
       </body>

@@ -70,3 +70,37 @@ export type TeamMember = {
   role: string;
   photo?: string;
 };
+
+// ---- Supabase-backed types (Tahap 2: praktikum request/approval) ----
+
+export type UserRole = "mahasiswa" | "admin";
+
+export type UserRecord = {
+  id: string;
+  auth_uid: string | null;
+  nim: string;
+  nama: string;
+  prodi: string | null;
+  role: UserRole;
+  created_at: string;
+};
+
+export type PracticumRequestStatus = "pending" | "approved" | "rejected";
+
+export type PracticumRequest = {
+  id: string;
+  requester_id: string;
+  praktikum_nama: string;
+  modul: string;
+  tanggal: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  lokasi: string | null;
+  status: PracticumRequestStatus;
+  catatan_admin: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  // hanya terisi saat di-join oleh admin (lihat AdminRequestsTable)
+  requester?: { nama: string; nim: string; prodi: string | null } | null;
+};
