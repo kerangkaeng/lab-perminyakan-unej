@@ -36,6 +36,29 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
     router.refresh();
   }
 
+  async function deleteRequest(id: string) {
+    setError(null);
+
+    const confirmed = window.confirm(
+      "Hapus pengajuan ini secara permanen? Tindakan ini tidak bisa dibatalkan."
+    );
+    if (!confirmed) return;
+
+    setLoadingId(id);
+    const res = await fetch(`/api/admin/practicum-requests/${id}`, {
+      method: "DELETE",
+    });
+    setLoadingId(null);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error || "Gagal menghapus pengajuan.");
+      return;
+    }
+
+    router.refresh();
+  }
+
   if (requests.length === 0) {
     return <p className="text-core text-sm">Belum ada pengajuan masuk.</p>;
   }
@@ -91,6 +114,13 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
                       className="text-xs border border-red-400 text-red-700 px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50"
                     >
                       Tolak
+                    </button>
+                    <button
+                      disabled={loadingId === r.id}
+                      onClick={() => deleteRequest(r.id)}
+                      className="text-xs border border-line text-core px-3 py-1.5 hover:bg-red-50 hover:border-red-400 hover:text-red-700 transition-colors disabled:opacity-50"
+                    >
+                      Hapus
                     </button>
                   </div>
                   {r.catatan_admin && (
