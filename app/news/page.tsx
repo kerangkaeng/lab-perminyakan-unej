@@ -9,7 +9,11 @@ export default function NewsPage() {
       <h1 className="text-3xl md:text-4xl font-display font-semibold mb-10">Berita & Pengumuman</h1>
       <div className="grid gap-8 md:grid-cols-2">
         {news.map((n) => (
-          <Link key={n.slug} href={`/news/${n.slug}`} className="border border-line p-6 hover:border-petrol transition-colors">
+          <Link
+            key={n.slug}
+            href={n.externalHref ?? `/news/${n.slug}`}
+            className="border border-line p-6 hover:border-petrol transition-colors"
+          >
             <p className="font-mono text-xs text-core mb-2">{formatDate(n.date)}</p>
             <h2 className="font-display text-lg font-semibold text-ink mb-2">{n.title}</h2>
             <p className="text-sm text-core">{n.excerpt}</p>
