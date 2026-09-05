@@ -4,6 +4,7 @@ import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { PracticumRequest } from "@/types";
 import { formatDate } from "@/lib/utils";
+import { nonPraktikumLabel } from "@/lib/constants/kegiatan";
 
 export const revalidate = 0;
 
@@ -34,7 +35,7 @@ export default async function StatusPengajuanPage() {
 
       {!loadError && requests.length === 0 && (
         <p className="text-core text-sm">
-          Belum ada pengajuan praktikum. Buat pengajuan baru lewat menu &ldquo;Ajukan Praktikum&rdquo;.
+          Belum ada pengajuan kegiatan. Buat pengajuan baru lewat menu &ldquo;Ajukan Praktikum&rdquo;.
         </p>
       )}
 
@@ -43,8 +44,8 @@ export default async function StatusPengajuanPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-mist border-b border-line font-mono text-xs uppercase tracking-wide text-core">
-                <th className="text-left p-4">Praktikum</th>
-                <th className="text-left p-4">Modul</th>
+                <th className="text-left p-4">Jenis</th>
+                <th className="text-left p-4">Kegiatan</th>
                 <th className="text-left p-4">Jadwal</th>
                 <th className="text-left p-4">Status</th>
                 <th className="text-left p-4">Catatan Admin</th>
@@ -53,8 +54,27 @@ export default async function StatusPengajuanPage() {
             <tbody>
               {requests.map((r) => (
                 <tr key={r.id} className="border-b border-line last:border-0">
-                  <td className="p-4 text-ink font-medium">{r.praktikum_nama}</td>
-                  <td className="p-4 text-core">{r.modul}</td>
+                  <td className="p-4 text-core">
+                    {r.jenis_kegiatan === "praktikum" ? "Praktikum" : "Non-Praktikum"}
+                  </td>
+                  <td className="p-4 text-ink font-medium">
+                    {r.jenis_kegiatan === "praktikum" ? (
+                      <>
+                        {r.praktikum_nama}
+                        <p className="text-xs text-core font-normal">
+                          {r.modul}
+                          {r.lokasi ? ` · ${r.lokasi}` : ""}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        {nonPraktikumLabel(r.kegiatan_non_praktikum)}
+                        {r.kegiatan_non_praktikum === "lainnya" && r.deskripsi_lainnya && (
+                          <p className="text-xs text-core font-normal">{r.deskripsi_lainnya}</p>
+                        )}
+                      </>
+                    )}
+                  </td>
                   <td className="p-4 text-core font-mono whitespace-nowrap">
                     {formatDate(r.tanggal)}
                     <br />
