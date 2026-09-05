@@ -10,7 +10,10 @@
     @apply bg-paper text-ink font-body antialiased;
   }
   h1, h2, h3, h4 {
-    @apply font-display;
+    @apply font-display tracking-tight;
+  }
+  p {
+    @apply leading-relaxed;
   }
   :focus-visible {
     outline: 2px solid #C9852E;
@@ -28,18 +31,26 @@
     @apply font-mono text-[11px] tracking-widest2 uppercase text-rig;
   }
   .container-lab {
-    @apply mx-auto w-full max-w-6xl px-5 sm:px-6 md:px-8;
+    @apply mx-auto w-full max-w-6xl px-6 sm:px-8 lg:px-10;
   }
   .hairline {
     @apply border-line;
   }
 
-  /* Reusable lift-on-hover treatment for cards/links across the site */
-  .surface-hover {
-    @apply transition-all duration-300 ease-smooth hover:shadow-card-hover hover:-translate-y-0.5;
+  /* Generous, consistent vertical rhythm between major sections */
+  .section-space {
+    @apply py-20 sm:py-28 lg:py-32;
   }
 
-  /* Thin, styled scrollbar for any horizontally-scrolling table wrapper */
+  /* Section heading pattern: small eyebrow + large serif title, lots of air below */
+  .section-heading {
+    @apply mb-14 sm:mb-20 max-w-2xl;
+  }
+
+  .surface-hover {
+    @apply transition-all duration-500 ease-smooth;
+  }
+
   .scroll-thin {
     scrollbar-width: thin;
     scrollbar-color: #C9852E transparent;
