@@ -13,8 +13,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Harus persis sama dengan service URL yang dipakai saat redirect ke
-  // /cas/login (lihat app/api/auth/cas/login/route.ts).
   const serviceUrl = new URL("/api/auth/cas/callback", req.nextUrl.origin);
   serviceUrl.searchParams.set("redirect", redirectPath);
 
@@ -28,15 +26,57 @@ export async function GET(req: NextRequest) {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
-  // NB: skema `users` (lihat supabase/migrations/001_practicum_schema.sql)
-  // hanya punya kolom `nim` sebagai identifier unik — dipakai untuk mahasiswa
-  // maupun staf/laboran (nilai dari <cas:user>), tidak ada kolom terpisah
-  // `identifier`/`nip`. Kalau nanti perlu membedakan NIM vs NIP secara
-  // eksplisit, tambahkan kolom lewat migration baru dan sesuaikan di sini.
+  const syntheticEmail = `${casUser.identifier}@cas.unej.local`;
+
+  // Cari akun auth.users yang sudah ada berdasarkan email sintetis — dipakai
+  // sebagai fallback kalau createUser() gagal karena email sudah terdaftar
+  // (sisa dari percobaan login sebelumnya yang gagal di tengah jalan, mis.
+  // insert ke public.users gagal setelah auth.users berhasil dibuat).
+  async function findAuthUserByEmail(email: string): Promise<string | null> {
+    try {
+      const res = await fetch(
+        `${supabaseUrl}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
+        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+      );
+      if (!res.ok) return null;
+      const body = await res.json();
+      const list: any[] = Array.isArray(body) ? body : body.users ?? [];
+      return list.find((u) => u.email === email)?.id ?? null;
+    } catch (e) {
+      console.error("CAS callback - lookup existing auth user error", e);
+      return null;
+    }
+  }
+
+  async function provisionAuthUser(): Promise<string | null> {
+    const { data: authUser, error: createAuthError } = await admin.auth.admin.createUser({
+      email: syntheticEmail,
+      email_confirm: true,
+      user_metadata: { identifier: casUser!.identifier, source: "cas-unej" },
+    });
+
+    if (!createAuthError && authUser?.user) {
+      return authUser.user.id;
+    }
+
+    // Email sudah terdaftar -> kemungkinan sisa percobaan gagal sebelumnya.
+    // Pakai lagi akun auth yang sama alih-alih gagal total.
+    const status = (createAuthError as any)?.status;
+    const code = (createAuthError as any)?.code;
+    if (status === 422 || code === "email_exists") {
+      const existingId = await findAuthUserByEmail(syntheticEmail);
+      if (existingId) return existingId;
+    }
+
+    console.error("CAS callback - create auth user error", createAuthError);
+    return null;
+  }
+
+  // Cari baris public.users berdasarkan `identifier` (nilai mentah dari CAS).
   const { data: existing, error: findError } = await admin
     .from("users")
     .select("id, auth_uid, nim, nama, role")
-    .eq("nim", casUser.identifier)
+    .eq("identifier", casUser.identifier)
     .maybeSingle();
 
   if (findError) {
@@ -53,22 +93,6 @@ export async function GET(req: NextRequest) {
     role: "mahasiswa" | "admin";
   } | null;
 
-  async function provisionAuthUser() {
-    // auth.users dipakai murni sebagai sumber UUID stabil untuk auth_uid —
-    // login sesungguhnya tetap lewat CAS, bukan email/password Supabase.
-    const syntheticEmail = `${casUser!.identifier}@cas.unej.local`;
-    const { data: authUser, error: createAuthError } = await admin.auth.admin.createUser({
-      email: syntheticEmail,
-      email_confirm: true,
-      user_metadata: { identifier: casUser!.identifier, source: "cas-unej" },
-    });
-    if (createAuthError || !authUser?.user) {
-      console.error("CAS callback - create auth user error", createAuthError);
-      return null;
-    }
-    return authUser.user.id;
-  }
-
   if (!userRow) {
     const authUid = await provisionAuthUser();
     if (!authUid) {
@@ -80,6 +104,7 @@ export async function GET(req: NextRequest) {
       .from("users")
       .insert({
         auth_uid: authUid,
+        identifier: casUser.identifier,
         nim: casUser.identifier,
         nama: casUser.nama || casUser.identifier,
         prodi: casUser.prodi ?? null,
@@ -96,8 +121,6 @@ export async function GET(req: NextRequest) {
 
     userRow = inserted;
   } else if (!userRow.auth_uid) {
-    // Edge case: baris users sudah ada (mis. diimpor manual) tapi belum
-    // tertaut ke auth.users. Buatkan sekali di sini.
     const authUid = await provisionAuthUser();
     if (!authUid) {
       loginUrl.searchParams.set("error", "server_error");
