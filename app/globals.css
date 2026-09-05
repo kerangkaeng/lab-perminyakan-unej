@@ -15,6 +15,11 @@
   :focus-visible {
     outline: 2px solid #C9852E;
     outline-offset: 3px;
+    border-radius: 1px;
+  }
+  ::selection {
+    background: #C9852E;
+    color: #F6F7F5;
   }
 }
 
@@ -23,10 +28,31 @@
     @apply font-mono text-[11px] tracking-widest2 uppercase text-rig;
   }
   .container-lab {
-    @apply mx-auto w-full max-w-6xl px-6 md:px-8;
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-6 md:px-8;
   }
   .hairline {
     @apply border-line;
+  }
+
+  /* Reusable lift-on-hover treatment for cards/links across the site */
+  .surface-hover {
+    @apply transition-all duration-300 ease-smooth hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+
+  /* Thin, styled scrollbar for any horizontally-scrolling table wrapper */
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #C9852E transparent;
+  }
+  .scroll-thin::-webkit-scrollbar {
+    height: 6px;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background-color: #C9852E;
+    border-radius: 3px;
+  }
+  .scroll-thin::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
 
