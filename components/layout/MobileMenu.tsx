@@ -27,22 +27,24 @@ export function MobileMenu({
 
   return (
     <div
-      className={`fixed inset-0 z-50 xl:hidden transition-opacity duration-300 ${
+      className={`fixed inset-0 z-[100] xl:hidden transition-opacity duration-300 ${
         open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
       }`}
       aria-hidden={!open}
+      style={{ height: "100dvh" }}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-ink/40" onClick={onClose} />
 
-      {/* Slide-in panel — flex column, no manual height calc */}
+      {/* Slide-in panel */}
       <div
-        className={`absolute inset-y-0 right-0 flex h-full w-full max-w-sm flex-col bg-paper shadow-2xl transition-transform duration-300 ease-smooth ${
+        className={`absolute right-0 top-0 flex w-full max-w-sm flex-col bg-paper shadow-2xl transition-transform duration-300 ease-smooth ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
+        style={{ height: "100dvh" }}
       >
-        <div className="container-lab flex h-16 shrink-0 items-center justify-between border-b border-line">
-          <span className="font-display text-lg font-semibold">Lab Perminyakan</span>
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-line px-5">
+          <span className="font-display text-lg font-semibold text-ink">Lab Perminyakan</span>
           <button
             aria-label="Tutup menu"
             className="-mr-2 p-2 text-ink transition-colors hover:text-rig"
@@ -52,7 +54,7 @@ export function MobileMenu({
           </button>
         </div>
 
-        <nav className="container-lab flex flex-1 flex-col overflow-y-auto py-6">
+        <nav className="flex flex-1 flex-col overflow-y-auto px-5 py-6">
           {links.map((l, i) => (
             <Link
               key={l.href}
