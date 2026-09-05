@@ -55,6 +55,9 @@ export type NewsItem = {
   excerpt: string;
   content: string;
   coverImage?: string;
+  // Kalau diisi, item ini di-link langsung ke URL ini (mis. halaman panduan
+  // di Pengumuman) alih-alih ke halaman detail /news/[slug] miliknya sendiri.
+  externalHref?: string;
 };
 
 export type PracticumModule = {
