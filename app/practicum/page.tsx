@@ -1,95 +1,40 @@
-import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import { StatusBadge } from "@/components/dashboard/StatusBadge";
-import { getSession, getSessionToken } from "@/lib/auth/session";
-import { supabaseAuthed } from "@/lib/supabase/authed";
-import { PracticumRequest } from "@/types";
-import { formatDate } from "@/lib/utils";
-import { nonPraktikumLabel } from "@/lib/constants/kegiatan";
+import Link from "next/link";
 
-export const revalidate = 0;
+const links = [
+{ href: "/practicum/modules", label: "Modul Praktikum", desc: "Unduh modul untuk setiap laboratorium." },
+{ href: "/practicum/jadwal", label: "Jadwal Praktikum", desc: "Jadwal praktikum yang sudah disetujui admin, terupdate otomatis." },
+@@ -8,3 +10,34 @@ const accountLinks = [
+{ href: "/practicum/ajukan", label: "Ajukan Praktikum", desc: "Mahasiswa mengajukan jadwal kegiatan praktikum baru." },
+{ href: "/practicum/status", label: "Status Pengajuan", desc: "Pantau status pengajuan yang sudah kamu kirim." },
+];
 
-export default async function StatusPengajuanPage() {
-  const session = await getSession();
-  const token = getSessionToken();
-
-  let requests: PracticumRequest[] = [];
-  let loadError: string | null = null;
-
-  if (session && token) {
-    const supabase = supabaseAuthed(token);
-    const { data, error } = await supabase
-      .from("practicum_requests")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      loadError = "Gagal memuat data pengajuan.";
-    } else {
-      requests = (data as PracticumRequest[]) ?? [];
-    }
-  }
-
+export default function PracticumPage() {
   return (
-    <DashboardShell title="Status Pengajuan">
-      {loadError && <p className="text-sm text-red-700 mb-6">{loadError}</p>}
+    <div className="container-lab py-16">
+      <p className="eyebrow mb-3">Praktikum</p>
+      <h1 className="text-3xl md:text-4xl font-display font-semibold mb-10">Practicum</h1>
+      <div className="grid gap-6 sm:grid-cols-3 mb-16">
+        {links.map((l) => (
+          <Link key={l.href} href={l.href} className="border border-line p-6 hover:border-petrol transition-colors">
+            <p className="font-display text-lg font-semibold mb-2">{l.label}</p>
+            <p className="text-sm text-core">{l.desc}</p>
+          </Link>
+        ))}
+      </div>
 
-      {!loadError && requests.length === 0 && (
-        <p className="text-core text-sm">
-          Belum ada pengajuan kegiatan. Buat pengajuan baru lewat menu &ldquo;Ajukan Praktikum&rdquo;.
-        </p>
-      )}
-
-      {requests.length > 0 && (
-        <div className="overflow-x-auto border border-line">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-mist border-b border-line font-mono text-xs uppercase tracking-wide text-core">
-                <th className="text-left p-4">Jenis</th>
-                <th className="text-left p-4">Kegiatan</th>
-                <th className="text-left p-4">Jadwal</th>
-                <th className="text-left p-4">Status</th>
-                <th className="text-left p-4">Catatan Admin</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map((r) => (
-                <tr key={r.id} className="border-b border-line last:border-0">
-                  <td className="p-4 text-core">
-                    {r.jenis_kegiatan === "praktikum" ? "Praktikum" : "Non-Praktikum"}
-                  </td>
-                  <td className="p-4 text-ink font-medium">
-                    {r.jenis_kegiatan === "praktikum" ? (
-                      <>
-                        {r.praktikum_nama}
-                        <p className="text-xs text-core font-normal">
-                          {r.modul}
-                          {r.lokasi ? ` · ${r.lokasi}` : ""}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        {nonPraktikumLabel(r.kegiatan_non_praktikum)}
-                        {r.kegiatan_non_praktikum === "lainnya" && r.deskripsi_lainnya && (
-                          <p className="text-xs text-core font-normal">{r.deskripsi_lainnya}</p>
-                        )}
-                      </>
-                    )}
-                  </td>
-                  <td className="p-4 text-core font-mono whitespace-nowrap">
-                    {formatDate(r.tanggal)}
-                    <br />
-                    {r.jam_mulai}–{r.jam_selesai}
-                  </td>
-                  <td className="p-4">
-                    <StatusBadge status={r.status} />
-                  </td>
-                  <td className="p-4 text-core">{r.catatan_admin || "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </DashboardShell>
+      <h2 className="text-xl font-display font-semibold mb-2">Pengajuan Jadwal (Login SSO UNEJ)</h2>
+      <p className="text-sm text-core mb-6 max-w-xl">
+        Mahasiswa bisa mengajukan jadwal praktikum langsung lewat akun SISTER UNEJ,
+        yang kemudian ditinjau oleh admin laboratorium.
+      </p>
+      <div className="grid gap-6 sm:grid-cols-3">
+        {accountLinks.map((l) => (
+          <Link key={l.href} href={l.href} className="border border-line p-6 hover:border-petrol transition-colors">
+            <p className="font-display text-lg font-semibold mb-2">{l.label}</p>
+            <p className="text-sm text-core">{l.desc}</p>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }
