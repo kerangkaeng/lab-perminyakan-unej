@@ -3,7 +3,7 @@ import { AjukanForm } from "@/components/dashboard/AjukanForm";
 
 export default function AjukanPraktikumPage() {
   return (
-    <DashboardShell title="Ajukan Praktikum">
+    <DashboardShell title="Ajukan Kegiatan">
       <p className="text-core mb-8 max-w-xl">
         Isi form berikut untuk mengajukan jadwal kegiatan praktikum. Pengajuan
         akan ditinjau oleh admin laboratorium sebelum tampil di menu Jadwal.
