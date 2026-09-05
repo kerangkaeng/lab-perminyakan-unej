@@ -26,6 +26,9 @@ export const metadata: Metadata = {
   title: "Laboratorium Teknik Perminyakan",
   description:
     "Pusat pembelajaran, penelitian, dan pengembangan teknologi perminyakan.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default async function RootLayout({
