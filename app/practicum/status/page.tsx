@@ -1,5 +1,6 @@
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { CompletionButton } from "@/components/dashboard/CompletionButton";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { PracticumRequest } from "@/types";
@@ -48,6 +49,7 @@ export default async function StatusPengajuanPage() {
                 <th className="text-left p-4">Kegiatan</th>
                 <th className="text-left p-4">Jadwal</th>
                 <th className="text-left p-4">Status</th>
+                <th className="text-left p-4">Administrasi</th>
                 <th className="text-left p-4">Catatan Admin</th>
               </tr>
             </thead>
@@ -71,9 +73,7 @@ export default async function StatusPengajuanPage() {
                         )}
                       </>
                     )}
-                    {r.lokasi && (
-                      <p className="text-xs text-core font-normal">{r.lokasi}</p>
-                    )}
+                    {r.lokasi && <p className="text-xs text-core font-normal">{r.lokasi}</p>}
                   </td>
                   <td className="p-4 text-core font-mono whitespace-nowrap">
                     {formatDate(r.tanggal)}
@@ -82,6 +82,14 @@ export default async function StatusPengajuanPage() {
                   </td>
                   <td className="p-4">
                     <StatusBadge status={r.status} />
+                  </td>
+                  <td className="p-4">
+                    <CompletionButton
+                      requestId={r.id}
+                      jenisKegiatan={r.jenis_kegiatan}
+                      status={r.status}
+                      completed={r.completed}
+                    />
                   </td>
                   <td className="p-4 text-core">{r.catatan_admin || "-"}</td>
                 </tr>
