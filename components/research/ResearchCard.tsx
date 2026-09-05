@@ -4,17 +4,16 @@ import { Badge } from "@/components/ui/Badge";
 
 export function ResearchCard({ project }: { project: ResearchProject }) {
   return (
-    <Link
-      href={`/research/projects/${project.slug}`}
-      className="block border border-line bg-mist/40 p-6 surface-hover hover:border-petrol"
-    >
-      <div className="flex gap-2 mb-4 flex-wrap">
+    <Link href={`/research/projects/${project.slug}`} className="group surface-hover block border-b border-line pb-10">
+      <div className="mb-5 flex flex-wrap gap-2">
         <Badge>{project.field}</Badge>
         <Badge>{project.status}</Badge>
         <Badge>{project.year}</Badge>
       </div>
-      <h3 className="font-display text-lg font-semibold text-ink mb-2">{project.title}</h3>
-      <p className="text-sm text-core">{project.researcher}</p>
+      <h3 className="font-display text-2xl font-semibold text-ink transition-colors group-hover:text-rig">
+        {project.title}
+      </h3>
+      <p className="mt-3 text-sm text-core">{project.researcher}</p>
     </Link>
   );
 }
