@@ -98,7 +98,6 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
                     <>
                       <p className="text-ink font-medium">{r.praktikum_nama}</p>
                       <p className="text-xs">{r.modul}</p>
-                      {r.lokasi && <p className="text-xs">{r.lokasi}</p>}
                     </>
                   ) : (
                     <>
@@ -110,6 +109,7 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
                       )}
                     </>
                   )}
+                  {r.lokasi && <p className="text-xs">{r.lokasi}</p>}
                 </td>
                 <td className="p-4 text-core font-mono whitespace-nowrap">
                   {formatDate(r.tanggal)}
