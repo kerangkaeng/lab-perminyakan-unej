@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { news } from "@/data/news";
 import { formatDate } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ export function generateStaticParams() {
 export default function NewsDetailPage({ params }: { params: { slug: string } }) {
   const item = news.find((n) => n.slug === params.slug);
   if (!item) return notFound();
+  if (item.externalHref) redirect(item.externalHref);
 
   return (
     <article className="container-lab py-16 max-w-2xl">
