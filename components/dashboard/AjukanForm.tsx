@@ -35,13 +35,13 @@ export function AjukanForm() {
     if (jenis === "praktikum") {
       payload.praktikum_nama = data.get("praktikum_nama");
       payload.modul = data.get("modul");
-      payload.lokasi = data.get("lokasi");
     } else {
       payload.kegiatan_non_praktikum = data.get("kegiatan_non_praktikum");
       if (kegiatanNonPraktikum === "lainnya") {
         payload.deskripsi_lainnya = data.get("deskripsi_lainnya");
       }
     }
+    payload.lokasi = data.get("lokasi");
 
     const res = await fetch("/api/practicum/requests", {
       method: "POST",
@@ -134,22 +134,6 @@ export function AjukanForm() {
               className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
             />
           </div>
-
-          <div>
-            <label className="block text-xs font-mono uppercase text-core mb-1">Laboratorium</label>
-            <select
-              name="lokasi"
-              required
-              className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
-            >
-              <option value="">Pilih laboratorium</option>
-              {facilities.map((f) => (
-                <option key={f.slug} value={f.name}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-          </div>
         </>
       ) : (
         <>
@@ -189,6 +173,22 @@ export function AjukanForm() {
           )}
         </>
       )}
+
+      <div>
+        <label className="block text-xs font-mono uppercase text-core mb-1">Laboratorium</label>
+        <select
+          name="lokasi"
+          required
+          className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
+        >
+          <option value="">Pilih laboratorium</option>
+          {facilities.map((f) => (
+            <option key={f.slug} value={f.name}>
+              {f.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
