@@ -1,16 +1,20 @@
 import { researchers } from "@/data/research";
+import { CoverImage } from "@/components/ui/CoverImage";
 
 export default function ResearchersPage() {
   return (
-    <div className="container-lab py-16">
-      <p className="eyebrow mb-3">Research</p>
-      <h1 className="text-3xl md:text-4xl font-display font-semibold mb-10">Researchers</h1>
-      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="container-lab section-space">
+      <p className="eyebrow mb-4">Research</p>
+      <h1 className="mb-16 text-3xl font-display font-semibold sm:text-4xl md:text-5xl">Researchers</h1>
+      <div className="grid gap-x-10 gap-y-16 sm:grid-cols-2 lg:grid-cols-3">
         {researchers.map((r) => (
-          <div key={r.name} className="border border-line p-6">
-            <p className="font-display font-semibold text-ink">{r.name}</p>
+          <div key={r.name}>
+            <div className="relative mb-5 aspect-square overflow-hidden bg-mist">
+              <CoverImage src={r.photo} seed={r.name} alt={r.name} className="object-cover" />
+            </div>
+            <p className="font-display text-lg font-semibold text-ink">{r.name}</p>
             <p className="text-sm text-core">{r.role}</p>
-            <p className="text-xs text-rig font-mono mt-1">{r.field}</p>
+            <p className="mt-1 font-mono text-xs text-rig">{r.field}</p>
           </div>
         ))}
       </div>
