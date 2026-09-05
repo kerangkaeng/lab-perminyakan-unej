@@ -59,7 +59,7 @@ export function DocumentationViewer({ request, onClose }: { request: PracticumRe
                     {signed[slot.key]?.length ? (
                       <div className="flex flex-wrap gap-2">
                         {signed[slot.key].map((f) => (
-                          
+                          <a
                             key={f.path}
                             href={f.url}
                             target="_blank"
@@ -116,7 +116,7 @@ export function DocumentationViewer({ request, onClose }: { request: PracticumRe
                       <dd className="flex flex-wrap gap-2">
                         {signed["insiden_dokumentasi"]?.length ? (
                           signed["insiden_dokumentasi"].map((f) => (
-                            
+                            <a
                               key={f.path}
                               href={f.url}
                               target="_blank"
