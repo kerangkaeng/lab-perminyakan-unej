@@ -6,7 +6,8 @@ const announcements = [
     date: "2026-09-05",
     href: "/practicum/announcements/panduan-pengajuan-kegiatan",
   },
-  
+];
+
 export default function AnnouncementsPage() {
   return (
     <div className="container-lab py-16 max-w-2xl">
