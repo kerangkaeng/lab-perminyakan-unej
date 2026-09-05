@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { news } from "@/data/news";
 import { formatDate } from "@/lib/utils";
+import { CoverImage } from "@/components/ui/CoverImage";
 
 export function LatestNews() {
   return (
@@ -24,6 +25,14 @@ export function LatestNews() {
             href={`/news/${n.slug}`}
             className="group block transition-transform duration-500 hover:-translate-y-1"
           >
+            <div className="relative mb-5 aspect-[16/10] overflow-hidden bg-mist">
+              <CoverImage
+                src={n.coverImage}
+                seed={n.slug}
+                alt={n.title}
+                className="object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+            </div>
             <p className="font-mono text-xs text-core mb-3">{formatDate(n.date)}</p>
             <h3 className="font-display text-xl font-semibold leading-snug text-ink transition-colors group-hover:text-rig">
               {n.title}
