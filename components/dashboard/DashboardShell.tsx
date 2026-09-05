@@ -8,7 +8,7 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { href: "/practicum/ajukan", label: "Ajukan Praktikum", roles: ["mahasiswa", "admin"] },
+  { href: "/practicum/ajukan", label: "Ajukan Kegiatan", roles: ["mahasiswa", "admin"] },
   { href: "/practicum/status", label: "Status Pengajuan", roles: ["mahasiswa", "admin"] },
   { href: "/practicum/jadwal", label: "Jadwal", roles: ["public"] },
   { href: "/admin/practicum-requests", label: "Kelola Pengajuan", roles: ["admin"] },
