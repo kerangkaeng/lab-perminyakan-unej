@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { PracticumRequest } from "@/types";
 import { StatusBadge } from "./StatusBadge";
 import { formatDate } from "@/lib/utils";
+import { nonPraktikumLabel } from "@/lib/constants/kegiatan";
 
 export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] }) {
   const router = useRouter();
@@ -75,8 +76,8 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
           <thead>
             <tr className="bg-mist border-b border-line font-mono text-xs uppercase tracking-wide text-core">
               <th className="text-left p-4">Pengaju</th>
-              <th className="text-left p-4">Praktikum</th>
-              <th className="text-left p-4">Modul</th>
+              <th className="text-left p-4">Jenis</th>
+              <th className="text-left p-4">Kegiatan</th>
               <th className="text-left p-4">Jadwal</th>
               <th className="text-left p-4">Status</th>
               <th className="text-left p-4">Aksi</th>
@@ -89,8 +90,27 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
                   <p className="font-medium">{r.requester?.nama ?? "-"}</p>
                   <p className="text-xs text-core font-mono">{r.requester?.nim ?? "-"}</p>
                 </td>
-                <td className="p-4 text-core">{r.praktikum_nama}</td>
-                <td className="p-4 text-core">{r.modul}</td>
+                <td className="p-4 text-core">
+                  {r.jenis_kegiatan === "praktikum" ? "Praktikum" : "Non-Praktikum"}
+                </td>
+                <td className="p-4 text-core">
+                  {r.jenis_kegiatan === "praktikum" ? (
+                    <>
+                      <p className="text-ink font-medium">{r.praktikum_nama}</p>
+                      <p className="text-xs">{r.modul}</p>
+                      {r.lokasi && <p className="text-xs">{r.lokasi}</p>}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-ink font-medium">
+                        {nonPraktikumLabel(r.kegiatan_non_praktikum)}
+                      </p>
+                      {r.kegiatan_non_praktikum === "lainnya" && r.deskripsi_lainnya && (
+                        <p className="text-xs">{r.deskripsi_lainnya}</p>
+                      )}
+                    </>
+                  )}
+                </td>
                 <td className="p-4 text-core font-mono whitespace-nowrap">
                   {formatDate(r.tanggal)}
                   <br />
