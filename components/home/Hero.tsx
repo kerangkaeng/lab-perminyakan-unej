@@ -1,7 +1,5 @@
 import { Button } from "@/components/ui/Button";
 
-// Signature element: a vertical "wireline log" strip — the same kind of curve
-// read in the Well Logging Laboratory — standing in for the lab's core instrument.
 function LogStrip({ orientation = "vertical" }: { orientation?: "vertical" | "horizontal" }) {
   const bars = Array.from({ length: 40 });
   const viewBox = orientation === "vertical" ? "0 0 120 480" : "0 0 480 60";
@@ -31,44 +29,43 @@ function LogStrip({ orientation = "vertical" }: { orientation?: "vertical" | "ho
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden border-b border-line">
-      {/* Subtle horizontal log strip as a mobile/tablet accent, replaced by the full vertical strip on desktop */}
-      <div className="lg:hidden h-12 sm:h-14">
+    <section className="relative overflow-hidden">
+      <div className="lg:hidden h-10">
         <LogStrip orientation="horizontal" />
       </div>
 
-      <div className="container-lab grid gap-10 py-12 sm:py-16 md:py-20 lg:py-24 lg:grid-cols-[1fr_140px] lg:gap-16">
-        <div className="animate-fade-in-up">
-          <p className="eyebrow mb-4">Fakultas Teknik &middot; Program Studi Teknik Perminyakan</p>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-semibold leading-[1.05] text-ink max-w-3xl">
+      <div className="container-lab grid gap-16 pt-16 pb-24 sm:pt-24 sm:pb-32 lg:grid-cols-[1fr_120px] lg:items-start lg:pt-32 lg:pb-40">
+        <div className="animate-fade-in-up max-w-3xl">
+          <p className="eyebrow mb-6">Fakultas Teknik &middot; Program Studi Teknik Perminyakan</p>
+          <h1 className="text-[2.75rem] leading-[1.03] font-display font-semibold text-ink sm:text-6xl md:text-7xl">
             Laboratorium Teknik Perminyakan
           </h1>
-          <p className="mt-6 text-base sm:text-lg text-core max-w-xl leading-relaxed">
+          <p className="mt-8 max-w-xl text-lg text-core sm:text-xl">
             Pusat pembelajaran, penelitian, dan pengembangan teknologi perminyakan —
             dari analisis fluida reservoir hingga interpretasi log sumur.
           </p>
-          <div className="mt-9 flex flex-wrap gap-4">
+          <div className="mt-12 flex flex-wrap gap-4">
             <Button href="/facilities">Lihat Fasilitas</Button>
             <Button href="/contact" variant="outline">Hubungi Kami</Button>
           </div>
 
-          <dl className="mt-12 sm:mt-14 grid grid-cols-3 gap-4 sm:gap-6 max-w-md font-mono">
+          <dl className="mt-24 grid grid-cols-3 gap-8 sm:gap-14">
             <div>
-              <dt className="text-[10px] sm:text-xs text-core uppercase tracking-wide">Laboratorium</dt>
-              <dd className="text-xl sm:text-2xl text-petrol">7</dd>
+              <dd className="font-display text-4xl text-petrol sm:text-5xl">7</dd>
+              <dt className="mt-2 text-xs uppercase tracking-wide text-core">Laboratorium</dt>
             </div>
             <div>
-              <dt className="text-[10px] sm:text-xs text-core uppercase tracking-wide">Riset Aktif</dt>
-              <dd className="text-xl sm:text-2xl text-petrol">12+</dd>
+              <dd className="font-display text-4xl text-petrol sm:text-5xl">12+</dd>
+              <dt className="mt-2 text-xs uppercase tracking-wide text-core">Riset Aktif</dt>
             </div>
             <div>
-              <dt className="text-[10px] sm:text-xs text-core uppercase tracking-wide">Publikasi</dt>
-              <dd className="text-xl sm:text-2xl text-petrol">80+</dd>
+              <dd className="font-display text-4xl text-petrol sm:text-5xl">80+</dd>
+              <dt className="mt-2 text-xs uppercase tracking-wide text-core">Publikasi</dt>
             </div>
           </dl>
         </div>
 
-        <div className="hidden lg:block h-full min-h-[420px]">
+        <div className="hidden lg:block h-full min-h-[440px] self-stretch">
           <LogStrip orientation="vertical" />
         </div>
       </div>
