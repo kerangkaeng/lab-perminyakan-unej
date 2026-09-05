@@ -6,7 +6,7 @@ export function ResearchCard({ project }: { project: ResearchProject }) {
   return (
     <Link
       href={`/research/projects/${project.slug}`}
-      className="block border border-line p-6 hover:border-petrol transition-colors"
+      className="block border border-line bg-mist/40 p-6 surface-hover hover:border-petrol"
     >
       <div className="flex gap-2 mb-4 flex-wrap">
         <Badge>{project.field}</Badge>
