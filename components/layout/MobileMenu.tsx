@@ -33,35 +33,33 @@ export function MobileMenu({
       aria-hidden={!open}
     >
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Slide-in panel */}
+      {/* Slide-in panel — flex column, no manual height calc */}
       <div
-        className={`absolute inset-y-0 right-0 w-full max-w-sm bg-paper shadow-2xl transition-transform duration-300 ease-smooth ${
+        className={`absolute inset-y-0 right-0 flex h-full w-full max-w-sm flex-col bg-paper shadow-2xl transition-transform duration-300 ease-smooth ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="container-lab flex h-16 items-center justify-between border-b border-line">
+        <div className="container-lab flex h-16 shrink-0 items-center justify-between border-b border-line">
           <span className="font-display text-lg font-semibold">Lab Perminyakan</span>
           <button
             aria-label="Tutup menu"
-            className="p-2 -mr-2 text-ink hover:text-rig transition-colors"
+            className="-mr-2 p-2 text-ink transition-colors hover:text-rig"
             onClick={onClose}
           >
             <X size={22} />
           </button>
         </div>
-        <nav className="container-lab flex flex-col py-6 overflow-y-auto h-[calc(100%-4rem)]">
+
+        <nav className="container-lab flex flex-1 flex-col overflow-y-auto py-6">
           {links.map((l, i) => (
             <Link
               key={l.href}
               href={l.href}
               onClick={onClose}
               style={{ transitionDelay: open ? `${i * 30}ms` : "0ms" }}
-              className={`py-3.5 border-b border-line text-lg font-display transition-all duration-300 ${
+              className={`border-b border-line py-3.5 font-display text-lg text-ink transition-all duration-300 ${
                 open ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"
               }`}
             >
@@ -73,11 +71,11 @@ export function MobileMenu({
               <Link
                 href="/practicum/status"
                 onClick={onClose}
-                className="py-3.5 border-b border-line text-lg font-display"
+                className="border-b border-line py-3.5 font-display text-lg text-ink"
               >
                 Dashboard
               </Link>
-              <a href="/api/auth/logout" className="py-3.5 text-lg font-display text-core">
+              <a href="/api/auth/logout" className="py-3.5 font-display text-lg text-core">
                 Keluar
               </a>
             </>
@@ -85,7 +83,7 @@ export function MobileMenu({
             <Link
               href="/login"
               onClick={onClose}
-              className="mt-4 inline-flex justify-center bg-petrol text-paper py-3 text-lg font-display hover:bg-petrol-light transition-colors"
+              className="mt-4 inline-flex justify-center bg-petrol py-3 font-display text-lg text-paper transition-colors hover:bg-petrol-light"
             >
               Masuk
             </Link>
