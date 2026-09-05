@@ -86,12 +86,16 @@ export type UserRecord = {
 };
 
 export type PracticumRequestStatus = "pending" | "approved" | "rejected";
+export type JenisKegiatan = "praktikum" | "non_praktikum";
 
 export type PracticumRequest = {
   id: string;
   requester_id: string;
-  praktikum_nama: string;
-  modul: string;
+  jenis_kegiatan: JenisKegiatan;
+  praktikum_nama: string | null;
+  modul: string | null;
+  kegiatan_non_praktikum: string | null;
+  deskripsi_lainnya: string | null;
   tanggal: string;
   jam_mulai: string;
   jam_selesai: string;
