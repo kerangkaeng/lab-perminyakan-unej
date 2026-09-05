@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { Facility } from "@/types";
+import { CoverImage } from "@/components/ui/CoverImage";
 
 export function FacilityCard({ facility }: { facility: Facility }) {
   return (
     <Link href={`/facilities/${facility.slug}`} className="group surface-hover block">
-      <div className="aspect-[4/3] overflow-hidden bg-mist">
-        <span className="flex h-full items-center justify-center font-mono text-xs text-core transition-transform duration-700 group-hover:scale-110">
-          {facility.nameEn}
-        </span>
+      <div className="relative aspect-[4/3] overflow-hidden bg-mist">
+        <CoverImage
+          src={facility.coverImage}
+          seed={facility.slug}
+          alt={facility.name}
+          className="object-cover transition-transform duration-700 group-hover:scale-110"
+        />
       </div>
       <div className="border-b border-line pb-6 pt-5">
+        <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-core">{facility.nameEn}</p>
         <h3 className="font-display text-xl font-semibold text-ink transition-colors group-hover:text-rig">
           {facility.name}
         </h3>
