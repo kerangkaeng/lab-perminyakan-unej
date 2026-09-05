@@ -28,10 +28,15 @@ export async function GET(req: NextRequest) {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
+  // NB: skema `users` (lihat supabase/migrations/001_practicum_schema.sql)
+  // hanya punya kolom `nim` sebagai identifier unik — dipakai untuk mahasiswa
+  // maupun staf/laboran (nilai dari <cas:user>), tidak ada kolom terpisah
+  // `identifier`/`nip`. Kalau nanti perlu membedakan NIM vs NIP secara
+  // eksplisit, tambahkan kolom lewat migration baru dan sesuaikan di sini.
   const { data: existing, error: findError } = await admin
     .from("users")
-    .select("id, auth_uid, nim, nip, nama, role")
-    .eq("identifier", casUser.identifier)
+    .select("id, auth_uid, nim, nama, role")
+    .eq("nim", casUser.identifier)
     .maybeSingle();
 
   if (findError) {
@@ -40,7 +45,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  let userRow = existing as { id: string; auth_uid: string | null; nim: string | null; nip: string | null; nama: string; role: "mahasiswa" | "admin" } | null;
+  let userRow = existing as {
+    id: string;
+    auth_uid: string | null;
+    nim: string;
+    nama: string;
+    role: "mahasiswa" | "admin";
+  } | null;
 
   async function provisionAuthUser() {
     // auth.users dipakai murni sebagai sumber UUID stabil untuk auth_uid —
@@ -65,21 +76,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // Belum tahu ini mahasiswa atau laboran dari CAS saja (attribute release
-    // biasanya tidak membedakan jenis akun) — simpan sementara di `nim`.
-    // Admin bisa pindahkan ke `nip` manual lewat SQL saat promote jadi admin
-    // (lihat catatan promote-admin), murni untuk kerapian tampilan.
     const { data: inserted, error: insertError } = await admin
       .from("users")
       .insert({
         auth_uid: authUid,
-        identifier: casUser.identifier,
         nim: casUser.identifier,
         nama: casUser.nama || casUser.identifier,
         prodi: casUser.prodi ?? null,
         role: "mahasiswa",
       })
-      .select("id, auth_uid, nim, nip, nama, role")
+      .select("id, auth_uid, nim, nama, role")
       .single();
 
     if (insertError || !inserted) {
@@ -102,7 +108,7 @@ export async function GET(req: NextRequest) {
       .from("users")
       .update({ auth_uid: authUid })
       .eq("id", userRow.id)
-      .select("id, auth_uid, nim, nip, nama, role")
+      .select("id, auth_uid, nim, nama, role")
       .single();
 
     if (updateError || !updated) {
@@ -117,7 +123,7 @@ export async function GET(req: NextRequest) {
   const token = await createSessionToken({
     sub: userRow.auth_uid as string,
     usersId: userRow.id,
-    nim: userRow.nip || userRow.nim || casUser.identifier,
+    nim: userRow.nim,
     nama: userRow.nama,
     appRole: userRow.role,
   });
