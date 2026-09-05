@@ -1,7 +1,6 @@
 import { NewsItem } from "@/types";
 
 export const news: NewsItem[] = [
-  export const news: NewsItem[] = [
   {
     slug: "panduan-pengajuan-kegiatan",
     title: "Panduan Mengajukan Kegiatan (Praktikum & Non-Praktikum)",
