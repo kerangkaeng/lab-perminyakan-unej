@@ -137,7 +137,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const paths: string[] = (reqRow as any)[cat] ?? [];
     if (paths.length === 0) continue;
     const { data: signedUrls } = await supabase.storage.from(DOCS_BUCKET).createSignedUrls(paths, 3600);
-    signed[cat] = (signedUrls ?? []).map((s, i) => ({ path: paths[i], url: s.signedUrl }));
+    signed[cat] = (signedUrls ?? [])
+      .map((s, i) => ({ path: paths[i], url: s.signedUrl }))
+      .filter((s): s is { path: string; url: string } => !!s.url);
   }
 
   return NextResponse.json({ data: signed });
