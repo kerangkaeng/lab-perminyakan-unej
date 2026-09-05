@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PracticumRequest } from "@/types";
 import { StatusBadge } from "./StatusBadge";
+import { DocumentationViewer } from "./DocumentationViewer";
 import { formatDate } from "@/lib/utils";
 import { nonPraktikumLabel } from "@/lib/constants/kegiatan";
 
@@ -11,6 +12,7 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<PracticumRequest | null>(null);
 
   async function updateStatus(id: string, status: "approved" | "rejected") {
     setError(null);
@@ -80,6 +82,7 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
               <th className="text-left p-4">Kegiatan</th>
               <th className="text-left p-4">Jadwal</th>
               <th className="text-left p-4">Status</th>
+              <th className="text-left p-4">Administrasi</th>
               <th className="text-left p-4">Aksi</th>
             </tr>
           </thead>
@@ -120,6 +123,34 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
                   <StatusBadge status={r.status} />
                 </td>
                 <td className="p-4">
+                  {r.status !== "approved" ? (
+                    <span className="text-xs text-core">-</span>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <p
+                        className={`font-mono text-[11px] uppercase tracking-wide ${
+                          r.completed ? "text-petrol" : "text-core"
+                        }`}
+                      >
+                        {r.completed ? "Selesai" : "Belum selesai"}
+                      </p>
+                      {r.completed && r.ada_insiden && (
+                        <p className="font-mono text-[11px] uppercase tracking-wide text-red-700">
+                          Ada Insiden
+                        </p>
+                      )}
+                      {(r.completed || Object.keys(r).length > 0) && (
+                        <button
+                          onClick={() => setViewing(r)}
+                          className="text-xs text-petrol underline hover:text-rig"
+                        >
+                          Lihat Dokumentasi
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </td>
+                <td className="p-4">
                   <div className="flex gap-2 mb-1">
                     <button
                       disabled={loadingId === r.id || r.status === "approved"}
@@ -143,15 +174,15 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
                       Hapus
                     </button>
                   </div>
-                  {r.catatan_admin && (
-                    <p className="text-xs text-core">{r.catatan_admin}</p>
-                  )}
+                  {r.catatan_admin && <p className="text-xs text-core">{r.catatan_admin}</p>}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {viewing && <DocumentationViewer request={viewing} onClose={() => setViewing(null)} />}
     </div>
   );
 }
