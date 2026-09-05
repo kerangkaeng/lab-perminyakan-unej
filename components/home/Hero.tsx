@@ -51,7 +51,7 @@ export function Hero() {
 
           <dl className="mt-24 grid grid-cols-3 gap-8 sm:gap-14">
             <div>
-              <dd className="font-display text-4xl text-petrol sm:text-5xl">7</dd>
+              <dd className="font-display text-4xl text-petrol sm:text-5xl">3</dd>
               <dt className="mt-2 text-xs uppercase tracking-wide text-core">Laboratorium</dt>
             </div>
             <div>
