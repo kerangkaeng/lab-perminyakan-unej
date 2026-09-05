@@ -32,8 +32,8 @@ export async function POST(req: NextRequest) {
     jam_selesai,
   } = body ?? {};
 
-  if (!tanggal || !jam_mulai || !jam_selesai) {
-    return NextResponse.json({ error: "Mohon lengkapi tanggal dan jam kegiatan." }, { status: 400 });
+  if (!tanggal || !jam_mulai || !jam_selesai || !lokasi) {
+    return NextResponse.json({ error: "Mohon lengkapi tanggal, jam, dan laboratorium." }, { status: 400 });
   }
 
   if (jenis_kegiatan !== "praktikum" && jenis_kegiatan !== "non_praktikum") {
@@ -46,18 +46,18 @@ export async function POST(req: NextRequest) {
     tanggal,
     jam_mulai,
     jam_selesai,
+    lokasi,
   };
 
   if (jenis_kegiatan === "praktikum") {
-    if (!praktikum_nama || !modul || !lokasi) {
+    if (!praktikum_nama || !modul) {
       return NextResponse.json(
-        { error: "Mohon lengkapi praktikum, modul, dan laboratorium." },
+        { error: "Mohon lengkapi praktikum dan modul." },
         { status: 400 }
       );
     }
     insertPayload.praktikum_nama = praktikum_nama;
     insertPayload.modul = modul;
-    insertPayload.lokasi = lokasi;
   } else {
     if (!kegiatan_non_praktikum || !NON_PRAKTIKUM_VALUES.includes(kegiatan_non_praktikum)) {
       return NextResponse.json({ error: "Mohon pilih jenis kegiatan non-praktikum." }, { status: 400 });
