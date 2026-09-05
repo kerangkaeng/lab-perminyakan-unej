@@ -35,7 +35,7 @@ export default async function StatusPengajuanPage() {
 
       {!loadError && requests.length === 0 && (
         <p className="text-core text-sm">
-          Belum ada pengajuan kegiatan. Buat pengajuan baru lewat menu &ldquo;Ajukan Praktikum&rdquo;.
+          Belum ada pengajuan kegiatan. Buat pengajuan baru lewat menu &ldquo;Ajukan Kegiatan&rdquo;.
         </p>
       )}
 
@@ -61,10 +61,7 @@ export default async function StatusPengajuanPage() {
                     {r.jenis_kegiatan === "praktikum" ? (
                       <>
                         {r.praktikum_nama}
-                        <p className="text-xs text-core font-normal">
-                          {r.modul}
-                          {r.lokasi ? ` · ${r.lokasi}` : ""}
-                        </p>
+                        <p className="text-xs text-core font-normal">{r.modul}</p>
                       </>
                     ) : (
                       <>
@@ -73,6 +70,9 @@ export default async function StatusPengajuanPage() {
                           <p className="text-xs text-core font-normal">{r.deskripsi_lainnya}</p>
                         )}
                       </>
+                    )}
+                    {r.lokasi && (
+                      <p className="text-xs text-core font-normal">{r.lokasi}</p>
                     )}
                   </td>
                   <td className="p-4 text-core font-mono whitespace-nowrap">
