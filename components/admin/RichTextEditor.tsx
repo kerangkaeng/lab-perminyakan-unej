@@ -2,7 +2,6 @@
 
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import { useRef, useState } from "react";
@@ -18,6 +17,7 @@ import {
   Undo,
   Redo,
 } from "lucide-react";
+import { ResizableImage } from "./ResizableImage";
 
 export function RichTextEditor({
   value,
@@ -33,7 +33,7 @@ export function RichTextEditor({
     extensions: [
       StarterKit,
       Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-petrol underline" } }),
-      Image,
+      ResizableImage.configure({ inline: true }),
       Placeholder.configure({ placeholder: "Tulis isi berita di sini..." }),
     ],
     content: value,
@@ -124,6 +124,10 @@ export function RichTextEditor({
       </div>
 
       <EditorContent editor={editor} />
+
+      <p className="border-t border-line px-4 py-2 text-xs text-core">
+        Tips: klik gambar, lalu seret kotak amber di pojok kanan-bawah untuk mengubah ukurannya.
+      </p>
 
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageSelected} className="hidden" />
     </div>
