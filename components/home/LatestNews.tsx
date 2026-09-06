@@ -1,9 +1,20 @@
 import Link from "next/link";
-import { news } from "@/data/news";
+import { supabasePublic } from "@/lib/supabase/authed";
+import { NewsRecord } from "@/types";
 import { formatDate } from "@/lib/utils";
-import { CoverImage } from "@/components/ui/CoverImage";
 
-export function LatestNews() {
+export async function LatestNews() {
+  const supabase = supabasePublic();
+  const { data } = await supabase
+    .from("news")
+    .select("*")
+    .order("date", { ascending: false })
+    .limit(3);
+
+  const news = (data as NewsRecord[]) ?? [];
+
+  if (news.length === 0) return null;
+
   return (
     <section className="container-lab section-space border-t border-line">
       <div className="mb-14 flex flex-wrap items-end justify-between gap-6 sm:mb-20">
@@ -26,12 +37,11 @@ export function LatestNews() {
             className="group block transition-transform duration-500 hover:-translate-y-1"
           >
             <div className="relative mb-5 aspect-[16/10] overflow-hidden bg-mist">
-              <CoverImage
-                src={n.coverImage}
-                seed={n.slug}
-                alt={n.title}
-                className="object-cover transition-transform duration-700 group-hover:scale-105"
-              />
+              {n.cover_image ? (
+                <img src={n.cover_image} alt={n.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              ) : (
+                <div className="h-full w-full bg-mist" />
+              )}
             </div>
             <p className="font-mono text-xs text-core mb-3">{formatDate(n.date)}</p>
             <h3 className="font-display text-xl font-semibold leading-snug text-ink transition-colors group-hover:text-rig">
