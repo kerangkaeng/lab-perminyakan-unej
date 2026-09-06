@@ -2,15 +2,22 @@ import { notFound } from "next/navigation";
 import { supabasePublic } from "@/lib/supabase/authed";
 import { NewsRecord } from "@/types";
 import { formatDate } from "@/lib/utils";
+import { AlurPengajuanDiagram } from "@/components/AlurPengajuanDiagram";
 
 export const revalidate = 0;
+
+const DIAGRAM_SLUG = "panduan-pengajuan-kegiatan-praktikum-dan-non-praktikum";
+const DIAGRAM_IMG_REGEX =
+  /<img[^>]*src="https:\/\/vktlrrnfvuupqjoigsae\.supabase\.co\/storage\/v1\/object\/public\/content-images\/news\/inline\/1788702624371-86f06s\.png"[^>]*>/;
 
 export default async function NewsDetailPage({ params }: { params: { slug: string } }) {
   const supabase = supabasePublic();
   const { data } = await supabase.from("news").select("*").eq("slug", params.slug).single();
-
   if (!data) return notFound();
   const item = data as NewsRecord;
+
+  const shouldInjectDiagram = params.slug === DIAGRAM_SLUG && DIAGRAM_IMG_REGEX.test(item.content);
+  const contentParts = shouldInjectDiagram ? item.content.split(DIAGRAM_IMG_REGEX) : [item.content];
 
   return (
     <article className="container-lab section-space">
@@ -22,7 +29,18 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
       <div className="max-w-2xl">
         <p className="font-mono text-xs text-core mb-3">{formatDate(item.date)}</p>
         <h1 className="mb-8 text-3xl font-display font-semibold sm:text-4xl md:text-5xl">{item.title}</h1>
-        <div className="prose-news" dangerouslySetInnerHTML={{ __html: item.content }} />
+
+        {shouldInjectDiagram ? (
+          <>
+            <div className="prose-news" dangerouslySetInnerHTML={{ __html: contentParts[0] }} />
+            <div className="my-10">
+              <AlurPengajuanDiagram />
+            </div>
+            <div className="prose-news" dangerouslySetInnerHTML={{ __html: contentParts[1] }} />
+          </>
+        ) : (
+          <div className="prose-news" dangerouslySetInnerHTML={{ __html: item.content }} />
+        )}
       </div>
     </article>
   );
