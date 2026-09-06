@@ -36,7 +36,9 @@ export function Hero() {
 
       <div className="container-lab grid gap-16 pt-16 pb-24 sm:pt-24 sm:pb-32 lg:grid-cols-[1fr_120px] lg:items-start lg:pt-32 lg:pb-40">
         <div className="animate-fade-in-up max-w-3xl">
-          <p className="eyebrow mb-6">Fakultas Teknik &middot; Program Studi Teknik Perminyakan</p>
+          <p className="eyebrow mb-6">
+            Universitas Jember &middot; Fakultas Teknik &middot; Program Studi Teknik Perminyakan
+          </p>
           <h1 className="text-[2.75rem] leading-[1.03] font-display font-semibold text-ink sm:text-6xl md:text-7xl">
             Laboratorium Teknik Perminyakan
           </h1>
