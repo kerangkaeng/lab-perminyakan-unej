@@ -2,13 +2,13 @@ import { Facility } from "@/types";
 
 export const facilities: Facility[] = [
   {
-    slug: "fluida-reservoir-laboratory",
-    name: "Laboratorium Fluida Reservoir",
-    nameEn: "Reservoir Fluid Laboratory",
-    shortDescription: "Analisis perilaku fasa dan sifat fluida reservoir pada berbagai tekanan dan temperatur.",
+    slug: "reservoir-laboratory",
+    name: "Laboratorium Reservoir",
+    nameEn: "Reservoir Laboratory",
+    shortDescription: "Analisis perilaku fasa fluida reservoir serta karakterisasi sedimentologi dan stratigrafi batuan reservoir.",
     description:
-      "Laboratorium Fluida Reservoir digunakan untuk mengkarakterisasi sifat fisik fluida reservoir seperti minyak, gas, dan air formasi pada kondisi tekanan dan temperatur reservoir. Data ini menjadi dasar untuk simulasi reservoir dan perhitungan cadangan.",
-    coverImage: "/images/facilities/fluida-reservoir.jpg",
+      "Laboratorium Reservoir digunakan untuk mengkarakterisasi sifat fisik fluida reservoir seperti minyak, gas, dan air formasi pada kondisi tekanan dan temperatur reservoir, sekaligus mempelajari proses sedimentasi dan susunan stratigrafi batuan sebagai dasar interpretasi karakteristik reservoir. Data ini menjadi dasar untuk simulasi reservoir dan perhitungan cadangan.",
+    coverImage: "/images/facilities/reservoir.jpg",
     equipment: [
       {
         name: "PVT Cell Apparatus",
@@ -21,7 +21,7 @@ export const facilities: Facility[] = [
         function: "Mengontrol tekanan sel PVT secara presisi",
       },
     ],
-    modules: ["Praktikum Fluida Reservoir"],
+    modules: ["Praktikum Fluida Reservoir", "Praktikum Sedimentologi dan Stratigrafi"],
   },
   {
     slug: "petrofisik-laboratory",
