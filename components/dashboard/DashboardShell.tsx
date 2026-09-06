@@ -12,6 +12,7 @@ const navItems: NavItem[] = [
   { href: "/practicum/status", label: "Status Pengajuan", roles: ["mahasiswa", "admin"] },
   { href: "/practicum/jadwal", label: "Jadwal", roles: ["public"] },
   { href: "/admin/practicum-requests", label: "Kelola Pengajuan", roles: ["admin"] },
+  { href: "/admin/news", label: "Kelola Berita", roles: ["admin"] },
 ];
 
 export async function DashboardShell({
