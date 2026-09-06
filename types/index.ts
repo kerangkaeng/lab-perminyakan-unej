@@ -55,7 +55,7 @@ export type NewsItem = {
   excerpt: string;
   content: string;
   coverImage?: string;
-  externalHref?: string; // tambahan: link ke sumber/pengumuman eksternal, kalau ada
+  externalHref?: string;
 };
 
 export type PracticumModule = {
@@ -88,6 +88,7 @@ export type UserRecord = {
 
 export type PracticumRequestStatus = "pending" | "approved" | "rejected";
 export type JenisKegiatan = "praktikum" | "non_praktikum";
+export type IncidentType = "rusak_pecah" | "hilang" | "tumpah" | "lainnya";
 
 export type PracticumRequest = {
   id: string;
@@ -108,6 +109,23 @@ export type PracticumRequest = {
   created_at: string;
   // hanya terisi saat di-join oleh admin (lihat AdminRequestsTable)
   requester?: { nama: string; nim: string; prodi: string | null } | null;
+
+  // ---- Administrasi penyelesaian kegiatan ----
+  completed: boolean;
+  completed_at: string | null;
+  doc_pretest: string[] | null;
+  doc_tes_alat: string[] | null;
+  doc_praktikum: string[] | null;
+  doc_kegiatan: string[] | null;
+  ada_insiden: boolean;
+  insiden_jenis: IncidentType | null;
+  insiden_jenis_lainnya: string | null;
+  insiden_nama_alat: string | null;
+  insiden_jumlah: string | null;
+  insiden_penyebab: string | null;
+  insiden_pihak_terkait: string | null;
+  insiden_dokumentasi: string[] | null;
+  insiden_tanggung_jawab: string | null;
 };
 
 // ---- Supabase-backed types (Tahap 2: News CMS) ----
