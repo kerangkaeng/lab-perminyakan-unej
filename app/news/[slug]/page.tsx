@@ -13,15 +13,17 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
   const item = data as NewsRecord;
 
   return (
-    <article className="container-lab section-space max-w-2xl">
+    <article className="container-lab section-space">
       {item.cover_image && (
         <div className="relative mb-10 aspect-[16/9] overflow-hidden bg-mist">
           <img src={item.cover_image} alt={item.title} className="h-full w-full object-contain" />
         </div>
       )}
-      <p className="font-mono text-xs text-core mb-3">{formatDate(item.date)}</p>
-      <h1 className="mb-8 text-3xl font-display font-semibold sm:text-4xl md:text-5xl">{item.title}</h1>
-      <div className="prose-news" dangerouslySetInnerHTML={{ __html: item.content }} />
+      <div className="max-w-2xl">
+        <p className="font-mono text-xs text-core mb-3">{formatDate(item.date)}</p>
+        <h1 className="mb-8 text-3xl font-display font-semibold sm:text-4xl md:text-5xl">{item.title}</h1>
+        <div className="prose-news" dangerouslySetInnerHTML={{ __html: item.content }} />
+      </div>
     </article>
   );
 }
