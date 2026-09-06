@@ -21,7 +21,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
       )}
       <p className="font-mono text-xs text-core mb-3">{formatDate(item.date)}</p>
       <h1 className="mb-8 text-3xl font-display font-semibold sm:text-4xl md:text-5xl">{item.title}</h1>
-      <p className="text-core leading-relaxed whitespace-pre-line">{item.content}</p>
+      <div className="prose-news" dangerouslySetInnerHTML={{ __html: item.content }} />
     </article>
   );
 }
