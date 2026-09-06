@@ -16,7 +16,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
     <article className="container-lab section-space max-w-2xl">
       {item.cover_image && (
         <div className="relative mb-10 aspect-[16/9] overflow-hidden bg-mist">
-          <img src={item.cover_image} alt={item.title} className="h-full w-full object-cover" />
+          <img src={item.cover_image} alt={item.title} className="h-full w-full object-contain" />
         </div>
       )}
       <p className="font-mono text-xs text-core mb-3">{formatDate(item.date)}</p>
