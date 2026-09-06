@@ -1,13 +1,37 @@
 import Link from "next/link";
-import { researchAreas, researchProjects } from "@/data/research";
+import { supabasePublic } from "@/lib/supabase/authed";
 import { ResearchCard } from "@/components/research/ResearchCard";
+import { ResearchArea, ResearchProject } from "@/types";
 
-export default function ResearchPage() {
+export const revalidate = 0;
+
+function mapProject(row: any): ResearchProject {
+  return {
+    slug: row.slug,
+    title: row.title,
+    researcher: row.researcher,
+    year: row.year,
+    field: row.field,
+    status: row.status_project,
+    abstract: row.abstract,
+  };
+}
+
+export default async function ResearchPage() {
+  const supabase = supabasePublic();
+
+  const [{ data: areasData }, { data: projectsData }] = await Promise.all([
+    supabase.from("research_areas").select("*").eq("status", "published").order("name"),
+    supabase.from("research_projects").select("*").eq("status", "published").order("year", { ascending: false }),
+  ]);
+
+  const researchAreas = (areasData ?? []) as ResearchArea[];
+  const researchProjects = (projectsData ?? []).map(mapProject);
+
   return (
     <div className="container-lab py-16">
       <p className="eyebrow mb-3">Research</p>
       <h1 className="text-3xl md:text-4xl font-display font-semibold mb-10">Research Areas</h1>
-
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-16">
         {researchAreas.map((a) => (
           <div key={a.slug} className="border-t-2 border-rig pt-4">
@@ -16,7 +40,6 @@ export default function ResearchPage() {
           </div>
         ))}
       </div>
-
       <div className="flex items-end justify-between mb-8">
         <h2 className="text-2xl font-display font-semibold">Research Projects</h2>
         <Link href="/research/researchers" className="text-sm text-petrol hover:text-rig">
