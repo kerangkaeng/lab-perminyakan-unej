@@ -1,7 +1,18 @@
-import { publications } from "@/data/publications";
+import { supabasePublic } from "@/lib/supabase/authed";
 import { PublicationTable } from "@/components/publications/PublicationTable";
+import { Publication } from "@/types";
 
-export default function PublicationsPage() {
+export const revalidate = 0;
+
+export default async function PublicationsPage() {
+  const supabase = supabasePublic();
+  const { data } = await supabase
+    .from("publications")
+    .select("*")
+    .eq("status", "published")
+    .order("year", { ascending: false });
+  const publications = (data ?? []) as Publication[];
+
   return (
     <div className="container-lab py-16">
       <p className="eyebrow mb-3">Publications</p>
