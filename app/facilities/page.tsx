@@ -1,7 +1,31 @@
-import { facilities } from "@/data/facilities";
+import { supabasePublic } from "@/lib/supabase/authed";
 import { FacilityCard } from "@/components/facilities/FacilityCard";
+import { Facility } from "@/types";
 
-export default function FacilitiesPage() {
+export const revalidate = 0;
+
+function mapFacility(row: any): Facility {
+  return {
+    slug: row.slug,
+    name: row.name,
+    nameEn: row.name_en,
+    shortDescription: row.short_description,
+    description: row.description,
+    coverImage: row.cover_image,
+    equipment: row.equipment ?? [],
+    modules: row.modules ?? undefined,
+  };
+}
+
+export default async function FacilitiesPage() {
+  const supabase = supabasePublic();
+  const { data } = await supabase
+    .from("facilities")
+    .select("*")
+    .eq("status", "published")
+    .order("name", { ascending: true });
+  const facilities = (data ?? []).map(mapFacility);
+
   return (
     <div className="container-lab py-16">
       <p className="eyebrow mb-3">Fasilitas Laboratorium</p>
