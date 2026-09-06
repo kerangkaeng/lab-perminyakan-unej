@@ -28,7 +28,7 @@ export default async function NewsPage() {
           <Link key={n.slug} href={`/news/${n.slug}`} className="group block">
             <div className="relative mb-5 aspect-[16/10] overflow-hidden bg-mist">
               {n.cover_image && (
-                <img src={n.cover_image} alt={n.title} className="h-full w-full object-cover" />
+                <img src={n.cover_image} alt={n.title} className="h-full w-full object-contain" />
               )}
             </div>
             <p className="font-mono text-xs text-core mb-3">{formatDate(n.date)}</p>
