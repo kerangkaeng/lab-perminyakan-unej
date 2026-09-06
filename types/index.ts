@@ -55,6 +55,7 @@ export type NewsItem = {
   excerpt: string;
   content: string;
   coverImage?: string;
+  externalHref?: string; // tambahan: link ke sumber/pengumuman eksternal, kalau ada
 };
 
 export type PracticumModule = {
