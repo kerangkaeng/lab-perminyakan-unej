@@ -138,6 +138,7 @@ export type NewsRecord = {
   excerpt: string;
   content: string;
   cover_image: string | null;
+  status: "draft" | "published"; // <-- tambahan ini
   created_by: string | null;
   created_at: string;
   updated_at: string;
