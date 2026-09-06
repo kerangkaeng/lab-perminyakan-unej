@@ -1,4 +1,4 @@
-  import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { slugify } from "@/lib/utils";
@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
   const date = form?.get("date");
   const excerpt = form?.get("excerpt");
   const content = form?.get("content");
+  const status = form?.get("status") === "published" ? "published" : "draft";
   const file = form?.get("cover_image");
 
   if (
@@ -30,7 +31,6 @@ export async function POST(req: NextRequest) {
 
   const supabase = supabaseAuthed(token);
 
-  // Buat slug unik dari judul — kalau sudah dipakai, tambahkan angka di belakang.
   const baseSlug = slugify(title);
   let slug = baseSlug;
   let suffix = 1;
@@ -66,7 +66,8 @@ export async function POST(req: NextRequest) {
       title: title.trim(),
       date,
       excerpt: excerpt.trim(),
-      content: content.trim(),
+      content,
+      status,
       cover_image: coverImageUrl,
       created_by: session.usersId,
     })
