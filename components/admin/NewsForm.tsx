@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { RichTextEditor } from "./RichTextEditor";
 import { NewsRecord } from "@/types";
 
 type Props = {
@@ -17,25 +19,25 @@ export function NewsForm({ mode, initial }: Props) {
   const [excerpt, setExcerpt] = useState(initial?.excerpt ?? "");
   const [content, setContent] = useState(initial?.content ?? "");
   const [file, setFile] = useState<File | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState<"draft" | "published" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(status: "draft" | "published") {
     setError(null);
-    setSubmitting(true);
+    setSubmitting(status);
 
     const form = new FormData();
     form.append("title", title);
     form.append("date", date);
     form.append("excerpt", excerpt);
     form.append("content", content);
+    form.append("status", status);
     if (file) form.append("cover_image", file);
 
     const url = mode === "create" ? "/api/admin/news" : `/api/admin/news/${initial!.id}`;
     const res = await fetch(url, { method: mode === "create" ? "POST" : "PATCH", body: form });
 
-    setSubmitting(false);
+    setSubmitting(null);
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -43,13 +45,29 @@ export function NewsForm({ mode, initial }: Props) {
       return;
     }
 
-    router.push("/admin/news");
+    const body = await res.json();
+    const slug = body?.data?.slug ?? initial?.slug;
+
+    if (status === "draft" && slug) {
+      router.push(`/news/${slug}/preview`);
+    } else {
+      router.push("/admin/news");
+    }
     router.refresh();
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl space-y-5">
+    <div className="max-w-2xl space-y-5">
       {error && <p className="text-sm text-red-700 border border-red-300 bg-red-50 px-4 py-3">{error}</p>}
+
+      {initial?.status === "draft" && (
+        <p className="border border-rig/40 bg-rig/10 px-4 py-3 text-sm text-ink">
+          Status: <span className="font-mono uppercase text-rig">Draft</span> — belum tayang di halaman publik.{" "}
+          <Link href={`/news/${initial.slug}/preview`} className="underline hover:text-rig">
+            Lihat preview
+          </Link>
+        </p>
+      )}
 
       <div>
         <label className="mb-1.5 block text-sm text-ink">Judul</label>
@@ -85,13 +103,7 @@ export function NewsForm({ mode, initial }: Props) {
 
       <div>
         <label className="mb-1.5 block text-sm text-ink">Isi Berita</label>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          required
-          rows={8}
-          className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
-        />
+        <RichTextEditor value={content} onChange={setContent} />
       </div>
 
       <div>
@@ -109,9 +121,14 @@ export function NewsForm({ mode, initial }: Props) {
         />
       </div>
 
-      <Button type="submit">
-        {submitting ? "Menyimpan..." : mode === "create" ? "Publikasikan Berita" : "Simpan Perubahan"}
-      </Button>
-    </form>
+      <div className="flex flex-wrap gap-3 pt-2">
+        <Button type="button" variant="outline" onClick={() => submit("draft")}>
+          {submitting === "draft" ? "Menyimpan..." : "Simpan sebagai Draft"}
+        </Button>
+        <Button type="button" onClick={() => submit("published")}>
+          {submitting === "published" ? "Menyimpan..." : "Publikasikan"}
+        </Button>
+      </div>
+    </div>
   );
 }
