@@ -16,6 +16,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const date = form?.get("date");
   const excerpt = form?.get("excerpt");
   const content = form?.get("content");
+  const status = form?.get("status") === "published" ? "published" : "draft";
   const file = form?.get("cover_image");
 
   if (
@@ -33,7 +34,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     title: title.trim(),
     date,
     excerpt: excerpt.trim(),
-    content: content.trim(),
+    content,
+    status,
     updated_at: new Date().toISOString(),
   };
 
