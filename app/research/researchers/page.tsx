@@ -1,7 +1,18 @@
-import { researchers } from "@/data/research";
+import { supabasePublic } from "@/lib/supabase/authed";
 import { CoverImage } from "@/components/ui/CoverImage";
+import { Researcher } from "@/types";
 
-export default function ResearchersPage() {
+export const revalidate = 0;
+
+export default async function ResearchersPage() {
+  const supabase = supabasePublic();
+  const { data } = await supabase
+    .from("researchers")
+    .select("*")
+    .eq("status", "published")
+    .order("name", { ascending: true });
+  const researchers = (data ?? []) as Researcher[];
+
   return (
     <div className="container-lab section-space">
       <p className="eyebrow mb-4">Research</p>
