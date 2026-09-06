@@ -7,8 +7,6 @@ import { AlurPengajuanDiagram } from "@/components/AlurPengajuanDiagram";
 export const revalidate = 0;
 
 const DIAGRAM_SLUG = "panduan-pengajuan-kegiatan-praktikum-dan-non-praktikum";
-const DIAGRAM_IMG_REGEX =
-  /<img[^>]*src="https:\/\/vktlrrnfvuupqjoigsae\.supabase\.co\/storage\/v1\/object\/public\/content-images\/news\/inline\/1788702624371-86f06s\.png"[^>]*>/;
 
 export default async function NewsDetailPage({ params }: { params: { slug: string } }) {
   const supabase = supabasePublic();
@@ -16,8 +14,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
   if (!data) return notFound();
   const item = data as NewsRecord;
 
-  const shouldInjectDiagram = params.slug === DIAGRAM_SLUG && DIAGRAM_IMG_REGEX.test(item.content);
-  const contentParts = shouldInjectDiagram ? item.content.split(DIAGRAM_IMG_REGEX) : [item.content];
+  const showDiagram = params.slug === DIAGRAM_SLUG;
 
   return (
     <article className="container-lab section-space">
@@ -30,16 +27,12 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
         <p className="font-mono text-xs text-core mb-3">{formatDate(item.date)}</p>
         <h1 className="mb-8 text-3xl font-display font-semibold sm:text-4xl md:text-5xl">{item.title}</h1>
 
-        {shouldInjectDiagram ? (
-          <>
-            <div className="prose-news" dangerouslySetInnerHTML={{ __html: contentParts[0] }} />
-            <div className="my-10">
-              <AlurPengajuanDiagram />
-            </div>
-            <div className="prose-news" dangerouslySetInnerHTML={{ __html: contentParts[1] }} />
-          </>
-        ) : (
-          <div className="prose-news" dangerouslySetInnerHTML={{ __html: item.content }} />
+        <div className="prose-news" dangerouslySetInnerHTML={{ __html: item.content }} />
+
+        {showDiagram && (
+          <div className="my-10">
+            <AlurPengajuanDiagram />
+          </div>
         )}
       </div>
     </article>
