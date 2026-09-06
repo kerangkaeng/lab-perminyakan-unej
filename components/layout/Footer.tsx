@@ -8,7 +8,7 @@ export function Footer() {
         <div>
           <p className="font-display text-lg font-semibold text-ink">Laboratorium Teknik Perminyakan</p>
           <p className="mt-2 text-sm text-core max-w-xs leading-relaxed">
-            Pusat pembelajaran, penelitian, dan pengembangan teknologi perminyakan.
+            Program Studi Teknik Perminyakan, Fakultas Teknik, Universitas Jember.
           </p>
         </div>
 
@@ -27,22 +27,30 @@ export function Footer() {
           <ul className="space-y-3 text-sm text-core">
             <li className="flex items-start gap-2.5">
               <MapPin size={16} className="shrink-0 mt-0.5 text-rig" />
-              <span>Gedung Teknik Perminyakan, Kampus</span>
+              <span>
+                Jalan Kalimantan No. 37 – Kampus Tegalboto, Kotak Pos 159,
+                <br />
+                Jember, Jawa Timur 68121, Indonesia
+              </span>
             </li>
-            <li className="flex items-center gap-2.5">
-              <Mail size={16} className="shrink-0 text-rig" />
-              <span className="break-all">lab.perminyakan@kampus.ac.id</span>
+            <li className="flex items-start gap-2.5">
+              <Mail size={16} className="shrink-0 mt-0.5 text-rig" />
+              <span className="break-all">
+                laboratoriumteknikperminyakan@gmail.com
+                <br />
+                laboratoriumperminyakan@gmail.com
+              </span>
             </li>
             <li className="flex items-center gap-2.5">
               <Phone size={16} className="shrink-0 text-rig" />
-              <span>+62 xxx-xxxx-xxxx</span>
+              <span>+62 895-1262-1454</span>
             </li>
           </ul>
         </div>
       </div>
       <div className="border-t border-line">
         <div className="container-lab py-4 text-xs text-core font-mono text-center sm:text-left">
-          © {new Date().getFullYear()} Laboratorium Teknik Perminyakan. All rights reserved.
+          © {new Date().getFullYear()} Laboratorium Teknik Perminyakan, Fakultas Teknik, Universitas Jember. All rights reserved.
         </div>
       </div>
     </footer>
