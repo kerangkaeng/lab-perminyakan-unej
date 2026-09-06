@@ -37,12 +37,10 @@
     @apply border-line;
   }
 
-  /* Generous, consistent vertical rhythm between major sections */
   .section-space {
     @apply py-20 sm:py-28 lg:py-32;
   }
 
-  /* Section heading pattern: small eyebrow + large serif title, lots of air below */
   .section-heading {
     @apply mb-14 sm:mb-20 max-w-2xl;
   }
@@ -64,6 +62,46 @@
   }
   .scroll-thin::-webkit-scrollbar-track {
     background: transparent;
+  }
+
+  /* Styling konten hasil rich text editor (Tiptap) — dipakai di
+     halaman detail berita & preview */
+  .prose-news {
+    @apply text-core leading-relaxed;
+  }
+  .prose-news p {
+    @apply mb-4;
+  }
+  .prose-news h2 {
+    @apply mt-8 mb-3 font-display text-xl font-semibold text-ink sm:text-2xl;
+  }
+  .prose-news ul {
+    @apply mb-4 ml-5 list-disc space-y-1;
+  }
+  .prose-news ol {
+    @apply mb-4 ml-5 list-decimal space-y-1;
+  }
+  .prose-news blockquote {
+    @apply my-5 border-l-2 border-rig pl-4 italic text-ink;
+  }
+  .prose-news a {
+    @apply text-petrol underline hover:text-rig;
+  }
+  .prose-news img {
+    @apply my-6 w-full;
+  }
+  .prose-news strong {
+    @apply text-ink font-semibold;
+  }
+
+  /* Styling area ketik di dalam RichTextEditor admin, biar konsisten
+     dengan tampilan preview/halaman publik */
+  .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: theme("colors.core");
+    pointer-events: none;
+    height: 0;
   }
 }
 
