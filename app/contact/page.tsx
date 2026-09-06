@@ -3,15 +3,19 @@ export default function ContactPage() {
     <div className="container-lab py-16 grid gap-12 md:grid-cols-2">
       <div>
         <p className="eyebrow mb-3">Contact</p>
-        <h1 className="text-3xl md:text-4xl font-display font-semibold mb-6">Hubungi Kami</h1>
+        <h1 className="text-3xl md:text-4xl font-display font-semibold mb-2">Hubungi Kami</h1>
+        <p className="text-sm text-core font-mono mb-6">
+          Program Studi Teknik Perminyakan, Fakultas Teknik, Universitas Jember
+        </p>
         <p className="text-core mb-8">
           Untuk pertanyaan seputar praktikum, kerja sama riset, atau kunjungan
           laboratorium, silakan hubungi kami melalui form berikut.
         </p>
         <ul className="text-sm text-core space-y-2 font-mono">
-          <li>lab.perminyakan@kampus.ac.id</li>
-          <li>+62 xxx-xxxx-xxxx</li>
-          <li>Gedung Teknik Perminyakan, Kampus</li>
+          <li>Jalan Kalimantan No. 37 – Kampus Tegalboto, Kotak Pos 159, Jember, Jawa Timur 68121, Indonesia</li>
+          <li>+62 895-1262-1454</li>
+          <li>laboratoriumteknikperminyakan@gmail.com</li>
+          <li>laboratoriumperminyakan@gmail.com</li>
         </ul>
       </div>
 
