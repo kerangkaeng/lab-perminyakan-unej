@@ -9,6 +9,21 @@ import { Button } from "@/components/ui/Button";
 
 export const revalidate = 0;
 
+function NewsStatusBadge({ status }: { status: NewsRecord["status"] }) {
+  if (status === "published") {
+    return (
+      <span className="font-mono text-[11px] uppercase tracking-wide text-petrol border border-petrol px-2 py-0.5 whitespace-nowrap">
+        Published
+      </span>
+    );
+  }
+  return (
+    <span className="font-mono text-[11px] uppercase tracking-wide text-rig border border-rig px-2 py-0.5 whitespace-nowrap">
+      Draft
+    </span>
+  );
+}
+
 export default async function AdminNewsPage() {
   const token = getSessionToken();
   let items: NewsRecord[] = [];
@@ -40,6 +55,7 @@ export default async function AdminNewsPage() {
               <tr className="bg-mist border-b border-line font-mono text-xs uppercase tracking-wide text-core">
                 <th className="text-left p-4">Tanggal</th>
                 <th className="text-left p-4">Judul</th>
+                <th className="text-left p-4">Status</th>
                 <th className="text-left p-4">Aksi</th>
               </tr>
             </thead>
@@ -52,9 +68,19 @@ export default async function AdminNewsPage() {
                     <p className="text-xs text-core font-normal font-mono">/{n.slug}</p>
                   </td>
                   <td className="p-4">
-                    <div className="flex gap-3 items-center">
+                    <NewsStatusBadge status={n.status} />
+                  </td>
+                  <td className="p-4">
+                    <div className="flex gap-3 items-center flex-wrap">
                       <Link href={`/admin/news/${n.id}/edit`} className="text-xs text-petrol underline hover:text-rig">
                         Edit
+                      </Link>
+                      <Link
+                        href={n.status === "draft" ? `/news/${n.slug}/preview` : `/news/${n.slug}`}
+                        target="_blank"
+                        className="text-xs text-core underline hover:text-rig"
+                      >
+                        Lihat
                       </Link>
                       <NewsListActions id={n.id} />
                     </div>
