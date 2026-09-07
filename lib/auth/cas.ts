@@ -49,6 +49,11 @@ export async function validateCasTicket(
 
   const xml = await res.text();
 
+  // DEBUG SEMENTARA: cetak XML mentah ke log server supaya kita bisa lihat
+  // atribut asli apa saja yang dikirim CAS SISTER (nama tag untuk membedakan
+  // mahasiswa/dosen/tendik, dsb). HAPUS blok ini setelah selesai diagnosis.
+  console.log("=== CAS serviceValidate raw XML ===\n" + xml);
+
   const isSuccess =
     xml.includes("cas:authenticationSuccess") || xml.includes("<authenticationSuccess");
   if (!isSuccess) return null;
