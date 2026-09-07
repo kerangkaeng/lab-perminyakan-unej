@@ -44,7 +44,10 @@ export async function DashboardShell({
             <>
               <p className="font-display font-semibold text-ink">{session.nama}</p>
               <p className="text-xs font-mono text-core mt-1">{session.nim}</p>
-              <p className="text-xs font-mono text-rig mt-1 uppercase">{session.appRole}</p>
+              <p className="text-xs font-mono text-rig mt-1 uppercase">{session.userType}</p>
+              {session.appRole === "admin" && (
+                <p className="text-xs font-mono text-petrol mt-0.5 uppercase">Admin</p>
+              )}
             </>
           ) : (
             <p className="text-sm text-core">Belum login</p>
