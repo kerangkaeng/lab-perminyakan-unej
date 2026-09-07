@@ -42,7 +42,6 @@ export default async function GalleryPage({
       <p className="eyebrow mb-3">Dokumentasi</p>
       <h1 className="text-3xl md:text-4xl font-display font-semibold mb-10">Gallery</h1>
 
-      {/* Filter kategori */}
       <div className="flex flex-wrap gap-2 mb-12">
         <Link
           href="/gallery"
@@ -65,7 +64,6 @@ export default async function GalleryPage({
         ))}
       </div>
 
-      {/* Grid gambar */}
       {items.length === 0 ? (
         <p className="text-core text-sm">Belum ada dokumentasi untuk kategori ini.</p>
       ) : (
