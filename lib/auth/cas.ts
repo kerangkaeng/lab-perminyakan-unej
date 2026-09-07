@@ -23,6 +23,12 @@ export type CasUser = {
   identifier: string;
   nama?: string;
   prodi?: string;
+  /**
+   * Status/jenis akun dari SISTER (mis. "mahasiswa", "dosen", "tendik").
+   * HANYA untuk label tampilan — tidak pernah dipakai untuk menentukan
+   * kolom `role`/hak akses (itu tetap manual lewat SQL).
+   */
+  status?: string;
 };
 
 /**
@@ -31,10 +37,10 @@ export type CasUser = {
  * dengan yang dipakai saat redirect ke /cas/login, karena CAS mencocokkan
  * ticket terhadap service URL secara exact-match.
  *
- * CATATAN: nama tag atribut (nama, prodi, dst) di bawah ini adalah tebakan
- * berdasarkan konvensi umum CAS attribute release. Sesuaikan dengan respons
- * XML asli dari sso.unej.ac.id begitu tersedia (cek lewat curl manual ke
- * endpoint serviceValidate saat testing pertama kali).
+ * CATATAN: nama tag atribut (nama, prodi, status, dst) di bawah ini adalah
+ * tebakan berdasarkan konvensi umum CAS attribute release. Sesuaikan dengan
+ * respons XML asli dari sso.unej.ac.id begitu tersedia (cek lewat log
+ * DEBUG SEMENTARA di bawah saat testing login pertama kali).
  */
 export async function validateCasTicket(
   ticket: string,
@@ -65,8 +71,21 @@ export async function validateCasTicket(
   const identifier = userMatch[1].trim();
   const nama = extractAttribute(xml, ["nama", "name", "fullname", "cn", "displayName"]);
   const prodi = extractAttribute(xml, ["prodi", "program_studi", "programStudi", "department"]);
+  // Nama tag atribut ini masih tebakan — cek log XML mentah di atas saat
+  // testing pertama kali, lalu tambahkan/sesuaikan key di sini kalau nama
+  // atribut asli dari SISTER berbeda.
+  const status = extractAttribute(xml, [
+    "status",
+    "jenis",
+    "tipe",
+    "userType",
+    "user_type",
+    "kategori",
+    "memberOf",
+    "affiliation",
+  ]);
 
-  return { identifier, nama, prodi };
+  return { identifier, nama, prodi, status };
 }
 
 function extractAttribute(xml: string, keys: string[]): string | undefined {
