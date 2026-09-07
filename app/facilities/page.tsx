@@ -1,10 +1,11 @@
+import Link from "next/link";
 import { supabasePublic } from "@/lib/supabase/authed";
 import { FacilityCard } from "@/components/facilities/FacilityCard";
 import { Facility } from "@/types";
 
 export const revalidate = 0;
 
-function mapFacility(row: any): Facility {
+function mapFacility(row: any): Omit<Facility, "equipment"> {
   return {
     slug: row.slug,
     name: row.name,
@@ -12,7 +13,6 @@ function mapFacility(row: any): Facility {
     shortDescription: row.short_description,
     description: row.description,
     coverImage: row.cover_image,
-    equipment: row.equipment ?? [],
     modules: row.modules ?? undefined,
   };
 }
@@ -36,8 +36,16 @@ export default async function FacilitiesPage() {
       </p>
       <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
         {facilities.map((f) => (
-          <FacilityCard key={f.slug} facility={f} />
+          <FacilityCard key={f.slug} facility={f as Facility} />
         ))}
+      </div>
+      <div className="mt-16 flex flex-wrap gap-4">
+        <Link href="/facilities/alat-umum" className="text-sm text-petrol hover:text-rig underline">
+          Lihat Alat Umum →
+        </Link>
+        <Link href="/facilities/dokumen-keselamatan" className="text-sm text-petrol hover:text-rig underline">
+          Dokumen & Keselamatan Kerja →
+        </Link>
       </div>
     </div>
   );
