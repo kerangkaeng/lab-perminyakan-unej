@@ -61,13 +61,13 @@ export default async function FacilityDetailPage({ params }: { params: { slug: s
                 {eq.spec && <p className="text-sm text-core mb-2">{eq.spec}</p>}
                 {eq.function && <p className="text-sm text-core">{eq.function}</p>}
                 {eq.sop_pdf_url && (
-                  
+                  <a
                     href={eq.sop_pdf_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-3 inline-block text-xs font-mono text-petrol hover:text-rig underline"
                   >
-                    Lihat SOP Penggunaan (PDF) →
+                    Lihat SOP Penggunaan (PDF)
                   </a>
                 )}
               </div>
