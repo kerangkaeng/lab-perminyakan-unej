@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -31,7 +30,6 @@ export function Navbar({ session }: { session: NavSession }) {
             <span className="font-display text-lg font-semibold text-ink">Lab Perminyakan</span>
             <span className="hidden sm:inline eyebrow">Petroleum Eng.</span>
           </Link>
-
           <nav className="hidden xl:flex items-center gap-6">
             {links.map((l) => {
               const active = pathname === l.href || pathname?.startsWith(l.href + "/");
@@ -53,12 +51,22 @@ export function Navbar({ session }: { session: NavSession }) {
               );
             })}
             {session ? (
-              <Link
-                href="/practicum/status"
-                className="text-sm font-medium text-paper bg-petrol hover:bg-petrol-light px-4 py-2 transition-colors"
-              >
-                {session.nama.split(" ")[0]}
-              </Link>
+              <div className="flex items-center gap-3">
+                {session.appRole === "admin" && (
+                  <Link
+                    href="/admin"
+                    className="text-sm font-medium text-petrol hover:text-rig transition-colors"
+                  >
+                    Admin
+                  </Link>
+                )}
+                <Link
+                  href="/practicum/status"
+                  className="text-sm font-medium text-paper bg-petrol hover:bg-petrol-light px-4 py-2 transition-colors"
+                >
+                  {session.nama.split(" ")[0]}
+                </Link>
+              </div>
             ) : (
               <Link
                 href="/login"
@@ -68,7 +76,6 @@ export function Navbar({ session }: { session: NavSession }) {
               </Link>
             )}
           </nav>
-
           <button
             aria-label="Buka menu"
             className="xl:hidden -mr-2 p-2 text-ink hover:text-rig transition-colors"
@@ -78,7 +85,6 @@ export function Navbar({ session }: { session: NavSession }) {
           </button>
         </div>
       </header>
-
       {/* Rendered as a SIBLING of <header>, not inside it — header's backdrop-blur
           would otherwise create a new containing block that traps this fixed overlay. */}
       <MobileMenu open={open} onClose={() => setOpen(false)} links={links} session={session} />
