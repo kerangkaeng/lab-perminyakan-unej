@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { adminTables } from "@/lib/admin/config";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -16,9 +17,8 @@ export default async function AdminDashboardPage() {
   );
 
   return (
-    <div>
-      <h1 className="text-2xl font-display font-semibold mb-8">Dashboard</h1>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <DashboardShell title="Dashboard">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {counts.map((c) => (
           <Link key={c.key} href={`/admin/${c.key}`} className="border border-line p-5 hover:border-rig transition-colors">
             <p className="text-3xl font-display font-semibold text-ink">{c.count}</p>
@@ -26,6 +26,6 @@ export default async function AdminDashboardPage() {
           </Link>
         ))}
       </div>
-    </div>
+    </DashboardShell>
   );
 }
