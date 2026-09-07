@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { adminTables } from "@/lib/admin/config";
 import { supabaseServer } from "@/lib/supabase/server";
 import { DeleteButton } from "@/components/admin/DeleteButton";
@@ -19,9 +20,8 @@ export default async function AdminTableListPage({ params }: { params: { table: 
   const rows = data ?? [];
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-display font-semibold">{config.label}</h1>
+    <DashboardShell title={config.label}>
+      <div className="flex items-center justify-end mb-6">
         <Link href={`/admin/${params.table}/new`} className="bg-petrol text-paper px-4 py-2 text-sm font-medium hover:bg-petrol-light transition-colors">
           + Tambah Baru
         </Link>
@@ -31,7 +31,7 @@ export default async function AdminTableListPage({ params }: { params: { table: 
           <thead className="bg-mist">
             <tr>
               {config.listColumns.map((col) => (
-                <th key={col} className="text-left px-4 py-3 font-medium">{col}</th>
+                <th key={col} className="text-left px-4 py-3 font-medium whitespace-nowrap">{col}</th>
               ))}
               <th className="px-4 py-3"></th>
             </tr>
@@ -40,11 +40,11 @@ export default async function AdminTableListPage({ params }: { params: { table: 
             {rows.map((row: any) => (
               <tr key={row.id} className="border-t border-line">
                 {config.listColumns.map((col) => (
-                  <td key={col} className="px-4 py-3">
+                  <td key={col} className="px-4 py-3 align-top">
                     {typeof row[col] === "boolean" ? (row[col] ? "Ya" : "Tidak") : String(row[col] ?? "—")}
                   </td>
                 ))}
-                <td className="px-4 py-3 text-right whitespace-nowrap">
+                <td className="px-4 py-3 text-right whitespace-nowrap align-top">
                   <Link href={`/admin/${params.table}/${row.id}`} className="text-petrol hover:text-rig underline mr-4">
                     Edit
                   </Link>
@@ -62,6 +62,6 @@ export default async function AdminTableListPage({ params }: { params: { table: 
           </tbody>
         </table>
       </div>
-    </div>
+    </DashboardShell>
   );
 }
