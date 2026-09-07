@@ -27,6 +27,8 @@ export type Session = {
   nim: string;
   nama: string;
   appRole: AppRole;
+  /** Status asli dari SISTER (mahasiswa/dosen/tendik/dst), murni informasi identitas. */
+  userType: string;
 };
 
 export async function createSessionToken(payload: Session) {
@@ -41,6 +43,7 @@ export async function createSessionToken(payload: Session) {
     nim: payload.nim,
     nama: payload.nama,
     app_role: payload.appRole,
+    user_type: payload.userType,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(payload.sub)
@@ -63,6 +66,7 @@ export async function verifySessionToken(token: string): Promise<Session | null>
       nim: payload.nim as string,
       nama: (payload.nama as string) || (payload.nim as string),
       appRole: payload.app_role as AppRole,
+      userType: (payload.user_type as string) || "mahasiswa",
     };
   } catch {
     return null;
