@@ -69,3 +69,134 @@ export async function GET(req: NextRequest) {
     }
 
     console.error("CAS callback - create auth user error", createAuthError);
+    return null;
+  }
+
+  // Status asli dari SISTER, murni untuk ditampilkan (TIDAK memengaruhi
+  // kolom `role`/hak akses — itu tetap manual lewat SQL seperti biasa).
+  const userType = (casUser.status ?? "mahasiswa").trim().toLowerCase();
+  const isMahasiswa = userType.includes("mahasiswa");
+
+  // Cari baris public.users berdasarkan `identifier` (nilai mentah dari CAS).
+  const { data: existing, error: findError } = await admin
+    .from("users")
+    .select("id, auth_uid, nim, nama, role")
+    .eq("identifier", casUser.identifier)
+    .maybeSingle();
+
+  if (findError) {
+    console.error("CAS callback - find user error", findError);
+    loginUrl.searchParams.set("error", "server_error");
+    return NextResponse.redirect(loginUrl);
+  }
+
+  let userRow = existing as {
+    id: string;
+    auth_uid: string | null;
+    nim: string;
+    nama: string;
+    role: "mahasiswa" | "admin";
+  } | null;
+
+  if (!userRow) {
+    const authUid = await provisionAuthUser();
+    if (!authUid) {
+      loginUrl.searchParams.set("error", "server_error");
+      return NextResponse.redirect(loginUrl);
+    }
+
+    const { data: inserted, error: insertError } = await admin
+      .from("users")
+      .insert({
+        auth_uid: authUid,
+        identifier: casUser.identifier,
+        // Dosen/tendik disimpan di kolom nip, mahasiswa di nim — murni
+        // untuk kerapian label tampilan.
+        nim: isMahasiswa ? casUser.identifier : null,
+        nip: isMahasiswa ? null : casUser.identifier,
+        nama: casUser.nama || casUser.identifier,
+        prodi: casUser.prodi ?? null,
+        user_type: userType,
+        // Role tetap DEFAULT 'mahasiswa' untuk semua akun baru, apa pun
+        // status SISTER-nya. Admin cuma di-set manual lewat SQL — lihat
+        // catatan promote-admin. Ini SENGAJA tidak otomatis supaya admin
+        // benar-benar terkontrol/dipilih, bukan ikut status kepegawaian.
+        role: "mahasiswa",
+      })
+      .select("id, auth_uid, nim, nama, role")
+      .single();
+
+    if (insertError || !inserted) {
+      console.error("CAS callback - insert user error", insertError);
+      loginUrl.searchParams.set("error", "server_error");
+      return NextResponse.redirect(loginUrl);
+    }
+
+    userRow = inserted;
+  } else {
+    // Akun sudah ada: sinkronkan data identitas (nama, prodi, user_type,
+    // dan label nim/nip) setiap login supaya selalu akurat mengikuti
+    // SISTER — TANPA pernah mengubah kolom `role`.
+    const { data: synced, error: syncError } = await admin
+      .from("users")
+      .update({
+        nama: casUser.nama || userRow.nama,
+        prodi: casUser.prodi ?? null,
+        user_type: userType,
+        nim: isMahasiswa ? casUser.identifier : null,
+        nip: isMahasiswa ? null : casUser.identifier,
+      })
+      .eq("id", userRow.id)
+      .select("id, auth_uid, nim, nama, role")
+      .single();
+
+    if (!syncError && synced) {
+      userRow = synced;
+    } else if (syncError) {
+      console.error("CAS callback - sync identity error", syncError);
+    }
+
+    if (!userRow.auth_uid) {
+      const authUid = await provisionAuthUser();
+      if (!authUid) {
+        loginUrl.searchParams.set("error", "server_error");
+        return NextResponse.redirect(loginUrl);
+      }
+
+      const { data: updated, error: updateError } = await admin
+        .from("users")
+        .update({ auth_uid: authUid })
+        .eq("id", userRow.id)
+        .select("id, auth_uid, nim, nama, role")
+        .single();
+
+      if (updateError || !updated) {
+        console.error("CAS callback - update auth_uid error", updateError);
+        loginUrl.searchParams.set("error", "server_error");
+        return NextResponse.redirect(loginUrl);
+      }
+
+      userRow = updated;
+    }
+  }
+
+  const token = await createSessionToken({
+    sub: userRow.auth_uid as string,
+    usersId: userRow.id,
+    nim: userRow.nim,
+    nama: userRow.nama,
+    appRole: userRow.role,
+    userType,
+  });
+
+  const target = new URL(redirectPath, req.nextUrl.origin);
+  const res = NextResponse.redirect(target);
+  res.cookies.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+  return res;
+}
