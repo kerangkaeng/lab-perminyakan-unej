@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { useEffect } from "react";
 import { X } from "lucide-react";
@@ -35,7 +34,6 @@ export function MobileMenu({
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-ink/40" onClick={onClose} />
-
       {/* Slide-in panel */}
       <div
         className={`absolute right-0 top-0 flex w-full max-w-sm flex-col bg-paper shadow-2xl transition-transform duration-300 ease-smooth ${
@@ -53,7 +51,6 @@ export function MobileMenu({
             <X size={22} />
           </button>
         </div>
-
         <nav className="flex flex-1 flex-col overflow-y-auto px-5 py-6">
           {links.map((l, i) => (
             <Link
@@ -70,6 +67,15 @@ export function MobileMenu({
           ))}
           {session ? (
             <>
+              {session.appRole === "admin" && (
+                <Link
+                  href="/admin"
+                  onClick={onClose}
+                  className="border-b border-line py-3.5 font-display text-lg text-rig"
+                >
+                  Admin
+                </Link>
+              )}
               <Link
                 href="/practicum/status"
                 onClick={onClose}
