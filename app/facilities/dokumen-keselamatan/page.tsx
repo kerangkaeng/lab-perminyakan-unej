@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { supabasePublic } from "@/lib/supabase/authed";
 
 export const revalidate = 0;
@@ -42,7 +43,7 @@ export default async function DokumenKeselamatanPage() {
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {docs.map((doc) => (
-            
+            <Link
               key={doc.id}
               href={doc.file_url}
               target="_blank"
@@ -58,7 +59,7 @@ export default async function DokumenKeselamatanPage() {
               )}
               <p className="font-mono text-xs uppercase text-core mb-1">{categoryLabels[doc.category]}</p>
               <p className="font-display font-semibold text-ink group-hover:text-rig transition-colors">{doc.title}</p>
-            </a>
+            </Link>
           ))}
         </div>
       )}
