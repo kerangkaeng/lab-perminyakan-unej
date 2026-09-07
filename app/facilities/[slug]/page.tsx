@@ -10,6 +10,7 @@ interface EquipmentRow {
   name: string;
   spec: string | null;
   function: string | null;
+  image: string | null;
   sop_pdf_url: string | null;
 }
 
@@ -38,6 +39,7 @@ export default async function FacilityDetailPage({ params }: { params: { slug: s
       <div className="relative mb-12 aspect-[21/9] overflow-hidden bg-mist sm:mb-16">
         <CoverImage src={facilityRow.cover_image} seed={facilityRow.slug} alt={facilityRow.name} className="object-cover" />
       </div>
+
       <p className="eyebrow mb-4">{facilityRow.name_en}</p>
       <h1 className="mb-8 text-3xl font-display font-semibold sm:text-4xl md:text-5xl">{facilityRow.name}</h1>
       <p className="mb-16 max-w-2xl text-lg leading-relaxed text-core">{facilityRow.description}</p>
@@ -48,15 +50,27 @@ export default async function FacilityDetailPage({ params }: { params: { slug: s
       ) : (
         <div className="grid gap-6 sm:grid-cols-2">
           {equipment.map((eq) => (
-            <div key={eq.id} className="border border-line p-5">
-              <p className="font-display font-semibold text-ink mb-1">{eq.name}</p>
-              {eq.spec && <p className="text-sm text-core mb-2">{eq.spec}</p>}
-              {eq.function && <p className="text-sm text-core">{eq.function}</p>}
-              {eq.sop_pdf_url && (
-                <a href={eq.sop_pdf_url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-xs font-mono text-petrol hover:text-rig underline">
-                  Lihat SOP Penggunaan (PDF) →
-                </a>
+            <div key={eq.id} className="border border-line overflow-hidden">
+              {eq.image && (
+                <div className="relative aspect-[16/10] bg-mist">
+                  <img src={eq.image} alt={eq.name} className="h-full w-full object-cover" />
+                </div>
               )}
+              <div className="p-5">
+                <p className="font-display font-semibold text-ink mb-1">{eq.name}</p>
+                {eq.spec && <p className="text-sm text-core mb-2">{eq.spec}</p>}
+                {eq.function && <p className="text-sm text-core">{eq.function}</p>}
+                {eq.sop_pdf_url && (
+                  
+                    href={eq.sop_pdf_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-block text-xs font-mono text-petrol hover:text-rig underline"
+                  >
+                    Lihat SOP Penggunaan (PDF) →
+                  </a>
+                )}
+              </div>
             </div>
           ))}
         </div>
