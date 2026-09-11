@@ -38,7 +38,6 @@ export const adminTables: Record<string, TableConfig> = {
       { name: "short_description", label: "Deskripsi Singkat", type: "textarea" },
       { name: "description", label: "Deskripsi Lengkap", type: "textarea" },
       { name: "cover_image", label: "Cover Image", type: "image" },
-      { name: "modules", label: "Modul Praktikum Terkait", type: "tags" },
       STATUS,
     ],
   },
