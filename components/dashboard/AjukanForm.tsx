@@ -3,12 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { facilities } from "@/data/facilities";
 import { NON_PRAKTIKUM_OPTIONS } from "@/lib/constants/kegiatan";
 
 type JenisKegiatan = "praktikum" | "non_praktikum";
 
-export function AjukanForm() {
+export function AjukanForm({
+  facilityNames,
+  practicumNames,
+}: {
+  facilityNames: string[];
+  practicumNames: string[];
+}) {
   const router = useRouter();
   const [jenis, setJenis] = useState<JenisKegiatan>("praktikum");
   const [kegiatanNonPraktikum, setKegiatanNonPraktikum] = useState("");
@@ -117,7 +122,7 @@ export function AjukanForm() {
               className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
             >
               <option value="">Pilih praktikum</option>
-              {facilities.flatMap((f) => f.modules ?? []).map((praktikum) => (
+              {practicumNames.map((praktikum) => (
                 <option key={praktikum} value={praktikum}>
                   {praktikum}
                 </option>
@@ -182,9 +187,9 @@ export function AjukanForm() {
           className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
         >
           <option value="">Pilih laboratorium</option>
-          {facilities.map((f) => (
-            <option key={f.slug} value={f.name}>
-              {f.name}
+          {facilityNames.map((name) => (
+            <option key={name} value={name}>
+              {name}
             </option>
           ))}
         </select>
