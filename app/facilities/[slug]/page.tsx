@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { supabasePublic } from "@/lib/supabase/authed";
 import { CoverImage } from "@/components/ui/CoverImage";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +16,13 @@ interface EquipmentRow {
   sop_pdf_url: string | null;
 }
 
+interface ModuleRow {
+  id: string;
+  slug: string;
+  title: string;
+  file_url: string | null;
+}
+
 export default async function FacilityDetailPage({ params }: { params: { slug: string } }) {
   const supabase = supabasePublic();
   const { data: facilityRow } = await supabase
@@ -26,14 +34,23 @@ export default async function FacilityDetailPage({ params }: { params: { slug: s
 
   if (!facilityRow) return notFound();
 
-  const { data: equipmentData } = await supabase
-    .from("equipment")
-    .select("*")
-    .eq("facility_id", facilityRow.id)
-    .eq("status", "published")
-    .order("name");
+  const [{ data: equipmentData }, { data: modulesData }] = await Promise.all([
+    supabase
+      .from("equipment")
+      .select("*")
+      .eq("facility_id", facilityRow.id)
+      .eq("status", "published")
+      .order("name"),
+    supabase
+      .from("practicum_modules")
+      .select("id, slug, title, file_url")
+      .eq("facility_id", facilityRow.id)
+      .eq("status", "published")
+      .order("title"),
+  ]);
 
   const equipment = (equipmentData ?? []) as EquipmentRow[];
+  const modules = (modulesData ?? []) as ModuleRow[];
 
   return (
     <div className="container-lab section-space">
@@ -52,12 +69,20 @@ export default async function FacilityDetailPage({ params }: { params: { slug: s
         <EquipmentList equipment={equipment} />
       )}
 
-      {facilityRow.modules && facilityRow.modules.length > 0 && (
+      {modules.length > 0 && (
         <div className="mt-16">
           <h2 className="mb-6 font-display text-2xl font-semibold">Modul Praktikum Terkait</h2>
           <ul className="flex flex-wrap gap-3">
-            {facilityRow.modules.map((m: string) => (
-              <li key={m} className="border border-line px-4 py-2 text-sm text-core">{m}</li>
+            {modules.map((m) => (
+              <li key={m.id}>
+                <Link
+                  href={`/practicum/modules/${m.slug}`}
+                  className="border border-line px-4 py-2 text-sm text-core hover:border-petrol hover:text-ink transition-colors"
+                >
+                  {m.title}
+                  {m.file_url && <span className="ml-2 text-xs text-rig font-mono">PDF</span>}
+                </Link>
+              </li>
             ))}
           </ul>
         </div>
