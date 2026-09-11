@@ -4,7 +4,6 @@ import { supabasePublic } from "@/lib/supabase/authed";
 import { PracticumRequest } from "@/types";
 import { formatDate } from "@/lib/utils";
 import { nonPraktikumLabel } from "@/lib/constants/kegiatan";
-import { facilities } from "@/data/facilities";
 
 // Jadwal disetujui bersifat publik (policy RLS requests_select_approved_public
 // untuk role anon), jadi halaman ini sengaja TIDAK diproteksi middleware —
@@ -51,6 +50,14 @@ export default async function JadwalPage({
   const to = from + PAGE_SIZE - 1;
 
   const supabase = supabasePublic();
+
+  const { data: facilitiesData } = await supabase
+    .from("facilities")
+    .select("name")
+    .eq("status", "published")
+    .order("name");
+  const facilityNames = (facilitiesData ?? []).map((f) => f.name as string);
+
   let query = supabase
     .from("practicum_requests")
     .select(
@@ -102,9 +109,9 @@ export default async function JadwalPage({
             className="border border-line bg-mist px-3 py-2 text-sm"
           >
             <option value="all">Semua Laboratorium</option>
-            {facilities.map((f) => (
-              <option key={f.slug} value={f.name}>
-                {f.name}
+            {facilityNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
               </option>
             ))}
           </select>
