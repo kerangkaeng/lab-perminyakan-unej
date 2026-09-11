@@ -43,6 +43,22 @@ export const adminTables: Record<string, TableConfig> = {
     ],
   },
 
+  practicum_modules: {
+    table: "practicum_modules",
+    label: "Modul Praktikum",
+    orderBy: "title",
+    orderAsc: true,
+    listColumns: ["title", "facility_id", "status"],
+    fields: [
+      { name: "facility_id", label: "Laboratorium", type: "relation", relationTable: "facilities", relationLabelField: "name", required: true },
+      { name: "title", label: "Judul Modul (contoh: Praktikum Fluida Reservoir)", type: "text", required: true },
+      { name: "slug", label: "Slug (unik, contoh: fluida-reservoir)", type: "text", required: true },
+      { name: "description", label: "Deskripsi / Tujuan Pembelajaran", type: "textarea" },
+      { name: "file_url", label: "Berkas Modul (PDF)", type: "pdf" },
+      STATUS,
+    ],
+  },
+
   equipment: {
     table: "equipment",
     label: "Equipment (Alat Lab & Alat Umum)",
