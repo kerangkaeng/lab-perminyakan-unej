@@ -5,7 +5,7 @@ import { Facility } from "@/types";
 
 export const revalidate = 0;
 
-function mapFacility(row: any): Omit<Facility, "equipment"> {
+function mapFacility(row: any): Omit<Facility, "equipment" | "modules"> {
   return {
     slug: row.slug,
     name: row.name,
@@ -13,7 +13,6 @@ function mapFacility(row: any): Omit<Facility, "equipment"> {
     shortDescription: row.short_description,
     description: row.description,
     coverImage: row.cover_image,
-    modules: row.modules ?? undefined,
   };
 }
 
