@@ -27,7 +27,7 @@ for write operations).
 
 | Table | Purpose |
 |---|---|
-| `facilities` | The three laboratories (Reservoir, Petrophysics, Drilling & Production) |
+| `facilities` | The two laboratories (Reservoir, Drilling & Production) |
 | `equipment` | Lab-specific equipment (`facility_id` set) and shared equipment (`facility_id` null) |
 | `lab_documents` | Hazardous waste (B3) SOPs, occupational health & safety (K3) documents, lab rules, safety posters |
 | `publications` | Scientific publications — presented as a journal-style overview with full metadata, abstract, keywords, and DOI |
