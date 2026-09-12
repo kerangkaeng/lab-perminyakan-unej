@@ -46,6 +46,15 @@ export type Publication = {
   authors: string;
   type: "Journal" | "Conference" | "Thesis";
   url?: string;
+  journalName?: string;
+  volume?: string;
+  issue?: string;
+  pages?: string;
+  publisher?: string;
+  issn?: string;
+  doi?: string;
+  abstract?: string;
+  keywords?: string[];
 };
 
 export type NewsItem = {
