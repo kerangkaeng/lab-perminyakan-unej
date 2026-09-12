@@ -36,26 +36,72 @@ function CitationLine({ pub }: { pub: PublicationRow }) {
   return <p className="text-sm italic text-core">{parts.join(", ")}</p>;
 }
 
-export default async function PublicationsPage() {
+export default async function PublicationsPage({
+  searchParams,
+}: {
+  searchParams: { keyword?: string };
+}) {
+  const activeKeyword = searchParams?.keyword;
   const supabase = supabasePublic();
+
+  // Ambil semua publikasi published dulu (untuk hitung daftar keyword unik + filter di memory)
   const { data } = await supabase
     .from("publications")
     .select("*")
     .eq("status", "published")
     .order("year", { ascending: false });
 
-  const publications = (data ?? []) as PublicationRow[];
+  const allPublications = (data ?? []) as PublicationRow[];
+
+  // Kumpulkan semua keyword unik dari seluruh publikasi
+  const keywordCounts = new Map<string, number>();
+  for (const pub of allPublications) {
+    for (const kw of pub.keywords ?? []) {
+      keywordCounts.set(kw, (keywordCounts.get(kw) ?? 0) + 1);
+    }
+  }
+  const allKeywords = Array.from(keywordCounts.keys()).sort();
+
+  const publications = activeKeyword
+    ? allPublications.filter((pub) => (pub.keywords ?? []).includes(activeKeyword))
+    : allPublications;
 
   return (
     <div className="container-lab py-16">
       <p className="eyebrow mb-3">Publications</p>
       <h1 className="text-3xl md:text-4xl font-display font-semibold mb-4">Publikasi</h1>
-      <p className="text-core max-w-2xl mb-12">
+      <p className="text-core max-w-2xl mb-8">
         Kumpulan publikasi ilmiah hasil penelitian dosen dan mahasiswa Laboratorium Teknik Perminyakan.
       </p>
 
+      {allKeywords.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-12 pb-8 border-b border-line">
+          <Link
+            href="/publications"
+            className={`font-mono text-[11px] uppercase px-3 py-1.5 border transition-colors ${
+              !activeKeyword ? "border-rig bg-rig/10 text-rig" : "border-line text-core hover:border-petrol"
+            }`}
+          >
+            Semua
+          </Link>
+          {allKeywords.map((kw) => (
+            <Link
+              key={kw}
+              href={`/publications?keyword=${encodeURIComponent(kw)}`}
+              className={`font-mono text-[11px] uppercase px-3 py-1.5 border transition-colors ${
+                activeKeyword === kw ? "border-rig bg-rig/10 text-rig" : "border-line text-core hover:border-petrol"
+              }`}
+            >
+              {kw} <span className="opacity-60">({keywordCounts.get(kw)})</span>
+            </Link>
+          ))}
+        </div>
+      )}
+
       {publications.length === 0 ? (
-        <p className="text-core text-sm">Belum ada publikasi.</p>
+        <p className="text-core text-sm">
+          {activeKeyword ? `Tidak ada publikasi dengan keyword "${activeKeyword}".` : "Belum ada publikasi."}
+        </p>
       ) : (
         <div className="space-y-8">
           {publications.map((pub) => (
@@ -94,9 +140,17 @@ export default async function PublicationsPage() {
               {pub.keywords && pub.keywords.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-4">
                   {pub.keywords.map((kw) => (
-                    <span key={kw} className="font-mono text-[11px] uppercase bg-mist text-core px-2.5 py-1">
+                    <Link
+                      key={kw}
+                      href={`/publications?keyword=${encodeURIComponent(kw)}`}
+                      className={`font-mono text-[11px] uppercase px-2.5 py-1 transition-colors ${
+                        activeKeyword === kw
+                          ? "bg-rig text-white"
+                          : "bg-mist text-core hover:bg-petrol hover:text-white"
+                      }`}
+                    >
                       {kw}
-                    </span>
+                    </Link>
                   ))}
                 </div>
               )}
