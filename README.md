@@ -1,120 +1,115 @@
-# Website Laboratorium Teknik Perminyakan
+# Petroleum Engineering Laboratory Website
 
-Stack: **Next.js 14 (App Router) + TypeScript + Tailwind CSS + Supabase + Vercel**
+Official website for the Petroleum Engineering Laboratory, Petroleum Engineering
+Study Program, Faculty of Engineering, Universitas Jember — laboratory profile,
+scientific publications, practicum scheduling requests, and activity documentation.
 
-## Menjalankan secara lokal
+**Stack:** Next.js 14 (App Router) · TypeScript · Tailwind CSS · Supabase · Vercel
+
+## Getting Started
 
 ```bash
 npm install
 npm run dev
 ```
 
-Buka http://localhost:3000
+Open http://localhost:3000. Most pages require a connection to a configured
+Supabase project (see Environment Variables below) for content to render.
 
-## Struktur Data (Tahap 1 — Statis)
+## Data Architecture
 
-Semua konten saat ini ada di folder `data/` (facilities, research, publications, news)
-dalam bentuk array TypeScript biasa. Ini memudahkan development awal tanpa database.
+All site content is stored in Supabase and fetched via Server Components, using
+either `supabasePublic()` (anon key — respects Row Level Security, used on public
+pages) or `supabaseServer()` (service role key — used exclusively within `/admin/*`
+for write operations).
 
-## Migrasi ke Supabase (Tahap 2)
+### Content tables (managed via the Admin Panel)
 
-1. Buat project di https://supabase.com
-2. Salin `.env.local.example` menjadi `.env.local`, isi dengan URL & anon key project kamu
-3. Buat tabel yang strukturnya mengikuti `types/index.ts` (Facility, Publication, NewsItem, dst)
-4. Ganti pemanggilan `data/*.ts` di setiap halaman dengan query melalui `lib/supabase/server.ts`
-   (untuk Server Component) atau `lib/supabase/client.ts` (untuk Client Component)
+| Table | Purpose |
+|---|---|
+| `facilities` | The three laboratories (Reservoir, Petrophysics, Drilling & Production) |
+| `equipment` | Lab-specific equipment (`facility_id` set) and shared equipment (`facility_id` null) |
+| `lab_documents` | Hazardous waste (B3) SOPs, occupational health & safety (K3) documents, lab rules, safety posters |
+| `publications` | Scientific publications — presented as a journal-style overview with full metadata, abstract, keywords, and DOI |
+| `research_areas` | Laboratory research focus areas |
+| `research_projects` | Research projects (Ongoing / Completed / Planned) |
+| `researchers` | Research team members |
+| `announcements` | Announcements |
+| `gallery_items` | Activity documentation (categories: Practicum, Workshop, etc.) |
+| `news` | News articles, managed via a dedicated `/admin/news` interface with a rich-text editor |
 
-## Fitur Login SSO UNEJ & Pengajuan Praktikum (Tahap 2)
+All tables above (except `news`) are automatically rendered as list/create/edit
+admin pages via configuration in `lib/admin/config.ts` — adding a new content
+type only requires a new entry in that file, not a new admin page from scratch.
 
-Fitur ini butuh Supabase (untuk data) dan beberapa environment variable
-tambahan. Tanpa ini, sisa website (halaman statis) tetap jalan normal,
-tapi halaman `/login`, `/practicum/ajukan`, `/practicum/status`,
-`/practicum/jadwal`, dan `/admin/practicum-requests` tidak akan berfungsi.
+## Admin Panel
 
-### 1. Jalankan migrasi SQL
+Accessible at `/admin` (an "Admin" link appears in the navbar for users with the
+admin role after SSO login). Capabilities:
 
-File `supabase/migrations/001_practicum_schema.sql` berisi skema tabel
-`users`, `practicum_requests`, dan seluruh RLS policy-nya. Jalankan isinya
-di **Supabase SQL Editor** pada project Supabase kamu (kalau belum pernah).
+- Dashboard with per-table record counts
+- Generic CRUD for the nine content tables above, with forms generated dynamically
+  from field definitions in `lib/admin/config.ts`
+- Direct file uploads (images/PDFs) to Supabase Storage from within the form
+- News (`/admin/news`) and practicum request approvals (`/admin/practicum-requests`)
+  use dedicated pages/forms instead, due to more specific requirements (rich-text
+  editing, an approve/reject workflow)
 
-### 2. Isi environment variables
+`middleware.ts` protects all `/admin/*` routes — unauthenticated users are
+redirected to `/login`, and non-admin users are redirected away.
 
-Salin `.env.local.example` → `.env.local`, lalu isi:
+## UNEJ SSO Login & Practicum Requests
 
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — dari Settings → API
-- `SUPABASE_JWT_SECRET` — dari Settings → API → **JWT Settings**. Ini dipakai untuk menandatangani sesi login CAS supaya kompatibel dengan `auth.uid()` di RLS Supabase, meskipun user tidak login lewat Supabase Auth langsung.
-- `CAS_BASE_URL` — default `https://sso.unej.ac.id/cas`, biasanya tidak perlu diubah.
+### How login works
 
-Tambahkan variable yang sama di **Vercel → Project → Settings → Environment Variables** untuk production.
+1. Students click "Sign in with UNEJ SSO" on `/login` and are redirected to
+   `sso.unej.ac.id/cas/login`
+2. On successful authentication, CAS redirects back to
+   `/api/auth/cas/callback?ticket=...`
+3. The server validates the ticket against CAS, then upserts a row in the `users`
+   table (created automatically on first login, with the default `mahasiswa` role)
+4. The session is stored as a JWT in an httpOnly cookie, signed with
+   `SUPABASE_JWT_SECRET`, so `auth.uid()` continues to work correctly in Supabase
+   RLS policies even though the user did not authenticate via Supabase Auth directly
 
-### 2b. Sesuaikan atribut CAS
+### Granting admin access
 
-`lib/auth/cas.ts` menebak nama tag atribut (`nama`, `prodi`, dst) dari
-response XML CAS berdasarkan konvensi umum. Ini **perlu diverifikasi**
-terhadap response asli dari `sso.unej.ac.id` — coba login sekali di
-environment staging lalu cek log, atau curl manual ke endpoint
-`serviceValidate` untuk melihat struktur XML sebenarnya, lalu sesuaikan
-daftar `keys` di fungsi `extractAttribute`.
-
-### 3. Cara kerja login
-
-1. Mahasiswa klik "Masuk dengan SSO UNEJ" → diarahkan ke `sso.unej.ac.id/cas/login`
-2. Setelah login berhasil di CAS, diarahkan balik ke `/api/auth/cas/callback?ticket=...`
-3. Server memvalidasi ticket ke CAS, lalu **upsert** baris di tabel `users` (dibuat otomatis kalau NIM belum pernah login sebelumnya, dengan role default `mahasiswa`)
-4. Sesi disimpan sebagai JWT di cookie httpOnly (kompatibel dengan `auth.uid()` Supabase), bukan lewat email/password Supabase Auth biasa
-
-### 4. Menjadikan seseorang admin
-
-Role tidak bisa diubah lewat UI (sesuai desain RLS-nya) — admin harus set
-manual lewat SQL Editor setelah mahasiswa tersebut login minimal sekali
-(supaya barisnya sudah ada di tabel `users`):
+Roles cannot be changed through the UI by design — an admin must set it manually
+via the SQL Editor, after the target user has logged in at least once (so their
+row already exists in `users`):
 
 ```sql
 update public.users set role = 'admin' where nim = '2110xxxxxxxxx';
 ```
 
-### 5. Halaman yang ditambahkan
+### Related routes
 
-| Route | Akses | Keterangan |
+| Route | Access | Description |
 |---|---|---|
-| `/login` | Publik | Tombol login SSO UNEJ |
-| `/practicum/ajukan` | Login (mahasiswa/admin) | Form ajukan jadwal praktikum |
-| `/practicum/status` | Login (mahasiswa/admin) | Status pengajuan milik sendiri |
-| `/practicum/jadwal` | Publik | Jadwal yang sudah disetujui admin |
-| `/admin/practicum-requests` | Login (khusus admin) | Setujui/tolak pengajuan masuk |
+| `/login` | Public | UNEJ SSO login button |
+| `/practicum/ajukan` | Authenticated | Submit a practicum schedule request |
+| `/practicum/status` | Authenticated | View the status of one's own requests |
+| `/practicum/jadwal` | Public | Approved practicum schedule |
+| `/admin/practicum-requests` | Admin | Approve/reject incoming requests |
 
-`middleware.ts` memproteksi `/admin/*`, `/practicum/ajukan`, dan
-`/practicum/status` — redirect ke `/login` kalau belum ada sesi valid, dan
-redirect ke `/practicum/status` kalau bukan admin tapi coba akses `/admin/*`.
+## Environment Variables
 
-**Catatan:** karena Navbar sekarang menampilkan status login di setiap
-halaman, seluruh site menjadi server-rendered per-request (bukan murni
-statis lagi seperti Tahap 1 awal) — ini tetap didukung penuh oleh Vercel
-Hobby plan, tidak perlu upgrade paket.
+Copy `.env.local.example` to `.env.local` and fill in:
 
-## Deploy ke Vercel
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — from Supabase Settings → API
+- `SUPABASE_JWT_SECRET` — from Settings → API → JWT Settings
+- `CAS_BASE_URL` — defaults to `https://sso.unej.ac.id/cas`
 
-1. Push project ini ke repository GitHub
-2. Import repository di https://vercel.com/new
-3. Tambahkan environment variables (`NEXT_PUBLIC_SUPABASE_URL`, dst) di dashboard Vercel
-4. Deploy — domain kustom (mis. `www.namalab.ac.id`) bisa dihubungkan di tab **Domains** setelah deploy pertama berhasil
+Add the same variables under **Vercel → Project → Settings → Environment Variables**
+for production.
 
-## Struktur Halaman
+## Deploying to Vercel
 
-```
-/                       Home
-/about                  Profil, Visi & Misi, Struktur Organisasi, Team
-/facilities             Daftar & detail 7 laboratorium
-/research               Research areas, projects, researchers
-/publications           Tabel publikasi
-/practicum              Modul, jadwal, pengumuman
-/news                   Berita & kegiatan
-/gallery                Dokumentasi kegiatan
-/contact                Form kontak
-```
+1. Push this repository to GitHub and import it at https://vercel.com/new
+2. Set the Install Command to `npm install` (instead of the default `npm ci`)
+   under Settings → Build and Deployment, to tolerate a `package-lock.json`
+   that is slightly behind `package.json`
+3. Add the environment variables in the dashboard
+4. Deploy
 
-## Desain
-
-- **Warna**: petrol (navy-teal, primer), rig (amber, aksen), core (abu-olive, teks sekunder), paper/mist (latar)
-- **Tipografi**: Fraunces (display), Inter (body), IBM Plex Mono (data/label teknis)
-- **Elemen signature**: strip "well-log" vertikal di Hero — merepresentasikan kurva log sumur, instrumen inti Laboratorium Well Logging
+## Page Structure
