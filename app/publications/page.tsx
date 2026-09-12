@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { supabasePublic } from "@/lib/supabase/authed";
 
 export const revalidate = 0;
@@ -103,24 +104,24 @@ export default async function PublicationsPage() {
               {(pub.doi || pub.url) && (
                 <div className="flex flex-wrap gap-4 mt-5 pt-4 border-t border-line">
                   {pub.doi && (
-                    
+                    <Link
                       href={`https://doi.org/${pub.doi}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm font-medium text-paper bg-petrol hover:bg-petrol-light px-4 py-2 transition-colors"
                     >
                       DOI: {pub.doi} →
-                    </a>
+                    </Link>
                   )}
                   {pub.url && (
-                    
+                    <Link
                       href={pub.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm font-medium text-petrol hover:text-rig underline self-center"
                     >
                       Link Tambahan →
-                    </a>
+                    </Link>
                   )}
                 </div>
               )}
