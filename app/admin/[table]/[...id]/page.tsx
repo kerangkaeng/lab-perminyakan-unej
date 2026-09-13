@@ -5,6 +5,8 @@ import { AdminForm } from "@/components/admin/AdminForm";
 import { upsertRecord } from "@/lib/admin/actions";
 import { supabaseServer } from "@/lib/supabase/server";
 
+export const revalidate = 0;
+
 export default async function AdminRecordPage({ params }: { params: { table: string; id: string[] } }) {
   const config = adminTables[params.table];
   if (!config) return notFound();
