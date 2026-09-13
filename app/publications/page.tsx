@@ -30,9 +30,8 @@ export default async function PublicationsPage({
   const { data } = await supabase
     .from("publications")
     .select("*")
-    .eq("status", "published")
     .order("year", { ascending: false });
-
+    
   const allPublications = (data ?? []) as PublicationRow[];
 
   const keywordCounts = new Map<string, number>();
