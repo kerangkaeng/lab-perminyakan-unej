@@ -45,7 +45,7 @@ export default async function AdminTableListPage({ params }: { params: { table: 
                   </td>
                 ))}
                 <td className="px-4 py-3 text-right whitespace-nowrap align-top">
-                  <Link href={`/admin/${params.table}/${row.id}`} className="text-petrol hover:text-rig underline mr-4">
+                  <Link href={`/admin/${params.table}/${encodeURIComponent(row.id)}`} className="text-petrol hover:text-rig underline mr-4">
                     Edit
                   </Link>
                   <DeleteButton table={params.table} id={row.id} />
