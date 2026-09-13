@@ -20,9 +20,14 @@ export async function upsertRecord(tableName: string, id: string, formData: Form
   if (!config) throw new Error("Tabel tidak dikenal");
 
   const supabase = supabaseServer();
+  const isNew = id === "new";
   const record: Record<string, any> = {};
 
   for (const field of config.fields) {
+    // Saat edit (bukan create), field id tidak pernah ikut ditulis ulang —
+    // primary key tidak boleh berubah dan tidak ada di form saat edit.
+    if (field.name === "id" && !isNew) continue;
+
     if (field.type === "image" || field.type === "pdf" || field.type === "file") {
       const file = formData.get(field.name) as File | null;
       if (file && file.size > 0) {
@@ -48,7 +53,7 @@ export async function upsertRecord(tableName: string, id: string, formData: Form
     }
   }
 
-  if (id === "new") {
+  if (isNew) {
     const { error } = await supabase.from(tableName).insert(record);
     if (error) throw new Error(`Gagal menyimpan: ${error.message}`);
   } else {
