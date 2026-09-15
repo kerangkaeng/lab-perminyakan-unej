@@ -3,6 +3,7 @@ import { Fraunces, Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { GlobalDashboardSidebar } from "@/components/layout/GlobalDashboardSidebar";
 import { getSession } from "@/lib/auth/session";
 
 const fraunces = Fraunces({
@@ -42,7 +43,10 @@ export default async function RootLayout({
     <html lang="id" className={`${fraunces.variable} ${inter.variable} ${mono.variable}`}>
       <body>
         <Navbar session={session ? { nama: session.nama, appRole: session.appRole } : null} />
-        <main>{children}</main>
+        <div className="lg:flex">
+          <GlobalDashboardSidebar />
+          <main className="min-w-0 flex-1">{children}</main>
+        </div>
         <Footer />
       </body>
     </html>
