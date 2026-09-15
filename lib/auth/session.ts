@@ -24,7 +24,8 @@ export type AppRole = "mahasiswa" | "admin";
 export type Session = {
   sub: string; // auth_uid (id di auth.users)
   usersId: string; // id di public.users
-  nim: string;
+  /** Bisa kosong untuk akun dosen/tendik (mereka pakai NIP, bukan NIM). */
+  nim: string | null;
   nama: string;
   appRole: AppRole;
   /** Status asli dari SISTER (mahasiswa/dosen/tendik/dst), murni informasi identitas. */
@@ -40,7 +41,7 @@ export async function createSessionToken(payload: Session) {
     aud: "authenticated",
     role: "authenticated",
     users_id: payload.usersId,
-    nim: payload.nim,
+    nim: payload.nim ?? null,
     nama: payload.nama,
     app_role: payload.appRole,
     user_type: payload.userType,
@@ -58,13 +59,19 @@ export async function verifySessionToken(token: string): Promise<Session | null>
 
   try {
     const { payload } = await jwtVerify(token, key, { audience: "authenticated" });
-    if (!payload.sub || !payload.users_id || !payload.nim || !payload.app_role) return null;
+
+    // PENTING: `nim` SENGAJA tidak diwajibkan di sini. Akun dosen/tendik
+    // (mis. login pakai NIK) punya `nim = null` by design — identitasnya
+    // disimpan di kolom `nip`, bukan `nim`. Mewajibkan `nim` di sini akan
+    // membuat sesi akun non-mahasiswa selalu dianggap tidak valid meskipun
+    // token-nya benar dan cookie sudah ter-set dengan sukses.
+    if (!payload.sub || !payload.users_id || !payload.app_role) return null;
 
     return {
       sub: payload.sub as string,
       usersId: payload.users_id as string,
-      nim: payload.nim as string,
-      nama: (payload.nama as string) || (payload.nim as string),
+      nim: (payload.nim as string | null) ?? null,
+      nama: (payload.nama as string) || (payload.nim as string) || "Pengguna",
       appRole: payload.app_role as AppRole,
       userType: (payload.user_type as string) || "mahasiswa",
     };
