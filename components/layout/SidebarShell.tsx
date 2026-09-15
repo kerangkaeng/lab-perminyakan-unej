@@ -6,7 +6,7 @@ import { PanelLeftOpen } from "lucide-react";
 /**
  * Sidebar dashboard: strip sempit (w-14) yang SELALU menempati ruang tetap
  * di layout (supaya konten utama tidak pernah ikut bergeser/mengecil).
- * Saat hover, panel penuh (w-64) muncul sebagai overlay `fixed` — lepas dari
+ * Saat hover, panel penuh (w-72) muncul sebagai overlay `fixed` — lepas dari
  * document flow — jadi murni "mengambang" di atas konten, bukan mendorongnya.
  *
  * Ada juga fallback klik ("pinned") untuk pengguna keyboard/touch yang tidak
@@ -31,7 +31,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
 
         {/* Panel penuh: overlay, tidak memengaruhi layout konten utama */}
         <div
-          className={`absolute left-0 top-0 h-full w-64 overflow-y-auto overflow-x-hidden border-r border-line bg-paper p-3 shadow-2xl transition-opacity duration-150 ease-smooth
+          className={`absolute left-0 top-0 h-full w-72 overflow-y-auto overflow-x-hidden border-r border-line bg-paper p-4 shadow-2xl transition-opacity duration-150 ease-smooth
             ${pinned ? "visible opacity-100" : "invisible opacity-0 group-hover:visible group-hover:opacity-100"}`}
         >
           {children}
