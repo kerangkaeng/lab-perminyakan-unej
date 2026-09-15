@@ -13,7 +13,7 @@ function NavLink({ item }: { item: NavItem }) {
   return (
     <Link
       href={item.href}
-      className={`block truncate rounded px-3 py-2 text-sm transition-colors ${
+      className={`block break-words rounded px-3 py-2 text-sm transition-colors ${
         active ? "bg-mist font-medium text-petrol" : "text-ink/80 hover:bg-mist hover:text-rig"
       }`}
     >
@@ -44,7 +44,7 @@ function ContentAccordion({ items }: { items: NavItem[] }) {
       >
         <span className="flex min-w-0 items-center gap-2">
           <LayoutGrid size={15} className="shrink-0" />
-          <span className="truncate">Konten</span>
+          <span className="break-words">Konten</span>
         </span>
         <ChevronDown size={14} className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -64,7 +64,7 @@ function ContentAccordion({ items }: { items: NavItem[] }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`block truncate rounded px-3 py-1.5 text-sm transition-colors ${
+                  className={`block break-words rounded px-3 py-1.5 text-sm transition-colors ${
                     active ? "bg-mist font-medium text-petrol" : "text-ink/80 hover:bg-mist hover:text-rig"
                   }`}
                 >
