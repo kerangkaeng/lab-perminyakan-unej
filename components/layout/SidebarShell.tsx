@@ -1,47 +1,41 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { PanelLeftOpen } from "lucide-react";
 
-const COOKIE_NAME = "sidebar_collapsed";
-
-export function SidebarShell({
-  initialCollapsed,
-  children,
-}: {
-  initialCollapsed: boolean;
-  children: React.ReactNode;
-}) {
-  const [collapsed, setCollapsed] = useState(initialCollapsed);
-
-  function toggle() {
-    const next = !collapsed;
-    setCollapsed(next);
-    // Simpan pilihan di cookie (bukan localStorage) supaya server component
-    // GlobalDashboardSidebar bisa baca nilainya saat render awal — jadi
-    // sidebar langsung terbuka/tertutup sesuai pilihan terakhir, tanpa
-    // "kedip" dari expanded lalu tiba-tiba collapse setelah hydration.
-    document.cookie = `${COOKIE_NAME}=${next ? "1" : "0"}; path=/; max-age=31536000`;
-  }
+/**
+ * Sidebar dashboard: strip sempit (w-14) yang SELALU menempati ruang tetap
+ * di layout (supaya konten utama tidak pernah ikut bergeser/mengecil).
+ * Saat hover, panel penuh (w-64) muncul sebagai overlay `fixed` — lepas dari
+ * document flow — jadi murni "mengambang" di atas konten, bukan mendorongnya.
+ *
+ * Ada juga fallback klik ("pinned") untuk pengguna keyboard/touch yang tidak
+ * punya hover, supaya tetap accessible.
+ */
+export function SidebarShell({ children }: { children: React.ReactNode }) {
+  const [pinned, setPinned] = useState(false);
 
   return (
-    <aside
-      className={`hidden lg:block shrink-0 border-r border-line transition-[width] duration-200 ease-smooth ${
-        collapsed ? "w-14" : "w-60"
-      }`}
-    >
-      <div className="sticky top-16 flex h-[calc(100vh-4rem)] flex-col overflow-y-auto p-3">
+    <aside className="hidden lg:block shrink-0 w-14 border-r border-line">
+      <div className="group fixed left-0 top-16 bottom-0 z-40 w-14">
+        {/* Strip sempit, selalu terlihat — sekaligus tombol fallback klik */}
         <button
           type="button"
-          onClick={toggle}
-          aria-label={collapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
-          aria-expanded={!collapsed}
-          className="mb-4 flex h-8 w-8 shrink-0 items-center justify-center self-end rounded text-core transition-colors hover:bg-mist hover:text-rig"
+          onClick={() => setPinned((v) => !v)}
+          aria-expanded={pinned}
+          aria-label={pinned ? "Tutup menu" : "Buka menu"}
+          className="flex h-full w-14 flex-col items-center border-r border-line bg-paper pt-4 text-core transition-colors hover:text-rig"
         >
-          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          <PanelLeftOpen size={18} />
         </button>
 
-        <div className={collapsed ? "hidden" : "block px-1"}>{children}</div>
+        {/* Panel penuh: overlay, tidak memengaruhi layout konten utama */}
+        <div
+          className={`absolute left-0 top-0 h-full w-64 overflow-y-auto overflow-x-hidden border-r border-line bg-paper p-3 shadow-2xl transition-opacity duration-150 ease-smooth
+            ${pinned ? "visible opacity-100" : "invisible opacity-0 group-hover:visible group-hover:opacity-100"}`}
+        >
+          {children}
+        </div>
       </div>
     </aside>
   );
