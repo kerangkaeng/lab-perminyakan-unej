@@ -61,7 +61,7 @@ export function Navbar({ session }: { session: NavSession }) {
                   </Link>
                 )}
                 <Link
-                  href="/practicum/status"
+                  href="/profile"
                   className="text-sm font-medium text-paper bg-petrol hover:bg-petrol-light px-4 py-2 transition-colors"
                 >
                   {session.nama.split(" ")[0]}
@@ -85,8 +85,6 @@ export function Navbar({ session }: { session: NavSession }) {
           </button>
         </div>
       </header>
-      {/* Rendered as a SIBLING of <header>, not inside it — header's backdrop-blur
-          would otherwise create a new containing block that traps this fixed overlay. */}
       <MobileMenu open={open} onClose={() => setOpen(false)} links={links} session={session} />
     </>
   );
