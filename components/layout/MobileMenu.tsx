@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import type { NavSession } from "./Navbar";
+import { primaryNavItems, contentNavItems } from "@/lib/nav/dashboardNav";
 
 type Link_ = { href: string; label: string };
 
@@ -32,9 +33,7 @@ export function MobileMenu({
       aria-hidden={!open}
       style={{ height: "100dvh" }}
     >
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-ink/40" onClick={onClose} />
-      {/* Slide-in panel */}
       <div
         className={`absolute right-0 top-0 flex w-full max-w-sm flex-col bg-paper shadow-2xl transition-transform duration-300 ease-smooth ${
           open ? "translate-x-0" : "translate-x-full"
@@ -67,21 +66,35 @@ export function MobileMenu({
           ))}
           {session ? (
             <>
-              {session.appRole === "admin" && (
-                <Link
-                  href="/admin"
-                  onClick={onClose}
-                  className="border-b border-line py-3.5 font-display text-lg text-rig"
-                >
-                  Admin
-                </Link>
-              )}
+              {primaryNavItems
+                .filter((item) => item.roles.includes(session.appRole))
+                .map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onClose}
+                    className="border-b border-line py-3.5 font-display text-lg text-ink"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              {session.appRole === "admin" &&
+                contentNavItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onClose}
+                    className="border-b border-line py-3 pl-4 text-base text-ink/80"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
               <Link
-                href="/practicum/status"
+                href="/profile"
                 onClick={onClose}
-                className="border-b border-line py-3.5 font-display text-lg text-ink"
+                className="border-b border-line py-3.5 font-display text-lg text-rig"
               >
-                Dashboard
+                Profil
               </Link>
               <a href="/api/auth/logout" className="py-3.5 font-display text-lg text-core">
                 Keluar
