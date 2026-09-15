@@ -14,8 +14,8 @@ export async function GlobalDashboardSidebar() {
   return (
     <SidebarShell>
       <div className="mb-6 min-w-0">
-        <p className="truncate font-display font-semibold text-ink">{session.nama}</p>
-        <p className="mt-1 truncate text-xs font-mono text-core">{session.nim ?? "—"}</p>
+        <p className="break-words font-display font-semibold text-ink">{session.nama}</p>
+        <p className="mt-1 break-words text-xs font-mono text-core">{session.nim ?? "—"}</p>
         <p className="mt-1 text-xs font-mono uppercase text-rig">{session.userType}</p>
         {session.appRole === "admin" && (
           <p className="mt-0.5 text-xs font-mono uppercase text-petrol">Admin</p>
