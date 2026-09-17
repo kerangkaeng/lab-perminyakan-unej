@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { slugify } from "@/lib/utils";
-
-const BUCKET = "content-images";
+import { uploadPublicFile, buildKey } from "@/lib/storage/b2";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -43,20 +42,13 @@ export async function POST(req: NextRequest) {
 
   let coverImageUrl: string | null = null;
   if (file instanceof File && file.size > 0) {
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `news/${slug}-${Date.now()}.${ext}`;
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, buffer, { contentType: file.type || "image/jpeg" });
-
-    if (uploadError) {
+    const key = buildKey("news", file.name);
+    try {
+      coverImageUrl = await uploadPublicFile(file, key, file.type || "image/jpeg");
+    } catch (uploadError) {
       console.error("Upload cover berita error", uploadError);
       return NextResponse.json({ error: "Gagal mengunggah gambar sampul." }, { status: 500 });
     }
-
-    coverImageUrl = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
   }
 
   const { data, error } = await supabase
