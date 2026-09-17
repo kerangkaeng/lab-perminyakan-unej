@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
-import { uploadPublicFile, buildKey } from "@/lib/storage/b2";
+import { uploadPublicFile, buildKey, assertFileSize, FileTooLargeError } from "@/lib/storage/b2";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -13,6 +13,15 @@ export async function POST(req: NextRequest) {
   const file = form?.get("file");
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "Berkas gambar tidak valid." }, { status: 400 });
+  }
+
+  try {
+    assertFileSize(file, "image");
+  } catch (e) {
+    if (e instanceof FileTooLargeError) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
+    throw e;
   }
 
   const key = buildKey("news/inline", file.name);
