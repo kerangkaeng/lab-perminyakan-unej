@@ -1,152 +1,76 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
-import { docStoragePath } from "@/lib/supabase/storage";
-import { uploadPrivateFile, getPrivateSignedUrls, assertFileSize, FileTooLargeError } from "@/lib/storage/b2";
 
-const ALLOWED_CATEGORIES = [
-  "doc_pretest",
-  "doc_tes_alat",
-  "doc_praktikum",
-  "doc_kegiatan",
-  "insiden_dokumentasi",
-] as const;
-type Category = (typeof ALLOWED_CATEGORIES)[number];
-
-// Kategori dokumentasi yang valid per jenis kegiatan
-const VALID_FOR_JENIS: Record<string, Category[]> = {
-  praktikum: ["doc_pretest", "doc_tes_alat", "doc_praktikum", "insiden_dokumentasi"],
-  non_praktikum: ["doc_kegiatan", "insiden_dokumentasi"],
-};
-
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession();
   const token = getSessionToken();
+
   if (!session || !token) {
     return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
   }
 
-  const form = await req.formData().catch(() => null);
-  const file = form?.get("file");
-  const category = form?.get("category");
+  // Pengecekan role di sini murni untuk pesan error yang jelas di UI —
+  // enforcement yang sesungguhnya tetap di RLS (requests_update_admin_only),
+  // jadi meskipun app_role di token dipalsukan, query akan tetap ditolak
+  // Supabase kalau is_admin() bernilai false di database.
+  if (session.appRole !== "admin") {
+    return NextResponse.json({ error: "Hanya admin yang bisa melakukan aksi ini." }, { status: 403 });
+  }
 
-  if (
-    !(file instanceof File) ||
-    typeof category !== "string" ||
-    !ALLOWED_CATEGORIES.includes(category as Category)
-  ) {
-    return NextResponse.json({ error: "Berkas atau kategori dokumentasi tidak valid." }, { status: 400 });
+  const body = await req.json().catch(() => null);
+  const { status, catatan_admin } = body ?? {};
+
+  if (status !== "approved" && status !== "rejected") {
+    return NextResponse.json({ error: "Status tidak valid." }, { status: 400 });
   }
 
   const supabase = supabaseAuthed(token);
-
-  const { data: reqRow, error: fetchError } = await supabase
+  const { data, error } = await supabase
     .from("practicum_requests")
-    .select(
-      "id, requester_id, jenis_kegiatan, status, completed, doc_pretest, doc_tes_alat, doc_praktikum, doc_kegiatan, insiden_dokumentasi"
-    )
-    .eq("id", params.id)
-    .single();
-
-  if (fetchError || !reqRow) {
-    return NextResponse.json({ error: "Pengajuan tidak ditemukan." }, { status: 404 });
-  }
-
-  const isOwner = reqRow.requester_id === session.usersId;
-  if (!isOwner && session.appRole !== "admin") {
-    return NextResponse.json({ error: "Kamu tidak berhak mengunggah dokumentasi ini." }, { status: 403 });
-  }
-  if (reqRow.status !== "approved") {
-    return NextResponse.json({ error: "Pengajuan belum disetujui admin." }, { status: 400 });
-  }
-  if (reqRow.completed) {
-    return NextResponse.json({ error: "Administrasi kegiatan ini sudah ditandai selesai." }, { status: 400 });
-  }
-  if (!VALID_FOR_JENIS[reqRow.jenis_kegiatan]?.includes(category as Category)) {
-    return NextResponse.json({ error: "Kategori dokumentasi tidak sesuai jenis kegiatan." }, { status: 400 });
-  }
-
-  const path = docStoragePath(params.id, category, file.name);
-  const buffer = Buffer.from(await file.arrayBuffer());
-
-  try {
-    assertFileSize(file, "auto");
-  } catch (e) {
-    if (e instanceof FileTooLargeError) {
-      return NextResponse.json({ error: e.message }, { status: 400 });
-    }
-    throw e;
-  }
-
-  try {
-    await uploadPrivateFile(buffer, path, file.type || "application/octet-stream");
-  } catch (e) {
-    console.error("Upload dokumentasi error", e);
-    return NextResponse.json({ error: "Gagal mengunggah berkas." }, { status: 500 });
-  }
-
-  const currentList: string[] = (reqRow as any)[category] ?? [];
-  const updatedList = [...currentList, path];
-
-  const { data: updated, error: updateError } = await supabase
-    .from("practicum_requests")
-    .update({ [category]: updatedList })
+    .update({
+      status,
+      catatan_admin: catatan_admin || null,
+      reviewed_by: session.usersId,
+      reviewed_at: new Date().toISOString(),
+    })
     .eq("id", params.id)
     .select()
     .single();
 
-  if (updateError) {
-    console.error("Update referensi dokumentasi error", updateError);
-    return NextResponse.json(
-      { error: "Berkas terunggah, tapi gagal menyimpan referensinya." },
-      { status: 500 }
-    );
+  if (error) {
+    console.error("Update practicum_request error", error);
+    return NextResponse.json({ error: "Gagal memperbarui status pengajuan." }, { status: 500 });
   }
 
-  return NextResponse.json({ data: updated, path });
+  return NextResponse.json({ data });
 }
 
-// Dipakai untuk menampilkan pratinjau (signed URL, karena bucket privat) —
-// oleh mahasiswa pemilik pengajuan maupun admin.
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession();
   const token = getSessionToken();
+
   if (!session || !token) {
     return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
   }
 
+  // Sama seperti PATCH: pengecekan ini cuma untuk pesan error yang jelas.
+  // Enforcement sesungguhnya ada di RLS policy requests_delete_admin_only
+  // (lihat supabase/migrations/002_practicum_requests_delete.sql).
+  if (session.appRole !== "admin") {
+    return NextResponse.json({ error: "Hanya admin yang bisa melakukan aksi ini." }, { status: 403 });
+  }
+
   const supabase = supabaseAuthed(token);
-  const { data: reqRow, error } = await supabase
+  const { error } = await supabase
     .from("practicum_requests")
-    .select("*")
-    .eq("id", params.id)
-    .single();
+    .delete()
+    .eq("id", params.id);
 
-  if (error || !reqRow) {
-    return NextResponse.json({ error: "Pengajuan tidak ditemukan." }, { status: 404 });
+  if (error) {
+    console.error("Delete practicum_request error", error);
+    return NextResponse.json({ error: "Gagal menghapus pengajuan." }, { status: 500 });
   }
 
-  const isOwner = reqRow.requester_id === session.usersId;
-  if (!isOwner && session.appRole !== "admin") {
-    return NextResponse.json({ error: "Kamu tidak berhak melihat dokumentasi ini." }, { status: 403 });
-  }
-
-  const categories: Category[] = [
-    "doc_pretest",
-    "doc_tes_alat",
-    "doc_praktikum",
-    "doc_kegiatan",
-    "insiden_dokumentasi",
-  ];
-
-  const signed: Record<string, { path: string; url: string }[]> = {};
-
-  for (const cat of categories) {
-    const paths: string[] = (reqRow as any)[cat] ?? [];
-    if (paths.length === 0) continue;
-    const results = await getPrivateSignedUrls(paths, 3600);
-    signed[cat] = results.map((r) => ({ path: r.key, url: r.url }));
-  }
-
-  return NextResponse.json({ data: signed });
+  return NextResponse.json({ success: true });
 }
