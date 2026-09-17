@@ -21,6 +21,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     insiden_penyebab,
     insiden_pihak_terkait,
     insiden_tanggung_jawab,
+    ada_peminjaman,
+    pinjam_alat,
+    pinjam_bahan,
+    peminjaman_alat,
+    peminjaman_bahan,
   } = body ?? {};
 
   const supabase = supabaseAuthed(token);
@@ -104,6 +109,56 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     updatePayload.insiden_penyebab = null;
     updatePayload.insiden_pihak_terkait = null;
     updatePayload.insiden_tanggung_jawab = null;
+  }
+
+  // --- Peminjaman alat/bahan ---
+  updatePayload.ada_peminjaman = !!ada_peminjaman;
+
+  if (ada_peminjaman) {
+    const pinjamAlat = !!pinjam_alat;
+    const pinjamBahan = !!pinjam_bahan;
+
+    if (!pinjamAlat && !pinjamBahan) {
+      return NextResponse.json(
+        { error: "Kalau ada peminjaman, pilih Ya untuk alat dan/atau bahan (minimal salah satu)." },
+        { status: 400 }
+      );
+    }
+
+    function validateItems(items: unknown, label: string) {
+      if (!Array.isArray(items) || items.length === 0) {
+        throw new Error(`Mohon tambahkan minimal satu ${label} yang dipinjam.`);
+      }
+      for (const item of items) {
+        if (
+          !item ||
+          typeof item !== "object" ||
+          !("equipment_id" in item) ||
+          !item.equipment_id ||
+          !("jumlah" in item) ||
+          !String(item.jumlah).trim()
+        ) {
+          throw new Error(`Mohon lengkapi pilihan ${label} dan jumlah/satuannya.`);
+        }
+      }
+    }
+
+    try {
+      if (pinjamAlat) validateItems(peminjaman_alat, "alat");
+      if (pinjamBahan) validateItems(peminjaman_bahan, "bahan");
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+    }
+
+    updatePayload.pinjam_alat = pinjamAlat;
+    updatePayload.pinjam_bahan = pinjamBahan;
+    updatePayload.peminjaman_alat = pinjamAlat ? peminjaman_alat : null;
+    updatePayload.peminjaman_bahan = pinjamBahan ? peminjaman_bahan : null;
+  } else {
+    updatePayload.pinjam_alat = null;
+    updatePayload.pinjam_bahan = null;
+    updatePayload.peminjaman_alat = null;
+    updatePayload.peminjaman_bahan = null;
   }
 
   const { data, error } = await supabase
