@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
-import { DOCS_BUCKET, docStoragePath } from "@/lib/supabase/storage";
+import { docStoragePath } from "@/lib/supabase/storage";
+import { uploadPrivateFile, getPrivateSignedUrls } from "@/lib/storage/b2";
 
 const ALLOWED_CATEGORIES = [
   "doc_pretest",
@@ -68,12 +69,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const path = docStoragePath(params.id, category, file.name);
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  const { error: uploadError } = await supabase.storage
-    .from(DOCS_BUCKET)
-    .upload(path, buffer, { contentType: file.type || "application/octet-stream" });
-
-  if (uploadError) {
-    console.error("Upload dokumentasi error", uploadError);
+  try {
+    await uploadPrivateFile(buffer, path, file.type || "application/octet-stream");
+  } catch (e) {
+    console.error("Upload dokumentasi error", e);
     return NextResponse.json({ error: "Gagal mengunggah berkas." }, { status: 500 });
   }
 
@@ -136,9 +135,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   for (const cat of categories) {
     const paths: string[] = (reqRow as any)[cat] ?? [];
     if (paths.length === 0) continue;
-    const { data: signedUrls } = await supabase.storage.from(DOCS_BUCKET).createSignedUrls(paths, 3600);
-    signed[cat] = (signedUrls ?? [])
-      .map((s, i) => ({ path: paths[i], url: s.signedUrl }))
+    const signedUrls = await getPrivateSignedUrls(paths, 3600);
+    signed[cat] = signedUrls
+      .map((s) => ({ path: s.key, url: s.url }))
       .filter((s): s is { path: string; url: string } => !!s.url);
   }
 
