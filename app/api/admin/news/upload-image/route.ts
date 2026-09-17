@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
-import { supabaseAuthed } from "@/lib/supabase/authed";
-
-const BUCKET = "content-images";
+import { uploadPublicFile, buildKey } from "@/lib/storage/b2";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -17,20 +15,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Berkas gambar tidak valid." }, { status: 400 });
   }
 
-  const supabase = supabaseAuthed(token);
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `news/inline/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const key = buildKey("news/inline", file.name);
 
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, buffer, { contentType: file.type || "image/jpeg" });
-
-  if (uploadError) {
+  try {
+    const url = await uploadPublicFile(file, key, file.type || "image/jpeg");
+    return NextResponse.json({ url });
+  } catch (uploadError) {
     console.error("Upload gambar inline error", uploadError);
     return NextResponse.json({ error: "Gagal mengunggah gambar." }, { status: 500 });
   }
-
-  const url = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-  return NextResponse.json({ url });
 }
