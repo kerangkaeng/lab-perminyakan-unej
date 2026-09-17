@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
-import { uploadPublicFile, buildKey } from "@/lib/storage/b2";
+import { uploadPublicFile, buildKey, assertFileSize, FileTooLargeError } from "@/lib/storage/b2";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession();
@@ -39,6 +39,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   };
 
   if (file instanceof File && file.size > 0) {
+    try {
+      assertFileSize(file, "image");
+    } catch (e) {
+      if (e instanceof FileTooLargeError) {
+        return NextResponse.json({ error: e.message }, { status: 400 });
+      }
+      throw e;
+    }
     const key = buildKey("news", file.name);
     try {
       updatePayload.cover_image = await uploadPublicFile(file, key, file.type || "image/jpeg");
