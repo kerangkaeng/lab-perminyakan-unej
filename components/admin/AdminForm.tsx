@@ -102,6 +102,12 @@ export function AdminForm({
         }
         if (field.type === "image" || field.type === "pdf" || field.type === "file") {
           const accept = field.type === "image" ? "image/*" : field.type === "pdf" ? "application/pdf" : undefined;
+          const sizeHint =
+            field.type === "image"
+              ? "Maks. 1 MB."
+              : field.type === "pdf"
+              ? "Maks. 10 MB."
+              : "Gambar maks. 1 MB, PDF maks. 10 MB.";
           return (
             <div key={field.name}>
               <label className="block text-sm font-medium mb-1">{field.label}</label>
@@ -115,6 +121,7 @@ export function AdminForm({
               )}
               <input type="file" name={field.name} accept={accept}
                 className="w-full border border-line px-3 py-2 text-sm" />
+              <p className="mt-1 text-xs text-core">{sizeHint}</p>
               <input type="hidden" name={`${field.name}__existing`} defaultValue={value ?? ""} />
             </div>
           );
