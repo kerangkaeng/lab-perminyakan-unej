@@ -3,10 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { uploadPublicFile, buildKey, deletePublicFile, keyFromProxyUrl } from "@/lib/storage/b2";
+import { uploadPublicFile, buildKey, deletePublicFile, keyFromProxyUrl, assertFileSize } from "@/lib/storage/b2";
 import { adminTables } from "./config";
 
-async function uploadFile(file: File, table: string, fieldName: string): Promise<string> {
+async function uploadFile(
+  file: File,
+  table: string,
+  fieldName: string,
+  fieldType: "image" | "pdf" | "file"
+): Promise<string> {
+  // "file" (dipakai lab_documents) boleh gambar ATAU pdf -> deteksi otomatis.
+  assertFileSize(file, fieldType === "file" ? "auto" : fieldType);
   const key = buildKey(`${table}/${fieldName}`, file.name);
   return uploadPublicFile(file, key);
 }
@@ -48,7 +55,12 @@ export async function upsertRecord(tableName: string, id: string, formData: Form
     if (field.type === "image" || field.type === "pdf" || field.type === "file") {
       const file = formData.get(field.name) as File | null;
       if (file && file.size > 0) {
-        record[field.name] = await uploadFile(file, tableName, field.name);
+        record[field.name] = await uploadFile(
+          file,
+          tableName,
+          field.name,
+          field.type as "image" | "pdf" | "file"
+        );
         if (existingRow) await deleteOldFileIfAny(existingRow[field.name]);
       } else {
         const existing = formData.get(`${field.name}__existing`);
