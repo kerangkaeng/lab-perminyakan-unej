@@ -1,17 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { X } from "lucide-react";
+import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { JenisKegiatan } from "@/types";
 import { DOC_SLOTS_PRAKTIKUM, DOC_SLOTS_NON_PRAKTIKUM, INSIDEN_OPTIONS } from "@/lib/constants/kegiatan";
+import { supabasePublic } from "@/lib/supabase/authed";
 
 type Props = {
   requestId: string;
   jenisKegiatan: JenisKegiatan;
   onClose: () => void;
 };
+
+type PinjamRow = { equipmentId: string; jumlah: string };
+type EquipmentOption = { id: string; name: string };
 
 export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
   const router = useRouter();
@@ -28,6 +32,26 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
   const [insidenPenyebab, setInsidenPenyebab] = useState("");
   const [insidenPihakTerkait, setInsidenPihakTerkait] = useState("");
   const [insidenTanggungJawab, setInsidenTanggungJawab] = useState("");
+
+  const [adaPeminjaman, setAdaPeminjaman] = useState<"ya" | "tidak" | "">("");
+  const [pinjamAlat, setPinjamAlat] = useState<"ya" | "tidak" | "">("");
+  const [pinjamBahan, setPinjamBahan] = useState<"ya" | "tidak" | "">("");
+  const [alatList, setAlatList] = useState<PinjamRow[]>([{ equipmentId: "", jumlah: "" }]);
+  const [bahanList, setBahanList] = useState<PinjamRow[]>([{ equipmentId: "", jumlah: "" }]);
+  const [equipmentOptions, setEquipmentOptions] = useState<EquipmentOption[]>([]);
+
+  useEffect(() => {
+    async function loadEquipment() {
+      const supabase = supabasePublic();
+      const { data } = await supabase
+        .from("equipment")
+        .select("id, name")
+        .eq("status", "published")
+        .order("name", { ascending: true });
+      setEquipmentOptions((data as EquipmentOption[]) ?? []);
+    }
+    loadEquipment();
+  }, []);
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -51,6 +75,74 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
       return;
     }
     setUploaded((prev) => ({ ...prev, [category]: [...(prev[category] ?? []), file.name] }));
+  }
+
+  function updateRow(list: PinjamRow[], setList: (v: PinjamRow[]) => void, index: number, patch: Partial<PinjamRow>) {
+    setList(list.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  function addRow(list: PinjamRow[], setList: (v: PinjamRow[]) => void) {
+    setList([...list, { equipmentId: "", jumlah: "" }]);
+  }
+
+  function removeRow(list: PinjamRow[], setList: (v: PinjamRow[]) => void, index: number) {
+    if (list.length <= 1) {
+      setList([{ equipmentId: "", jumlah: "" }]);
+      return;
+    }
+    setList(list.filter((_, i) => i !== index));
+  }
+
+  function PinjamRowsEditor({
+    list,
+    setList,
+    label,
+  }: {
+    list: PinjamRow[];
+    setList: (v: PinjamRow[]) => void;
+    label: string;
+  }) {
+    return (
+      <div className="space-y-3">
+        {list.map((row, i) => (
+          <div key={i} className="flex gap-2">
+            <select
+              value={row.equipmentId}
+              onChange={(e) => updateRow(list, setList, i, { equipmentId: e.target.value })}
+              className="flex-1 min-w-0 border border-line bg-mist px-3 py-2 text-sm"
+            >
+              <option value="">Pilih {label}</option>
+              {equipmentOptions.map((eq) => (
+                <option key={eq.id} value={eq.id}>
+                  {eq.name}
+                </option>
+              ))}
+            </select>
+            <input
+              value={row.jumlah}
+              onChange={(e) => updateRow(list, setList, i, { jumlah: e.target.value })}
+              placeholder="Jumlah/satuan"
+              className="w-32 border border-line bg-mist px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => removeRow(list, setList, i)}
+              className="shrink-0 border border-line px-2 text-core hover:border-red-400 hover:text-red-700 transition-colors"
+              aria-label={`Hapus baris ${label}`}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => addRow(list, setList)}
+          className="flex items-center gap-1.5 text-xs text-petrol hover:text-rig transition-colors"
+        >
+          <Plus size={14} /> Tambah {label}
+        </button>
+      </div>
+    );
   }
 
   async function handleSubmit() {
@@ -79,6 +171,30 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
       }
     }
 
+    if (adaPeminjaman === "") {
+      return setError("Mohon pilih apakah ada peminjaman alat/bahan.");
+    }
+    if (adaPeminjaman === "ya") {
+      if (pinjamAlat === "" || pinjamBahan === "") {
+        return setError("Mohon pilih Ya/Tidak untuk peminjaman alat dan bahan.");
+      }
+      if (pinjamAlat !== "ya" && pinjamBahan !== "ya") {
+        return setError("Kalau ada peminjaman, pilih Ya untuk alat dan/atau bahan (minimal salah satu).");
+      }
+      if (pinjamAlat === "ya") {
+        const incomplete = alatList.some((r) => !r.equipmentId || !r.jumlah.trim());
+        if (alatList.length === 0 || incomplete) {
+          return setError("Mohon lengkapi pilihan alat dan jumlah/satuannya.");
+        }
+      }
+      if (pinjamBahan === "ya") {
+        const incomplete = bahanList.some((r) => !r.equipmentId || !r.jumlah.trim());
+        if (bahanList.length === 0 || incomplete) {
+          return setError("Mohon lengkapi pilihan bahan dan jumlah/satuannya.");
+        }
+      }
+    }
+
     setSubmitting(true);
     const payload: Record<string, unknown> = { ada_insiden: adaInsiden === "ya" };
     if (adaInsiden === "ya") {
@@ -89,6 +205,28 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
       payload.insiden_penyebab = insidenPenyebab;
       payload.insiden_pihak_terkait = insidenPihakTerkait;
       payload.insiden_tanggung_jawab = insidenTanggungJawab;
+    }
+
+    payload.ada_peminjaman = adaPeminjaman === "ya";
+    if (adaPeminjaman === "ya") {
+      payload.pinjam_alat = pinjamAlat === "ya";
+      payload.pinjam_bahan = pinjamBahan === "ya";
+      payload.peminjaman_alat =
+        pinjamAlat === "ya"
+          ? alatList.map((r) => ({
+              equipment_id: r.equipmentId,
+              equipment_name: equipmentOptions.find((eq) => eq.id === r.equipmentId)?.name ?? "",
+              jumlah: r.jumlah,
+            }))
+          : undefined;
+      payload.peminjaman_bahan =
+        pinjamBahan === "ya"
+          ? bahanList.map((r) => ({
+              equipment_id: r.equipmentId,
+              equipment_name: equipmentOptions.find((eq) => eq.id === r.equipmentId)?.name ?? "",
+              jumlah: r.jumlah,
+            }))
+          : undefined;
     }
 
     const res = await fetch(`/api/practicum/requests/${requestId}/complete`, {
@@ -278,6 +416,99 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
                     className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
                   />
                 </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4 border-t border-line pt-6">
+            <p className="font-mono text-xs uppercase tracking-wide text-core">Peminjaman Alat/Bahan</p>
+            <div>
+              <label className="mb-1.5 block text-sm text-ink">Apakah ada peminjaman alat/bahan?</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAdaPeminjaman("tidak")}
+                  className={`border px-4 py-2.5 text-sm transition-colors ${
+                    adaPeminjaman === "tidak" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                  }`}
+                >
+                  Tidak
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdaPeminjaman("ya")}
+                  className={`border px-4 py-2.5 text-sm transition-colors ${
+                    adaPeminjaman === "ya" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                  }`}
+                >
+                  Ya
+                </button>
+              </div>
+            </div>
+
+            {adaPeminjaman === "ya" && (
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-1.5 block text-sm text-ink">Pinjam Alat?</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPinjamAlat("tidak")}
+                      className={`border px-4 py-2.5 text-sm transition-colors ${
+                        pinjamAlat === "tidak" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                      }`}
+                    >
+                      Tidak
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPinjamAlat("ya")}
+                      className={`border px-4 py-2.5 text-sm transition-colors ${
+                        pinjamAlat === "ya" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                      }`}
+                    >
+                      Ya
+                    </button>
+                  </div>
+                </div>
+
+                {pinjamAlat === "ya" && (
+                  <div>
+                    <label className="mb-1.5 block text-sm text-ink">Daftar Alat yang Dipinjam</label>
+                    <PinjamRowsEditor list={alatList} setList={setAlatList} label="alat" />
+                  </div>
+                )}
+
+                <div>
+                  <label className="mb-1.5 block text-sm text-ink">Pinjam Bahan?</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPinjamBahan("tidak")}
+                      className={`border px-4 py-2.5 text-sm transition-colors ${
+                        pinjamBahan === "tidak" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                      }`}
+                    >
+                      Tidak
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPinjamBahan("ya")}
+                      className={`border px-4 py-2.5 text-sm transition-colors ${
+                        pinjamBahan === "ya" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                      }`}
+                    >
+                      Ya
+                    </button>
+                  </div>
+                </div>
+
+                {pinjamBahan === "ya" && (
+                  <div>
+                    <label className="mb-1.5 block text-sm text-ink">Daftar Bahan yang Dipinjam</label>
+                    <PinjamRowsEditor list={bahanList} setList={setBahanList} label="bahan" />
+                  </div>
+                )}
               </div>
             )}
           </div>
