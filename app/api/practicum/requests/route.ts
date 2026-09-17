@@ -1,143 +1,92 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
-import { docStoragePath } from "@/lib/supabase/storage";
-import { uploadPrivateFile, getPrivateSignedUrls } from "@/lib/storage/b2";
 
-const ALLOWED_CATEGORIES = [
-  "doc_pretest",
-  "doc_tes_alat",
-  "doc_praktikum",
-  "doc_kegiatan",
-  "insiden_dokumentasi",
-] as const;
-type Category = (typeof ALLOWED_CATEGORIES)[number];
+const NON_PRAKTIKUM_VALUES = [
+  "penelitian_riset",
+  "seminar_kp",
+  "seminar_hasil",
+  "bimbingan_akademik",
+  "kegiatan_akademik",
+  "lainnya",
+];
 
-// Kategori dokumentasi yang valid per jenis kegiatan
-const VALID_FOR_JENIS: Record<string, Category[]> = {
-  praktikum: ["doc_pretest", "doc_tes_alat", "doc_praktikum", "insiden_dokumentasi"],
-  non_praktikum: ["doc_kegiatan", "insiden_dokumentasi"],
-};
-
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest) {
   const session = await getSession();
   const token = getSessionToken();
+
   if (!session || !token) {
     return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
   }
 
-  const form = await req.formData().catch(() => null);
-  const file = form?.get("file");
-  const category = form?.get("category");
+  const body = await req.json().catch(() => null);
+  const {
+    jenis_kegiatan,
+    praktikum_nama,
+    modul,
+    lokasi,
+    kegiatan_non_praktikum,
+    deskripsi_lainnya,
+    tanggal,
+    jam_mulai,
+    jam_selesai,
+  } = body ?? {};
 
-  if (
-    !(file instanceof File) ||
-    typeof category !== "string" ||
-    !ALLOWED_CATEGORIES.includes(category as Category)
-  ) {
-    return NextResponse.json({ error: "Berkas atau kategori dokumentasi tidak valid." }, { status: 400 });
+  if (!tanggal || !jam_mulai || !jam_selesai || !lokasi) {
+    return NextResponse.json({ error: "Mohon lengkapi tanggal, jam, dan laboratorium." }, { status: 400 });
+  }
+
+  if (jenis_kegiatan !== "praktikum" && jenis_kegiatan !== "non_praktikum") {
+    return NextResponse.json({ error: "Jenis kegiatan tidak valid." }, { status: 400 });
+  }
+
+  const insertPayload: Record<string, unknown> = {
+    requester_id: session.usersId,
+    jenis_kegiatan,
+    tanggal,
+    jam_mulai,
+    jam_selesai,
+    lokasi,
+  };
+
+  if (jenis_kegiatan === "praktikum") {
+    if (!praktikum_nama || !modul) {
+      return NextResponse.json(
+        { error: "Mohon lengkapi praktikum dan modul." },
+        { status: 400 }
+      );
+    }
+    insertPayload.praktikum_nama = praktikum_nama;
+    insertPayload.modul = modul;
+  } else {
+    if (!kegiatan_non_praktikum || !NON_PRAKTIKUM_VALUES.includes(kegiatan_non_praktikum)) {
+      return NextResponse.json({ error: "Mohon pilih jenis kegiatan non-praktikum." }, { status: 400 });
+    }
+    if (kegiatan_non_praktikum === "lainnya" && !deskripsi_lainnya) {
+      return NextResponse.json(
+        { error: "Mohon isi deskripsi kegiatan untuk kategori Lainnya." },
+        { status: 400 }
+      );
+    }
+    insertPayload.kegiatan_non_praktikum = kegiatan_non_praktikum;
+    insertPayload.deskripsi_lainnya = kegiatan_non_praktikum === "lainnya" ? deskripsi_lainnya : null;
   }
 
   const supabase = supabaseAuthed(token);
 
-  const { data: reqRow, error: fetchError } = await supabase
+  // requester_id dikirim sebagai users.id milik sesi ini; RLS tetap
+  // memvalidasi ulang lewat subquery auth.uid() jadi aman meski nilai ini
+  // dipalsukan dari client.
+  const { data, error } = await supabase
     .from("practicum_requests")
-    .select(
-      "id, requester_id, jenis_kegiatan, status, completed, doc_pretest, doc_tes_alat, doc_praktikum, doc_kegiatan, insiden_dokumentasi"
-    )
-    .eq("id", params.id)
-    .single();
-
-  if (fetchError || !reqRow) {
-    return NextResponse.json({ error: "Pengajuan tidak ditemukan." }, { status: 404 });
-  }
-
-  const isOwner = reqRow.requester_id === session.usersId;
-  if (!isOwner && session.appRole !== "admin") {
-    return NextResponse.json({ error: "Kamu tidak berhak mengunggah dokumentasi ini." }, { status: 403 });
-  }
-  if (reqRow.status !== "approved") {
-    return NextResponse.json({ error: "Pengajuan belum disetujui admin." }, { status: 400 });
-  }
-  if (reqRow.completed) {
-    return NextResponse.json({ error: "Administrasi kegiatan ini sudah ditandai selesai." }, { status: 400 });
-  }
-  if (!VALID_FOR_JENIS[reqRow.jenis_kegiatan]?.includes(category as Category)) {
-    return NextResponse.json({ error: "Kategori dokumentasi tidak sesuai jenis kegiatan." }, { status: 400 });
-  }
-
-  const path = docStoragePath(params.id, category, file.name);
-  const buffer = Buffer.from(await file.arrayBuffer());
-
-  try {
-    await uploadPrivateFile(buffer, path, file.type || "application/octet-stream");
-  } catch (uploadError) {
-    console.error("Upload dokumentasi error", uploadError);
-    return NextResponse.json({ error: "Gagal mengunggah berkas." }, { status: 500 });
-  }
-
-  const currentList: string[] = (reqRow as any)[category] ?? [];
-  const updatedList = [...currentList, path];
-
-  const { data: updated, error: updateError } = await supabase
-    .from("practicum_requests")
-    .update({ [category]: updatedList })
-    .eq("id", params.id)
+    .insert(insertPayload)
     .select()
     .single();
 
-  if (updateError) {
-    console.error("Update referensi dokumentasi error", updateError);
-    return NextResponse.json(
-      { error: "Berkas terunggah, tapi gagal menyimpan referensinya." },
-      { status: 500 }
-    );
+  if (error) {
+    console.error("Insert practicum_request error", error);
+    return NextResponse.json({ error: "Gagal menyimpan pengajuan." }, { status: 500 });
   }
 
-  return NextResponse.json({ data: updated, path });
-}
-
-// Dipakai untuk menampilkan pratinjau (signed URL, karena bucket privat) —
-// oleh mahasiswa pemilik pengajuan maupun admin.
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession();
-  const token = getSessionToken();
-  if (!session || !token) {
-    return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
-  }
-
-  const supabase = supabaseAuthed(token);
-  const { data: reqRow, error } = await supabase
-    .from("practicum_requests")
-    .select("*")
-    .eq("id", params.id)
-    .single();
-
-  if (error || !reqRow) {
-    return NextResponse.json({ error: "Pengajuan tidak ditemukan." }, { status: 404 });
-  }
-
-  const isOwner = reqRow.requester_id === session.usersId;
-  if (!isOwner && session.appRole !== "admin") {
-    return NextResponse.json({ error: "Kamu tidak berhak melihat dokumentasi ini." }, { status: 403 });
-  }
-
-  const categories: Category[] = [
-    "doc_pretest",
-    "doc_tes_alat",
-    "doc_praktikum",
-    "doc_kegiatan",
-    "insiden_dokumentasi",
-  ];
-
-  const signed: Record<string, { path: string; url: string }[]> = {};
-
-  for (const cat of categories) {
-    const paths: string[] = (reqRow as any)[cat] ?? [];
-    if (paths.length === 0) continue;
-    const results = await getPrivateSignedUrls(paths, 3600);
-    signed[cat] = results.map((r) => ({ path: r.key, url: r.url }));
-  }
-
-  return NextResponse.json({ data: signed });
+  return NextResponse.json({ data });
 }
