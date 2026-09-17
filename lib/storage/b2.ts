@@ -26,6 +26,47 @@ function requiredEnv(name: string): string {
   return v;
 }
 
+// ============================================================
+// Batas ukuran file — berlaku di SELURUH titik upload (admin CMS, cover
+// berita, gambar inline berita, dokumentasi praktikum & insiden).
+//   - Gambar: maksimal 1 MB
+//   - PDF   : maksimal 10 MB
+// ============================================================
+export const MAX_IMAGE_BYTES = 1 * 1024 * 1024; // 1 MB
+export const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
+
+export class FileTooLargeError extends Error {}
+
+function formatSize(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+/**
+ * Validasi ukuran file sebelum diupload. `kind`:
+ *   - "image" -> selalu pakai limit gambar (1 MB)
+ *   - "pdf"   -> selalu pakai limit PDF (10 MB)
+ *   - "auto"  -> deteksi dari file.type: image/* pakai limit gambar,
+ *                selain itu (termasuk application/pdf) pakai limit PDF.
+ *                Dipakai untuk field yang boleh diisi gambar ATAU PDF
+ *                (mis. dokumentasi praktikum, lab_documents).
+ * Melempar FileTooLargeError (bukan Error biasa) kalau melebihi limit,
+ * supaya pemanggil bisa membedakan ini validasi vs kegagalan network/API.
+ */
+export function assertFileSize(
+  file: { size: number; type?: string },
+  kind: "image" | "pdf" | "auto"
+) {
+  const isImage = kind === "image" || (kind === "auto" && (file.type ?? "").startsWith("image/"));
+  const limit = isImage ? MAX_IMAGE_BYTES : MAX_PDF_BYTES;
+
+  if (file.size > limit) {
+    const label = isImage ? "gambar (maks. 1 MB)" : "PDF (maks. 10 MB)";
+    throw new FileTooLargeError(
+      `Ukuran file terlalu besar untuk ${label}. Ukuran file kamu: ${formatSize(file.size)}.`
+    );
+  }
+}
+
 export const B2_BUCKET_PUBLIC = process.env.B2_BUCKET_PUBLIC || "lab-content-public";
 export const B2_BUCKET_PRIVATE = process.env.B2_BUCKET_PRIVATE || "lab-practicum-docs";
 
