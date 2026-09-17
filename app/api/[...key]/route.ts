@@ -34,7 +34,7 @@ export async function GET(
     return NextResponse.json({ error: "Berkas tidak ditemukan." }, { status: 404 });
   }
 
-  return new NextResponse(file.body, {
+  return new NextResponse(Buffer.from(file.body) as unknown as BodyInit, {
     status: 200,
     headers: {
       "Content-Type": file.contentType,
