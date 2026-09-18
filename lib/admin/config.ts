@@ -174,6 +174,12 @@ export const adminTables: Record<string, TableConfig> = {
       { name: "content", label: "Isi", type: "textarea", required: true },
       { name: "date", label: "Tanggal", type: "date", required: true },
       { name: "is_pinned", label: "Sematkan (Pinned)", type: "checkbox" },
+      // field baru — "file" otomatis terima gambar ATAU pdf (lihat
+      // assertFileSize di lib/storage/b2.ts, tipe "file" = auto-detect).
+      // Untuk Word (.doc/.docx), tetap bisa lewat tipe "file" ini karena
+      // uploadPublicFile tidak membatasi jenis file, hanya "image"/"pdf"
+      // yang lebih strict soal validasi tipe kontennya.
+      { name: "attachment_url", label: "Lampiran (Gambar/PDF/Word, opsional)", type: "file" },
       STATUS,
     ],
   },
