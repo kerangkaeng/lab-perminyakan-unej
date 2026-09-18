@@ -136,9 +136,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           !("equipment_id" in item) ||
           !item.equipment_id ||
           !("jumlah" in item) ||
-          !String(item.jumlah).trim()
+          typeof item.jumlah !== "number" ||
+          !(item.jumlah > 0) ||
+          !("satuan" in item) ||
+          !String(item.satuan).trim()
         ) {
-          throw new Error(`Mohon lengkapi pilihan ${label} dan jumlah/satuannya.`);
+          throw new Error(`Mohon lengkapi pilihan ${label}, jumlah (angka > 0), dan satuannya.`);
         }
       }
     }
