@@ -48,10 +48,11 @@ export const adminTables: Record<string, TableConfig> = {
     label: "Equipment (Alat Lab & Alat Umum)",
     orderBy: "name",
     orderAsc: true,
-    listColumns: ["name", "facility_id", "status"],
+    listColumns: ["name", "jenis", "facility_id", "status"],
     fields: [
       { name: "facility_id", label: "Milik Lab", type: "relation", relationTable: "facilities", relationLabelField: "name" },
-      { name: "name", label: "Nama Alat", type: "text", required: true },
+      { name: "jenis", label: "Jenis", type: "select", options: ["alat", "bahan"], required: true },
+      { name: "name", label: "Nama Alat/Bahan", type: "text", required: true },
       { name: "spec", label: "Spesifikasi", type: "textarea" },
       { name: "function", label: "Fungsi", type: "textarea" },
       { name: "image", label: "Foto Alat", type: "image" },
