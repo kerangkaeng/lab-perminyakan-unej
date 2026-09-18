@@ -44,3 +44,16 @@ export type DocSlotKey =
   | "doc_praktikum"
   | "doc_kegiatan"
   | "insiden_dokumentasi";
+
+// ---- Peminjaman alat/bahan ----
+
+export const SATUAN_ALAT = ["Unit", "Buah", "Pasang", "Set", "Paket"] as const;
+
+export const SATUAN_BAHAN = [
+  // Berat
+  "Gram",
+  "Kilogram",
+  // Volume
+  "Mililiter",
+  "Liter",
+] as const;
