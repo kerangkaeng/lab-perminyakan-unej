@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { JenisKegiatan } from "@/types";
-import { DOC_SLOTS_PRAKTIKUM, DOC_SLOTS_NON_PRAKTIKUM, INSIDEN_OPTIONS } from "@/lib/constants/kegiatan";
+import { DOC_SLOTS_PRAKTIKUM, DOC_SLOTS_NON_PRAKTIKUM, INSIDEN_OPTIONS, SATUAN_ALAT, SATUAN_BAHAN } from "@/lib/constants/kegiatan";
 import { supabasePublic } from "@/lib/supabase/authed";
 
 type Props = {
@@ -14,7 +14,7 @@ type Props = {
   onClose: () => void;
 };
 
-type PinjamRow = { equipmentId: string; jumlah: string };
+type PinjamRow = { equipmentId: string; jumlah: string; satuan: string };
 type EquipmentOption = { id: string; name: string };
 
 export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
@@ -36,19 +36,23 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
   const [adaPeminjaman, setAdaPeminjaman] = useState<"ya" | "tidak" | "">("");
   const [pinjamAlat, setPinjamAlat] = useState<"ya" | "tidak" | "">("");
   const [pinjamBahan, setPinjamBahan] = useState<"ya" | "tidak" | "">("");
-  const [alatList, setAlatList] = useState<PinjamRow[]>([{ equipmentId: "", jumlah: "" }]);
-  const [bahanList, setBahanList] = useState<PinjamRow[]>([{ equipmentId: "", jumlah: "" }]);
-  const [equipmentOptions, setEquipmentOptions] = useState<EquipmentOption[]>([]);
+  const [alatList, setAlatList] = useState<PinjamRow[]>([{ equipmentId: "", jumlah: "", satuan: "" }]);
+  const [bahanList, setBahanList] = useState<PinjamRow[]>([{ equipmentId: "", jumlah: "", satuan: "" }]);
+  const [alatOptions, setAlatOptions] = useState<EquipmentOption[]>([]);
+  const [bahanOptions, setBahanOptions] = useState<EquipmentOption[]>([]);
 
   useEffect(() => {
     async function loadEquipment() {
       const supabase = supabasePublic();
       const { data } = await supabase
         .from("equipment")
-        .select("id, name")
+        .select("id, name, jenis")
         .eq("status", "published")
         .order("name", { ascending: true });
-      setEquipmentOptions((data as EquipmentOption[]) ?? []);
+
+      const rows = (data as (EquipmentOption & { jenis: string | null })[]) ?? [];
+      setAlatOptions(rows.filter((r) => r.jenis === "alat").map(({ id, name }) => ({ id, name })));
+      setBahanOptions(rows.filter((r) => r.jenis === "bahan").map(({ id, name }) => ({ id, name })));
     }
     loadEquipment();
   }, []);
@@ -82,12 +86,12 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
   }
 
   function addRow(list: PinjamRow[], setList: (v: PinjamRow[]) => void) {
-    setList([...list, { equipmentId: "", jumlah: "" }]);
+    setList([...list, { equipmentId: "", jumlah: "", satuan: "" }]);
   }
 
   function removeRow(list: PinjamRow[], setList: (v: PinjamRow[]) => void, index: number) {
     if (list.length <= 1) {
-      setList([{ equipmentId: "", jumlah: "" }]);
+      setList([{ equipmentId: "", jumlah: "", satuan: "" }]);
       return;
     }
     setList(list.filter((_, i) => i !== index));
@@ -97,13 +101,33 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
     list,
     setList,
     label,
+    options,
+    satuanOptions,
   }: {
     list: PinjamRow[];
     setList: (v: PinjamRow[]) => void;
     label: string;
+    options: EquipmentOption[];
+    satuanOptions: readonly string[];
   }) {
+    if (options.length === 0) {
+      return (
+        <p className="text-xs text-core">
+          Belum ada {label} yang terdaftar. Tambahkan dulu lewat menu Kelola Equipment (jenis: {label}).
+        </p>
+      );
+    }
+
     return (
-      <div className="space-y-3">
+      <div className="space-y-2">
+        <div className="flex gap-2 px-0.5">
+          <span className="flex-1 min-w-0 font-mono text-[11px] uppercase tracking-wide text-core">
+            {label === "alat" ? "Alat" : "Bahan"}
+          </span>
+          <span className="w-20 font-mono text-[11px] uppercase tracking-wide text-core">Jumlah</span>
+          <span className="w-28 font-mono text-[11px] uppercase tracking-wide text-core">Satuan</span>
+          <span className="w-7" />
+        </div>
         {list.map((row, i) => (
           <div key={i} className="flex gap-2">
             <select
@@ -112,22 +136,38 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
               className="flex-1 min-w-0 border border-line bg-mist px-3 py-2 text-sm"
             >
               <option value="">Pilih {label}</option>
-              {equipmentOptions.map((eq) => (
+              {options.map((eq) => (
                 <option key={eq.id} value={eq.id}>
                   {eq.name}
                 </option>
               ))}
             </select>
             <input
+              type="number"
+              inputMode="decimal"
+              step="any"
+              min="0"
               value={row.jumlah}
               onChange={(e) => updateRow(list, setList, i, { jumlah: e.target.value })}
-              placeholder="Jumlah/satuan"
-              className="w-32 border border-line bg-mist px-3 py-2 text-sm"
+              placeholder="0"
+              className="w-20 border border-line bg-mist px-2 py-2 text-sm"
             />
+            <select
+              value={row.satuan}
+              onChange={(e) => updateRow(list, setList, i, { satuan: e.target.value })}
+              className="w-28 border border-line bg-mist px-2 py-2 text-sm"
+            >
+              <option value="">Satuan</option>
+              {satuanOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               onClick={() => removeRow(list, setList, i)}
-              className="shrink-0 border border-line px-2 text-core hover:border-red-400 hover:text-red-700 transition-colors"
+              className="w-7 shrink-0 border border-line text-core hover:border-red-400 hover:text-red-700 transition-colors flex items-center justify-center"
               aria-label={`Hapus baris ${label}`}
             >
               <Trash2 size={14} />
@@ -182,15 +222,19 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
         return setError("Kalau ada peminjaman, pilih Ya untuk alat dan/atau bahan (minimal salah satu).");
       }
       if (pinjamAlat === "ya") {
-        const incomplete = alatList.some((r) => !r.equipmentId || !r.jumlah.trim());
+        const incomplete = alatList.some(
+          (r) => !r.equipmentId || !r.jumlah.trim() || Number(r.jumlah) <= 0 || !r.satuan
+        );
         if (alatList.length === 0 || incomplete) {
-          return setError("Mohon lengkapi pilihan alat dan jumlah/satuannya.");
+          return setError("Mohon lengkapi pilihan alat, jumlah (angka > 0), dan satuannya.");
         }
       }
       if (pinjamBahan === "ya") {
-        const incomplete = bahanList.some((r) => !r.equipmentId || !r.jumlah.trim());
+        const incomplete = bahanList.some(
+          (r) => !r.equipmentId || !r.jumlah.trim() || Number(r.jumlah) <= 0 || !r.satuan
+        );
         if (bahanList.length === 0 || incomplete) {
-          return setError("Mohon lengkapi pilihan bahan dan jumlah/satuannya.");
+          return setError("Mohon lengkapi pilihan bahan, jumlah (angka > 0), dan satuannya.");
         }
       }
     }
@@ -215,16 +259,18 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
         pinjamAlat === "ya"
           ? alatList.map((r) => ({
               equipment_id: r.equipmentId,
-              equipment_name: equipmentOptions.find((eq) => eq.id === r.equipmentId)?.name ?? "",
-              jumlah: r.jumlah,
+              equipment_name: alatOptions.find((eq) => eq.id === r.equipmentId)?.name ?? "",
+              jumlah: Number(r.jumlah),
+              satuan: r.satuan,
             }))
           : undefined;
       payload.peminjaman_bahan =
         pinjamBahan === "ya"
           ? bahanList.map((r) => ({
               equipment_id: r.equipmentId,
-              equipment_name: equipmentOptions.find((eq) => eq.id === r.equipmentId)?.name ?? "",
-              jumlah: r.jumlah,
+              equipment_name: bahanOptions.find((eq) => eq.id === r.equipmentId)?.name ?? "",
+              jumlah: Number(r.jumlah),
+              satuan: r.satuan,
             }))
           : undefined;
     }
@@ -475,7 +521,13 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
                 {pinjamAlat === "ya" && (
                   <div>
                     <label className="mb-1.5 block text-sm text-ink">Daftar Alat yang Dipinjam</label>
-                    <PinjamRowsEditor list={alatList} setList={setAlatList} label="alat" />
+                    <PinjamRowsEditor
+                      list={alatList}
+                      setList={setAlatList}
+                      label="alat"
+                      options={alatOptions}
+                      satuanOptions={SATUAN_ALAT}
+                    />
                   </div>
                 )}
 
@@ -506,7 +558,13 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
                 {pinjamBahan === "ya" && (
                   <div>
                     <label className="mb-1.5 block text-sm text-ink">Daftar Bahan yang Dipinjam</label>
-                    <PinjamRowsEditor list={bahanList} setList={setBahanList} label="bahan" />
+                    <PinjamRowsEditor
+                      list={bahanList}
+                      setList={setBahanList}
+                      label="bahan"
+                      options={bahanOptions}
+                      satuanOptions={SATUAN_BAHAN}
+                    />
                   </div>
                 )}
               </div>
