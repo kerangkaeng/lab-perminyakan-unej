@@ -62,6 +62,32 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
     router.refresh();
   }
 
+  async function reopenForRevision(id: string) {
+    setError(null);
+
+    const catatan = window.prompt(
+      "Kenapa administrasi ini perlu direvisi? (opsional, akan tersimpan sebagai catatan admin)"
+    );
+    // window.prompt mengembalikan null kalau ditekan Cancel — batalkan aksi.
+    if (catatan === null) return;
+
+    setLoadingId(id);
+    const res = await fetch(`/api/admin/practicum-requests/${id}/reopen`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ catatan: catatan || undefined }),
+    });
+    setLoadingId(null);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error || "Gagal membuka kembali administrasi untuk revisi.");
+      return;
+    }
+
+    router.refresh();
+  }
+
   if (requests.length === 0) {
     return <p className="text-core text-sm">Belum ada pengajuan masuk.</p>;
   }
@@ -132,19 +158,32 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
                           r.completed ? "text-petrol" : "text-core"
                         }`}
                       >
-                        {r.completed ? "Selesai" : "Belum selesai"}
+                        {r.completed
+                          ? "Selesai"
+                          : r.completed_at
+                          ? "Sedang direvisi"
+                          : "Belum selesai"}
                       </p>
                       {r.completed && r.ada_insiden && (
                         <p className="font-mono text-[11px] uppercase tracking-wide text-red-700">
                           Ada Insiden
                         </p>
                       )}
-                      {(r.completed || Object.keys(r).length > 0) && (
+                      {(r.completed || r.completed_at) && (
                         <button
                           onClick={() => setViewing(r)}
                           className="text-xs text-petrol underline hover:text-rig"
                         >
                           Lihat Dokumentasi
+                        </button>
+                      )}
+                      {r.completed && (
+                        <button
+                          disabled={loadingId === r.id}
+                          onClick={() => reopenForRevision(r.id)}
+                          className="block text-xs text-rig underline hover:text-petrol disabled:opacity-50"
+                        >
+                          Izinkan Revisi
                         </button>
                       )}
                     </div>
