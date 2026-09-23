@@ -141,5 +141,27 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       .filter((s): s is { path: string; url: string } => !!s.url);
   }
 
-  return NextResponse.json({ data: signed });
+  // Resolusi nama alat/bahan dari equipment_id. Item peminjaman lama bisa
+  // saja tidak menyimpan equipment_name (atau kosong), jadi kita selalu
+  // ambil ulang dari tabel equipment supaya nama yang tampil pasti akurat.
+  const equipmentIds = new Set<string>();
+  for (const item of ((reqRow as any).peminjaman_alat ?? []) as { equipment_id: string }[]) {
+    if (item?.equipment_id) equipmentIds.add(item.equipment_id);
+  }
+  for (const item of ((reqRow as any).peminjaman_bahan ?? []) as { equipment_id: string }[]) {
+    if (item?.equipment_id) equipmentIds.add(item.equipment_id);
+  }
+
+  const equipmentNames: Record<string, string> = {};
+  if (equipmentIds.size > 0) {
+    const { data: equipRows } = await supabase
+      .from("equipment")
+      .select("id, name")
+      .in("id", Array.from(equipmentIds));
+    for (const row of (equipRows as { id: string; name: string }[]) ?? []) {
+      equipmentNames[row.id] = row.name;
+    }
+  }
+
+  return NextResponse.json({ data: signed, equipmentNames });
 }
