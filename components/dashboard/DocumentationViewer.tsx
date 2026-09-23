@@ -21,7 +21,7 @@ export function DocumentationViewer({ request, onClose }: { request: PracticumRe
       const res = await fetch(`/api/practicum/requests/${request.id}/documentation`);
       if (!active) return;
       if (!res.ok) {
-        setError("Gagal memuat dokumentasi.");
+        setError("Gagal memuat berkas dokumentasi.");
         setLoading(false);
         return;
       }
@@ -52,138 +52,158 @@ export function DocumentationViewer({ request, onClose }: { request: PracticumRe
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-          {loading && <p className="text-sm text-core">Memuat...</p>}
-          {error && <p className="text-sm text-red-700">{error}</p>}
+          {/*
+            PENTING: `loading`/`error` di bawah ini HANYA berkaitan dengan
+            fetch signed URL berkas (foto/PDF) dari
+            /api/practicum/requests/[id]/documentation.
+            Data Insiden dan Peminjaman Alat & Bahan SUDAH tersedia langsung
+            dari prop `request` (dikirim dari server saat halaman admin
+            dimuat) dan TIDAK butuh fetch itu sama sekali. Sebelumnya kedua
+            seksi ini ikut disembunyikan setiap kali fetch berkas gagal,
+            padahal datanya sendiri sudah ada — itu penyebab admin tidak
+            bisa melihat hasil administrasi peminjaman/insiden meski
+            datanya valid di database. Sekarang keduanya dirender langsung,
+            tidak bergantung pada status fetch berkas.
+          */}
 
-          {!loading && !error && (
-            <>
-              <div className="space-y-3">
-                <p className="font-mono text-xs uppercase tracking-wide text-core">Dokumentasi Kegiatan</p>
-                {docSlots.map((slot) => (
-                  <div key={slot.key}>
-                    <p className="text-sm font-medium text-ink mb-1">{slot.label}</p>
-                    {signed[slot.key]?.length ? (
-                      <div className="flex flex-wrap gap-2">
-                        {signed[slot.key].map((f) => (
-                          
-                            key={f.path}
-                            href={f.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs text-petrol underline hover:text-rig"
-                          >
-                            Lihat berkas
-                          </a>
-                        ))}
-                      </div>
+          <div className="space-y-3">
+            <p className="font-mono text-xs uppercase tracking-wide text-core">Dokumentasi Kegiatan</p>
+            {loading && <p className="text-xs text-core">Memuat berkas...</p>}
+            {error && <p className="text-xs text-red-700">{error}</p>}
+            {!loading && !error &&
+              docSlots.map((slot) => (
+                <div key={slot.key}>
+                  <p className="text-sm font-medium text-ink mb-1">{slot.label}</p>
+                  {signed[slot.key]?.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {signed[slot.key].map((f) => (
+                        <a
+                          key={f.path}
+                          href={f.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-petrol underline hover:text-rig"
+                        >
+                          Lihat berkas
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-core">Belum ada berkas</p>
+                  )}
+                </div>
+              ))}
+          </div>
+
+          <div className="border-t border-line pt-6">
+            <p className="font-mono text-xs uppercase tracking-wide text-core mb-3">Laporan Insiden</p>
+            {!request.ada_insiden ? (
+              <p className="text-sm text-core">Tidak ada insiden selama kegiatan.</p>
+            ) : (
+              <dl className="space-y-2 text-sm">
+                <div>
+                  <dt className="text-xs text-core uppercase">Jenis Insiden</dt>
+                  <dd className="text-ink">
+                    {request.insiden_jenis === "lainnya"
+                      ? request.insiden_jenis_lainnya
+                      : insidenLabel(request.insiden_jenis)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-core uppercase">Nama Alat/Bahan</dt>
+                  <dd className="text-ink">{request.insiden_nama_alat}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-core uppercase">Jumlah</dt>
+                  <dd className="text-ink">{request.insiden_jumlah}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-core uppercase">Penyebab</dt>
+                  <dd className="text-ink">{request.insiden_penyebab}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-core uppercase">Pihak yang Terlibat</dt>
+                  <dd className="text-ink">{request.insiden_pihak_terkait}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-core uppercase">Bentuk Ganti Rugi</dt>
+                  <dd className="text-ink">{request.insiden_tanggung_jawab}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-core uppercase mb-1">Dokumentasi Insiden</dt>
+                  <dd className="flex flex-wrap gap-2">
+                    {loading ? (
+                      <span className="text-xs text-core">Memuat berkas...</span>
+                    ) : error ? (
+                      <span className="text-xs text-red-700">{error}</span>
+                    ) : signed["insiden_dokumentasi"]?.length ? (
+                      signed["insiden_dokumentasi"].map((f) => (
+                        <a
+                          key={f.path}
+                          href={f.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-petrol underline hover:text-rig"
+                        >
+                          Lihat berkas
+                        </a>
+                      ))
                     ) : (
-                      <p className="text-xs text-core">Belum ada berkas</p>
+                      <span className="text-xs text-core">Belum ada berkas</span>
                     )}
-                  </div>
-                ))}
-              </div>
+                  </dd>
+                </div>
+              </dl>
+            )}
+          </div>
 
-              <div className="border-t border-line pt-6">
-                <p className="font-mono text-xs uppercase tracking-wide text-core mb-3">Laporan Insiden</p>
-                {!request.ada_insiden ? (
-                  <p className="text-sm text-core">Tidak ada insiden selama kegiatan.</p>
-                ) : (
-                  <dl className="space-y-2 text-sm">
-                    <div>
-                      <dt className="text-xs text-core uppercase">Jenis Insiden</dt>
-                      <dd className="text-ink">
-                        {request.insiden_jenis === "lainnya"
-                          ? request.insiden_jenis_lainnya
-                          : insidenLabel(request.insiden_jenis)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-core uppercase">Nama Alat/Bahan</dt>
-                      <dd className="text-ink">{request.insiden_nama_alat}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-core uppercase">Jumlah</dt>
-                      <dd className="text-ink">{request.insiden_jumlah}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-core uppercase">Penyebab</dt>
-                      <dd className="text-ink">{request.insiden_penyebab}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-core uppercase">Pihak yang Terlibat</dt>
-                      <dd className="text-ink">{request.insiden_pihak_terkait}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-core uppercase">Bentuk Ganti Rugi</dt>
-                      <dd className="text-ink">{request.insiden_tanggung_jawab}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-core uppercase mb-1">Dokumentasi Insiden</dt>
-                      <dd className="flex flex-wrap gap-2">
-                        {signed["insiden_dokumentasi"]?.length ? (
-                          signed["insiden_dokumentasi"].map((f) => (
-                            
-                              key={f.path}
-                              href={f.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-xs text-petrol underline hover:text-rig"
-                            >
-                              Lihat berkas
-                            </a>
-                          ))
-                        ) : (
-                          <span className="text-xs text-core">Belum ada berkas</span>
-                        )}
-                      </dd>
-                    </div>
-                  </dl>
-                )}
-              </div>
-
-              <div className="border-t border-line pt-6">
-                <p className="font-mono text-xs uppercase tracking-wide text-core mb-3">
-                  Peminjaman Alat & Bahan
-                </p>
-                {!request.ada_peminjaman ? (
-                  <p className="text-sm text-core">Tidak ada peminjaman alat/bahan.</p>
-                ) : (
-                  <div className="space-y-4 text-sm">
-                    {request.pinjam_alat && (request.peminjaman_alat?.length ?? 0) > 0 && (
-                      <div>
-                        <p className="text-xs text-core uppercase mb-1.5">Alat</p>
-                        <ul className="space-y-1">
-                          {request.peminjaman_alat!.map((item, i) => (
-                            <li key={i} className="flex justify-between gap-3 border-b border-line pb-1">
-                              <span className="text-ink">{equipmentLabel(item)}</span>
-                              <span className="text-core whitespace-nowrap">
-                                {item.jumlah} {item.satuan}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {request.pinjam_bahan && (request.peminjaman_bahan?.length ?? 0) > 0 && (
-                      <div>
-                        <p className="text-xs text-core uppercase mb-1.5">Bahan</p>
-                        <ul className="space-y-1">
-                          {request.peminjaman_bahan!.map((item, i) => (
-                            <li key={i} className="flex justify-between gap-3 border-b border-line pb-1">
-                              <span className="text-ink">{equipmentLabel(item)}</span>
-                              <span className="text-core whitespace-nowrap">
-                                {item.jumlah} {item.satuan}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+          <div className="border-t border-line pt-6">
+            <p className="font-mono text-xs uppercase tracking-wide text-core mb-3">
+              Peminjaman Alat & Bahan
+            </p>
+            {!request.ada_peminjaman ? (
+              <p className="text-sm text-core">Tidak ada peminjaman alat/bahan.</p>
+            ) : (
+              <div className="space-y-4 text-sm">
+                {(request.peminjaman_alat?.length ?? 0) > 0 && (
+                  <div>
+                    <p className="text-xs text-core uppercase mb-1.5">Alat</p>
+                    <ul className="space-y-1">
+                      {request.peminjaman_alat!.map((item, i) => (
+                        <li key={i} className="flex justify-between gap-3 border-b border-line pb-1">
+                          <span className="text-ink">{equipmentLabel(item)}</span>
+                          <span className="text-core whitespace-nowrap">
+                            {item.jumlah} {item.satuan}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
+                {(request.peminjaman_bahan?.length ?? 0) > 0 && (
+                  <div>
+                    <p className="text-xs text-core uppercase mb-1.5">Bahan</p>
+                    <ul className="space-y-1">
+                      {request.peminjaman_bahan!.map((item, i) => (
+                        <li key={i} className="flex justify-between gap-3 border-b border-line pb-1">
+                          <span className="text-ink">{equipmentLabel(item)}</span>
+                          <span className="text-core whitespace-nowrap">
+                            {item.jumlah} {item.satuan}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {(request.peminjaman_alat?.length ?? 0) === 0 &&
+                  (request.peminjaman_bahan?.length ?? 0) === 0 && (
+                    <p className="text-xs text-core">
+                      Ditandai ada peminjaman, tapi rincian alat/bahan kosong.
+                    </p>
+                  )}
               </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
