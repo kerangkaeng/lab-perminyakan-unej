@@ -8,8 +8,7 @@ export async function GlobalDashboardSidebar() {
   if (!session) return null;
 
   const visiblePrimary = primaryNavItems.filter((item) => item.roles.includes(session.appRole));
-  const visibleContent =
-    session.appRole === "admin" ? contentNavItems.filter((item) => item.roles.includes("admin")) : [];
+  const visibleContent = contentNavItems.filter((item) => item.roles.includes(session.appRole));
 
   return (
     <SidebarShell>
@@ -19,6 +18,9 @@ export async function GlobalDashboardSidebar() {
         <p className="mt-1 text-xs font-mono uppercase text-rig">{session.userType}</p>
         {session.appRole === "admin" && (
           <p className="mt-0.5 text-xs font-mono uppercase text-petrol">Admin</p>
+        )}
+        {session.appRole === "asisten" && (
+          <p className="mt-0.5 text-xs font-mono uppercase text-petrol">Asisten</p>
         )}
       </div>
 
