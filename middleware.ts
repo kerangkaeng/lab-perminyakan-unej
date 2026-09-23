@@ -30,8 +30,9 @@ export async function middleware(req: NextRequest) {
   const isAdminRoute = pathname.startsWith("/admin");
   const isProtectedPracticumRoute =
     pathname.startsWith("/practicum/ajukan") || pathname.startsWith("/practicum/status");
+  const isProtectedProfileRoute = pathname.startsWith("/profile");
 
-  if (!isAdminRoute && !isProtectedPracticumRoute) {
+  if (!isAdminRoute && !isProtectedPracticumRoute && !isProtectedProfileRoute) {
     return NextResponse.next();
   }
 
@@ -66,5 +67,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/practicum/ajukan/:path*", "/practicum/status/:path*"],
+  matcher: ["/admin/:path*", "/practicum/ajukan/:path*", "/practicum/status/:path*", "/profile/:path*"],
 };
