@@ -1,13 +1,16 @@
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { AdminRequestsTable } from "@/components/dashboard/AdminRequestsTable";
-import { getSessionToken } from "@/lib/auth/session";
+import { getSession, getSessionToken } from "@/lib/auth/session";
+import { canManagePracticumRequests } from "@/lib/admin/permissions";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { PracticumRequest } from "@/types";
 
 export const revalidate = 0;
 
 export default async function AdminPracticumRequestsPage() {
+  const session = await getSession();
   const token = getSessionToken();
+  const canManage = session ? canManagePracticumRequests(session.appRole) : false;
   let requests: PracticumRequest[] = [];
   let loadError: string | null = null;
 
@@ -29,9 +32,9 @@ export default async function AdminPracticumRequestsPage() {
   }
 
   return (
-    <DashboardShell title="Kelola Pengajuan Praktikum">
+    <DashboardShell title={canManage ? "Kelola Pengajuan Praktikum" : "Status Pengajuan Praktikum"}>
       {loadError && <p className="text-sm text-red-700 mb-6">{loadError}</p>}
-      <AdminRequestsTable requests={requests} />
+      <AdminRequestsTable requests={requests} canManage={canManage} />
     </DashboardShell>
   );
 }
