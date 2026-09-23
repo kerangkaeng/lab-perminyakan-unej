@@ -78,8 +78,9 @@ export function MobileMenu({
                     {item.label}
                   </Link>
                 ))}
-              {session.appRole === "admin" &&
-                contentNavItems.map((item) => (
+              {contentNavItems
+                .filter((item) => item.roles.includes(session.appRole))
+                .map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
