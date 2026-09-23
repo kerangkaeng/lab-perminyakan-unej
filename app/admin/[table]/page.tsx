@@ -4,12 +4,17 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { adminTables } from "@/lib/admin/config";
 import { supabaseServer } from "@/lib/supabase/server";
 import { DeleteButton } from "@/components/admin/DeleteButton";
+import { getSession } from "@/lib/auth/session";
+import { canAccessAdminTable } from "@/lib/admin/permissions";
 
 export const revalidate = 0;
 
 export default async function AdminTableListPage({ params }: { params: { table: string } }) {
   const config = adminTables[params.table];
   if (!config) return notFound();
+
+  const session = await getSession();
+  if (!session || !canAccessAdminTable(session.appRole, params.table)) return notFound();
 
   const supabase = supabaseServer();
   const { data } = await supabase
