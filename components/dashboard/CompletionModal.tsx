@@ -282,6 +282,11 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
   async function handleSubmit() {
     setError(null);
 
+    // Komponen `Button` di proyek ini tidak punya prop `disabled`, jadi
+    // pencegahan submit selagi data lama masih dimuat (prefill) dilakukan
+    // di sini, bukan lewat atribut disabled di tombolnya.
+    if (prefillLoading) return;
+
     for (const slot of docSlots) {
       if (!uploaded[slot.key] || uploaded[slot.key].length === 0) {
         setError(`Mohon unggah ${slot.label.toLowerCase()} terlebih dahulu.`);
@@ -684,7 +689,11 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
         )}
 
         <div className="shrink-0 border-t border-line px-6 py-4">
-          <Button type="button" onClick={handleSubmit} disabled={prefillLoading} className="w-full">
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            className={`w-full ${prefillLoading ? "opacity-50 pointer-events-none" : ""}`}
+          >
             {submitting ? "Menyimpan..." : isRevision ? "Simpan Revisi" : "Selesaikan Administrasi"}
           </Button>
         </div>
