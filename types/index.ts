@@ -83,7 +83,7 @@ export type TeamMember = {
 
 // ---- Supabase-backed types (Tahap 2: praktikum request/approval) ----
 
-export type UserRole = "mahasiswa" | "admin";
+export type UserRole = "mahasiswa" | "admin" | "asisten" | "dosen";
 
 export type UserRecord = {
   id: string;
