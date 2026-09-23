@@ -53,8 +53,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const isOwner = reqRow.requester_id === session.usersId;
-  if (!isOwner && session.appRole !== "admin") {
-    return NextResponse.json({ error: "Kamu tidak berhak mengunggah dokumentasi ini." }, { status: 403 });
+  const canView = isOwner || session.appRole === "admin" || session.appRole === "asisten";
+  if (!canView) {
+    return NextResponse.json({ error: "Kamu tidak berhak melihat dokumentasi ini." }, { status: 403 });
   }
   if (reqRow.status !== "approved") {
     return NextResponse.json({ error: "Pengajuan belum disetujui admin." }, { status: 400 });
@@ -122,7 +123,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 
   const isOwner = reqRow.requester_id === session.usersId;
-  if (!isOwner && session.appRole !== "admin") {
+  const canView = isOwner || session.appRole === "admin" || session.appRole === "asisten";
+  if (!canView) {
     return NextResponse.json({ error: "Kamu tidak berhak melihat dokumentasi ini." }, { status: 403 });
   }
 
