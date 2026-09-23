@@ -44,7 +44,21 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAdminRoute && appRole !== "admin") {
+  if (isAdminRoute) {
+    if (appRole === "admin") {
+      return NextResponse.next();
+    }
+    if (appRole === "asisten") {
+      // asisten cuma boleh: kelola pengumuman, dan LIHAT (bukan
+      // kelola) daftar pengajuan praktikum. Hak "lihat, bukan kelola"
+      // ditegakkan di level halaman/API (canManagePracticumRequests),
+      // middleware ini cuma menentukan boleh/tidak MASUK ke path-nya.
+      const allowed =
+        pathname.startsWith("/admin/announcements") ||
+        pathname === "/admin/practicum-requests";
+      if (allowed) return NextResponse.next();
+      return NextResponse.redirect(new URL("/admin/announcements", req.nextUrl.origin));
+    }
     return NextResponse.redirect(new URL("/practicum/status", req.nextUrl.origin));
   }
 
