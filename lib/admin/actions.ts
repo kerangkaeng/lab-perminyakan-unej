@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { uploadPublicFile, buildKey, deletePublicFile, keyFromProxyUrl, assertFileSize } from "@/lib/storage/b2";
+import { getSession } from "@/lib/auth/session";
+import { canAccessAdminTable } from "@/lib/admin/permissions";
 import { adminTables } from "./config";
 
 async function uploadFile(
@@ -34,6 +36,16 @@ async function deleteOldFileIfAny(oldValue: unknown) {
 export async function upsertRecord(tableName: string, id: string, formData: FormData) {
   const config = adminTables[tableName];
   if (!config) throw new Error("Tabel tidak dikenal");
+
+  // Pertahanan lapis kedua — middleware sudah membatasi path yang bisa
+  // DIBUKA, tapi server action ini dipanggil langsung (bukan lewat page
+  // load), jadi perlu dicek ulang di sini supaya asisten (atau siapa
+  // pun) tidak bisa upsert ke tabel selain yang diizinkan cuma dengan
+  // memanggil action ini langsung dari client dengan tableName lain.
+  const session = await getSession();
+  if (!session || !canAccessAdminTable(session.appRole, tableName)) {
+    throw new Error("Anda tidak punya akses untuk mengubah data tabel ini.");
+  }
 
   const supabase = supabaseServer();
   const isNew = id === "new";
@@ -99,6 +111,12 @@ export async function upsertRecord(tableName: string, id: string, formData: Form
 export async function deleteRecord(tableName: string, id: string) {
   const config = adminTables[tableName];
   if (!config) throw new Error("Tabel tidak dikenal");
+
+  const session = await getSession();
+  if (!session || !canAccessAdminTable(session.appRole, tableName)) {
+    throw new Error("Anda tidak punya akses untuk menghapus data tabel ini.");
+  }
+
   const supabase = supabaseServer();
 
   // Ambil dulu row-nya supaya file (image/pdf/file) yang menempel ikut
