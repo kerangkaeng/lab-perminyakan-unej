@@ -8,7 +8,14 @@ import { DocumentationViewer } from "./DocumentationViewer";
 import { formatDate } from "@/lib/utils";
 import { nonPraktikumLabel } from "@/lib/constants/kegiatan";
 
-export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] }) {
+export function AdminRequestsTable({
+  requests,
+  canManage = true,
+}: {
+  requests: PracticumRequest[];
+  /** false = cuma boleh lihat (role asisten): tombol approve/reject/hapus/revisi disembunyikan. */
+  canManage?: boolean;
+}) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -177,7 +184,7 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
                           Lihat Dokumentasi
                         </button>
                       )}
-                      {r.completed && (
+                      {r.completed && canManage && (
                         <button
                           disabled={loadingId === r.id}
                           onClick={() => reopenForRevision(r.id)}
@@ -190,30 +197,39 @@ export function AdminRequestsTable({ requests }: { requests: PracticumRequest[] 
                   )}
                 </td>
                 <td className="p-4">
-                  <div className="flex gap-2 mb-1">
-                    <button
-                      disabled={loadingId === r.id || r.status === "approved"}
-                      onClick={() => updateStatus(r.id, "approved")}
-                      className="text-xs border border-petrol text-petrol px-3 py-1.5 hover:bg-petrol hover:text-paper transition-colors disabled:opacity-50"
-                    >
-                      Setujui
-                    </button>
-                    <button
-                      disabled={loadingId === r.id || r.status === "rejected"}
-                      onClick={() => updateStatus(r.id, "rejected")}
-                      className="text-xs border border-red-400 text-red-700 px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50"
-                    >
-                      Tolak
-                    </button>
-                    <button
-                      disabled={loadingId === r.id}
-                      onClick={() => deleteRequest(r.id)}
-                      className="text-xs border border-line text-core px-3 py-1.5 hover:bg-red-50 hover:border-red-400 hover:text-red-700 transition-colors disabled:opacity-50"
-                    >
-                      Hapus
-                    </button>
-                  </div>
-                  {r.catatan_admin && <p className="text-xs text-core">{r.catatan_admin}</p>}
+                  {canManage ? (
+                    <>
+                      <div className="flex gap-2 mb-1">
+                        <button
+                          disabled={loadingId === r.id || r.status === "approved"}
+                          onClick={() => updateStatus(r.id, "approved")}
+                          className="text-xs border border-petrol text-petrol px-3 py-1.5 hover:bg-petrol hover:text-paper transition-colors disabled:opacity-50"
+                        >
+                          Setujui
+                        </button>
+                        <button
+                          disabled={loadingId === r.id || r.status === "rejected"}
+                          onClick={() => updateStatus(r.id, "rejected")}
+                          className="text-xs border border-red-400 text-red-700 px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        >
+                          Tolak
+                        </button>
+                        <button
+                          disabled={loadingId === r.id}
+                          onClick={() => deleteRequest(r.id)}
+                          className="text-xs border border-line text-core px-3 py-1.5 hover:bg-red-50 hover:border-red-400 hover:text-red-700 transition-colors disabled:opacity-50"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                      {r.catatan_admin && <p className="text-xs text-core">{r.catatan_admin}</p>}
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xs text-core">Lihat saja</span>
+                      {r.catatan_admin && <p className="text-xs text-core mt-1">{r.catatan_admin}</p>}
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
