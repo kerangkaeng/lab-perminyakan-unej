@@ -135,6 +135,20 @@ export type PracticumRequest = {
   insiden_pihak_terkait: string | null;
   insiden_dokumentasi: string[] | null;
   insiden_tanggung_jawab: string | null;
+
+  // ---- Peminjaman alat/bahan ----
+  ada_peminjaman: boolean;
+  pinjam_alat: boolean | null;
+  pinjam_bahan: boolean | null;
+  peminjaman_alat: PeminjamanItem[] | null;
+  peminjaman_bahan: PeminjamanItem[] | null;
+};
+
+export type PeminjamanItem = {
+  equipment_id: string;
+  equipment_name?: string;
+  jumlah: number;
+  satuan: string;
 };
 
 // ---- Supabase-backed types (Tahap 2: News CMS) ----
