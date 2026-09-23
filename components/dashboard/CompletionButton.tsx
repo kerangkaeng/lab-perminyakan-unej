@@ -19,7 +19,10 @@ export function CompletionButton({
   // administrasi untuk direvisi — jadi ini dipakai sebagai penanda
   // "pernah completed sebelumnya" untuk membedakan pengisian pertama kali
   // (form kosong) vs revisi (form di-prefill dari data lama).
-  completedAt: string | null;
+  // Optional (default null) supaya pemanggil lama yang belum di-update
+  // tetap compile — cuma efeknya, tombol akan selalu dianggap "pengisian
+  // pertama kali" (bukan revisi) sampai propnya dikirim.
+  completedAt?: string | null;
 }) {
   const [open, setOpen] = useState(false);
 
