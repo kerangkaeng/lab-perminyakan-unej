@@ -19,7 +19,7 @@ function secretKey() {
   return new TextEncoder().encode(secret);
 }
 
-export type AppRole = "mahasiswa" | "admin";
+export type AppRole = "mahasiswa" | "admin" | "asisten" | "dosen";
 
 export type Session = {
   sub: string; // auth_uid (id di auth.users)
