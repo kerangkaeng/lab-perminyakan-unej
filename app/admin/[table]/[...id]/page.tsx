@@ -4,12 +4,17 @@ import { adminTables } from "@/lib/admin/config";
 import { AdminForm } from "@/components/admin/AdminForm";
 import { upsertRecord } from "@/lib/admin/actions";
 import { supabaseServer } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth/session";
+import { canAccessAdminTable } from "@/lib/admin/permissions";
 
 export const revalidate = 0;
 
 export default async function AdminRecordPage({ params }: { params: { table: string; id: string[] } }) {
   const config = adminTables[params.table];
   if (!config) return notFound();
+
+  const session = await getSession();
+  if (!session || !canAccessAdminTable(session.appRole, params.table)) return notFound();
 
   const recordId = decodeURIComponent(params.id.join("/"));
   const isNew = recordId === "new";
