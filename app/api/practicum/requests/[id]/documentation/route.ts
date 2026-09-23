@@ -98,7 +98,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 }
 
 // Dipakai untuk menampilkan pratinjau (signed URL, karena bucket privat) —
-// oleh mahasiswa pemilik pengajuan maupun admin.
+// oleh mahasiswa pemilik pengajuan maupun admin. Juga dipakai oleh
+// CompletionModal untuk PREFILL form saat merevisi administrasi yang
+// sebelumnya sudah diisi (lihat `requestData` di response) — makanya
+// route ini sengaja select("*") dan meneruskan field mentahnya, bukan
+// cuma signed URL berkas.
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession();
   const token = getSessionToken();
@@ -163,5 +167,26 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     }
   }
 
-  return NextResponse.json({ data: signed, equipmentNames });
+  // Field mentah yang dibutuhkan CompletionModal untuk prefill form saat
+  // revisi. Sengaja whitelist manual (bukan spread seluruh reqRow) supaya
+  // field sensitif/tidak relevan (mis. requester_id) tidak ikut terekspos
+  // ke response ini.
+  const requestData = {
+    completed_at: (reqRow as any).completed_at ?? null,
+    ada_insiden: (reqRow as any).ada_insiden ?? false,
+    insiden_jenis: (reqRow as any).insiden_jenis ?? null,
+    insiden_jenis_lainnya: (reqRow as any).insiden_jenis_lainnya ?? null,
+    insiden_nama_alat: (reqRow as any).insiden_nama_alat ?? null,
+    insiden_jumlah: (reqRow as any).insiden_jumlah ?? null,
+    insiden_penyebab: (reqRow as any).insiden_penyebab ?? null,
+    insiden_pihak_terkait: (reqRow as any).insiden_pihak_terkait ?? null,
+    insiden_tanggung_jawab: (reqRow as any).insiden_tanggung_jawab ?? null,
+    ada_peminjaman: (reqRow as any).ada_peminjaman ?? false,
+    pinjam_alat: (reqRow as any).pinjam_alat ?? null,
+    pinjam_bahan: (reqRow as any).pinjam_bahan ?? null,
+    peminjaman_alat: (reqRow as any).peminjaman_alat ?? null,
+    peminjaman_bahan: (reqRow as any).peminjaman_bahan ?? null,
+  };
+
+  return NextResponse.json({ data: signed, equipmentNames, requestData });
 }
