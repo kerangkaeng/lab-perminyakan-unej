@@ -9,6 +9,7 @@ type SignedFile = { path: string; url: string };
 
 export function DocumentationViewer({ request, onClose }: { request: PracticumRequest; onClose: () => void }) {
   const [signed, setSigned] = useState<Record<string, SignedFile[]>>({});
+  const [equipmentNames, setEquipmentNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,12 +27,17 @@ export function DocumentationViewer({ request, onClose }: { request: PracticumRe
       }
       const body = await res.json();
       setSigned(body.data ?? {});
+      setEquipmentNames(body.equipmentNames ?? {});
       setLoading(false);
     })();
     return () => {
       active = false;
     };
   }, [request.id]);
+
+  function equipmentLabel(item: { equipment_id: string; equipment_name?: string }) {
+    return equipmentNames[item.equipment_id] || item.equipment_name || "(alat/bahan tidak ditemukan)";
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ height: "100dvh" }}>
@@ -59,7 +65,7 @@ export function DocumentationViewer({ request, onClose }: { request: PracticumRe
                     {signed[slot.key]?.length ? (
                       <div className="flex flex-wrap gap-2">
                         {signed[slot.key].map((f) => (
-                          <a
+                          
                             key={f.path}
                             href={f.url}
                             target="_blank"
@@ -116,7 +122,7 @@ export function DocumentationViewer({ request, onClose }: { request: PracticumRe
                       <dd className="flex flex-wrap gap-2">
                         {signed["insiden_dokumentasi"]?.length ? (
                           signed["insiden_dokumentasi"].map((f) => (
-                            <a
+                            
                               key={f.path}
                               href={f.url}
                               target="_blank"
@@ -132,6 +138,48 @@ export function DocumentationViewer({ request, onClose }: { request: PracticumRe
                       </dd>
                     </div>
                   </dl>
+                )}
+              </div>
+
+              <div className="border-t border-line pt-6">
+                <p className="font-mono text-xs uppercase tracking-wide text-core mb-3">
+                  Peminjaman Alat & Bahan
+                </p>
+                {!request.ada_peminjaman ? (
+                  <p className="text-sm text-core">Tidak ada peminjaman alat/bahan.</p>
+                ) : (
+                  <div className="space-y-4 text-sm">
+                    {request.pinjam_alat && (request.peminjaman_alat?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-xs text-core uppercase mb-1.5">Alat</p>
+                        <ul className="space-y-1">
+                          {request.peminjaman_alat!.map((item, i) => (
+                            <li key={i} className="flex justify-between gap-3 border-b border-line pb-1">
+                              <span className="text-ink">{equipmentLabel(item)}</span>
+                              <span className="text-core whitespace-nowrap">
+                                {item.jumlah} {item.satuan}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {request.pinjam_bahan && (request.peminjaman_bahan?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-xs text-core uppercase mb-1.5">Bahan</p>
+                        <ul className="space-y-1">
+                          {request.peminjaman_bahan!.map((item, i) => (
+                            <li key={i} className="flex justify-between gap-3 border-b border-line pb-1">
+                              <span className="text-ink">{equipmentLabel(item)}</span>
+                              <span className="text-core whitespace-nowrap">
+                                {item.jumlah} {item.satuan}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </>
