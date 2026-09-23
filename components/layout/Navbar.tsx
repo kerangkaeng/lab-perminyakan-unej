@@ -16,7 +16,7 @@ const links = [
   { href: "/contact", label: "Contact" },
 ];
 
-export type NavSession = { nama: string; appRole: "mahasiswa" | "admin" } | null;
+export type NavSession = { nama: string; appRole: "mahasiswa" | "admin" | "asisten" | "dosen" } | null;
 
 export function Navbar({ session }: { session: NavSession }) {
   const [open, setOpen] = useState(false);
@@ -52,7 +52,7 @@ export function Navbar({ session }: { session: NavSession }) {
             })}
             {session ? (
               <div className="flex items-center gap-3">
-                {session.appRole === "admin" && (
+                {(session.appRole === "admin" || session.appRole === "asisten") && (
                   <Link
                     href="/admin"
                     className="text-sm font-medium text-petrol hover:text-rig transition-colors"
