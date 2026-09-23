@@ -12,12 +12,45 @@ type Props = {
   requestId: string;
   jenisKegiatan: JenisKegiatan;
   onClose: () => void;
+  // true kalau administrasi ini sebelumnya sudah pernah diselesaikan dan
+  // sedang dibuka kembali untuk direvisi (lihat CompletionButton) — dipakai
+  // untuk memicu prefill dan mengubah label di UI.
+  isRevision?: boolean;
 };
 
 type PinjamRow = { equipmentId: string; jumlah: string; satuan: string };
 type EquipmentOption = { id: string; name: string };
 
-export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
+// Bentuk `requestData` yang dikembalikan endpoint GET
+// /api/practicum/requests/[id]/documentation — dipakai untuk prefill.
+type RequestDataForPrefill = {
+  ada_insiden: boolean;
+  insiden_jenis: string | null;
+  insiden_jenis_lainnya: string | null;
+  insiden_nama_alat: string | null;
+  insiden_jumlah: string | null;
+  insiden_penyebab: string | null;
+  insiden_pihak_terkait: string | null;
+  insiden_tanggung_jawab: string | null;
+  ada_peminjaman: boolean;
+  pinjam_alat: boolean | null;
+  pinjam_bahan: boolean | null;
+  peminjaman_alat: { equipment_id: string; equipment_name?: string; jumlah: number; satuan: string }[] | null;
+  peminjaman_bahan: { equipment_id: string; equipment_name?: string; jumlah: number; satuan: string }[] | null;
+};
+
+const EMPTY_ROW: PinjamRow = { equipmentId: "", jumlah: "", satuan: "" };
+
+function toPinjamRows(items: RequestDataForPrefill["peminjaman_alat"]): PinjamRow[] {
+  if (!items || items.length === 0) return [{ ...EMPTY_ROW }];
+  return items.map((item) => ({
+    equipmentId: item.equipment_id ?? "",
+    jumlah: item.jumlah != null ? String(item.jumlah) : "",
+    satuan: item.satuan ?? "",
+  }));
+}
+
+export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision = false }: Props) {
   const router = useRouter();
   const docSlots = jenisKegiatan === "praktikum" ? DOC_SLOTS_PRAKTIKUM : DOC_SLOTS_NON_PRAKTIKUM;
 
@@ -36,10 +69,13 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
   const [adaPeminjaman, setAdaPeminjaman] = useState<"ya" | "tidak" | "">("");
   const [pinjamAlat, setPinjamAlat] = useState<"ya" | "tidak" | "">("");
   const [pinjamBahan, setPinjamBahan] = useState<"ya" | "tidak" | "">("");
-  const [alatList, setAlatList] = useState<PinjamRow[]>([{ equipmentId: "", jumlah: "", satuan: "" }]);
-  const [bahanList, setBahanList] = useState<PinjamRow[]>([{ equipmentId: "", jumlah: "", satuan: "" }]);
+  const [alatList, setAlatList] = useState<PinjamRow[]>([{ ...EMPTY_ROW }]);
+  const [bahanList, setBahanList] = useState<PinjamRow[]>([{ ...EMPTY_ROW }]);
   const [alatOptions, setAlatOptions] = useState<EquipmentOption[]>([]);
   const [bahanOptions, setBahanOptions] = useState<EquipmentOption[]>([]);
+
+  const [prefillLoading, setPrefillLoading] = useState(isRevision);
+  const [prefillError, setPrefillError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadEquipment() {
@@ -56,6 +92,64 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
     }
     loadEquipment();
   }, []);
+
+  // Prefill: hanya jalan kalau ini revisi (bukan pengisian pertama kali).
+  // Ambil data lama (insiden, peminjaman, daftar berkas yang sudah
+  // terunggah) dari endpoint documentation, lalu isi semua state form
+  // dengan data itu supaya pengaju tinggal koreksi bagian yang salah,
+  // bukan mengisi ulang dari nol.
+  useEffect(() => {
+    if (!isRevision) return;
+    let active = true;
+
+    (async () => {
+      const res = await fetch(`/api/practicum/requests/${requestId}/documentation`);
+      if (!active) return;
+
+      if (!res.ok) {
+        setPrefillError("Gagal memuat data sebelumnya. Kamu tetap bisa mengisi ulang dari awal.");
+        setPrefillLoading(false);
+        return;
+      }
+
+      const body = await res.json();
+      const rd = body.requestData as RequestDataForPrefill | undefined;
+      const signed = (body.data ?? {}) as Record<string, { path: string; url: string }[]>;
+
+      // Tandai berkas yang sudah ada sebagai "sudah terunggah" (pakai path
+      // sebagai identifier, bukan nama file asli — cukup untuk validasi
+      // & tampilan jumlah berkas). Upload baru tetap ditambahkan di atas
+      // ini (lihat handleUpload), bukan menggantikannya.
+      const uploadedFromSigned: Record<string, string[]> = {};
+      for (const [key, files] of Object.entries(signed)) {
+        if (files.length > 0) uploadedFromSigned[key] = files.map((f) => f.path);
+      }
+      setUploaded(uploadedFromSigned);
+
+      if (rd) {
+        setAdaInsiden(rd.ada_insiden ? "ya" : "tidak");
+        setInsidenJenis(rd.insiden_jenis ?? "");
+        setInsidenJenisLainnya(rd.insiden_jenis_lainnya ?? "");
+        setInsidenNamaAlat(rd.insiden_nama_alat ?? "");
+        setInsidenJumlah(rd.insiden_jumlah ?? "");
+        setInsidenPenyebab(rd.insiden_penyebab ?? "");
+        setInsidenPihakTerkait(rd.insiden_pihak_terkait ?? "");
+        setInsidenTanggungJawab(rd.insiden_tanggung_jawab ?? "");
+
+        setAdaPeminjaman(rd.ada_peminjaman ? "ya" : "tidak");
+        setPinjamAlat(rd.pinjam_alat === true ? "ya" : rd.pinjam_alat === false ? "tidak" : "");
+        setPinjamBahan(rd.pinjam_bahan === true ? "ya" : rd.pinjam_bahan === false ? "tidak" : "");
+        setAlatList(toPinjamRows(rd.peminjaman_alat));
+        setBahanList(toPinjamRows(rd.peminjaman_bahan));
+      }
+
+      setPrefillLoading(false);
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [isRevision, requestId]);
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -86,12 +180,12 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
   }
 
   function addRow(list: PinjamRow[], setList: (v: PinjamRow[]) => void) {
-    setList([...list, { equipmentId: "", jumlah: "", satuan: "" }]);
+    setList([...list, { ...EMPTY_ROW }]);
   }
 
   function removeRow(list: PinjamRow[], setList: (v: PinjamRow[]) => void, index: number) {
     if (list.length <= 1) {
-      setList([{ equipmentId: "", jumlah: "", satuan: "" }]);
+      setList([{ ...EMPTY_ROW }]);
       return;
     }
     setList(list.filter((_, i) => i !== index));
@@ -298,283 +392,300 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose }: Props) {
 
       <div className="relative flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden bg-paper shadow-2xl">
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-line px-6">
-          <p className="font-display text-lg font-semibold text-ink">Lengkapi Administrasi</p>
+          <p className="font-display text-lg font-semibold text-ink">
+            {isRevision ? "Revisi Administrasi" : "Lengkapi Administrasi"}
+          </p>
           <button aria-label="Tutup" onClick={onClose} className="p-2 -mr-2 text-ink hover:text-rig transition-colors">
             <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-          {error && (
-            <p className="text-sm text-red-700 border border-red-300 bg-red-50 px-4 py-3">{error}</p>
-          )}
-
-          <div className="space-y-4">
-            <p className="font-mono text-xs uppercase tracking-wide text-core">Dokumentasi Kegiatan</p>
-            {docSlots.map((slot) => (
-              <div key={slot.key}>
-                <label className="mb-1.5 block text-sm text-ink">{slot.label}</label>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  disabled={uploadingKey === slot.key}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleUpload(slot.key, file);
-                    e.target.value = "";
-                  }}
-                  className="block w-full text-sm text-core file:mr-3 file:border file:border-line file:bg-mist file:px-3 file:py-1.5 file:text-xs file:uppercase file:tracking-wide"
-                />
-                <p className="mt-1 text-xs text-core">
-                  {uploadingKey === slot.key
-                    ? "Mengunggah..."
-                    : uploaded[slot.key]?.length
-                    ? `${uploaded[slot.key].length} berkas terunggah`
-                    : "Belum ada berkas"}
-                </p>
-              </div>
-            ))}
+        {prefillLoading ? (
+          <div className="flex-1 flex items-center justify-center px-6 py-6">
+            <p className="text-sm text-core">Memuat data sebelumnya...</p>
           </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+            {isRevision && (
+              <p className="text-xs text-rig border border-rig/40 bg-rig/5 px-4 py-3">
+                Form ini sudah diisi dengan data yang kamu kirim sebelumnya. Ubah bagian yang salah lalu simpan
+                ulang.
+              </p>
+            )}
+            {prefillError && (
+              <p className="text-sm text-red-700 border border-red-300 bg-red-50 px-4 py-3">{prefillError}</p>
+            )}
+            {error && (
+              <p className="text-sm text-red-700 border border-red-300 bg-red-50 px-4 py-3">{error}</p>
+            )}
 
-          <div className="space-y-4 border-t border-line pt-6">
-            <p className="font-mono text-xs uppercase tracking-wide text-core">Laporan Insiden</p>
-            <div>
-              <label className="mb-1.5 block text-sm text-ink">Apakah terjadi insiden selama kegiatan?</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setAdaInsiden("tidak")}
-                  className={`border px-4 py-2.5 text-sm transition-colors ${
-                    adaInsiden === "tidak" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
-                  }`}
-                >
-                  Tidak
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAdaInsiden("ya")}
-                  className={`border px-4 py-2.5 text-sm transition-colors ${
-                    adaInsiden === "ya" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
-                  }`}
-                >
-                  Ya
-                </button>
-              </div>
-            </div>
-
-            {adaInsiden === "ya" && (
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-1.5 block text-sm text-ink">Jenis Insiden</label>
-                  <select
-                    value={insidenJenis}
-                    onChange={(e) => setInsidenJenis(e.target.value)}
-                    className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
-                  >
-                    <option value="">Pilih jenis insiden</option>
-                    {INSIDEN_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {insidenJenis === "lainnya" && (
-                  <div>
-                    <label className="mb-1.5 block text-sm text-ink">Jelaskan Jenis Insiden</label>
-                    <input
-                      value={insidenJenisLainnya}
-                      onChange={(e) => setInsidenJenisLainnya(e.target.value)}
-                      className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="mb-1.5 block text-sm text-ink">Nama Alat/Bahan</label>
-                  <input
-                    value={insidenNamaAlat}
-                    onChange={(e) => setInsidenNamaAlat(e.target.value)}
-                    placeholder="mis. Beaker Glass 500ml"
-                    className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-sm text-ink">Jumlah Alat/Bahan</label>
-                  <input
-                    value={insidenJumlah}
-                    onChange={(e) => setInsidenJumlah(e.target.value)}
-                    placeholder="mis. 2 buah, atau 500 ml"
-                    className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-sm text-ink">Penyebab Insiden</label>
-                  <textarea
-                    value={insidenPenyebab}
-                    onChange={(e) => setInsidenPenyebab(e.target.value)}
-                    rows={2}
-                    className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-sm text-ink">Pihak yang Terlibat (Nama dan NIM/NIP)</label>
-                  <input
-                    value={insidenPihakTerkait}
-                    onChange={(e) => setInsidenPihakTerkait(e.target.value)}
-                    placeholder="mis. Budi Santoso / 221910801000"
-                    className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-sm text-ink">Dokumentasi Insiden</label>
+            <div className="space-y-4">
+              <p className="font-mono text-xs uppercase tracking-wide text-core">Dokumentasi Kegiatan</p>
+              {docSlots.map((slot) => (
+                <div key={slot.key}>
+                  <label className="mb-1.5 block text-sm text-ink">{slot.label}</label>
                   <input
                     type="file"
-                    accept="image/*"
-                    disabled={uploadingKey === "insiden_dokumentasi"}
+                    accept="image/*,.pdf"
+                    disabled={uploadingKey === slot.key}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) handleUpload("insiden_dokumentasi", file);
+                      if (file) handleUpload(slot.key, file);
                       e.target.value = "";
                     }}
                     className="block w-full text-sm text-core file:mr-3 file:border file:border-line file:bg-mist file:px-3 file:py-1.5 file:text-xs file:uppercase file:tracking-wide"
                   />
                   <p className="mt-1 text-xs text-core">
-                    {uploadingKey === "insiden_dokumentasi"
+                    {uploadingKey === slot.key
                       ? "Mengunggah..."
-                      : uploaded["insiden_dokumentasi"]?.length
-                      ? `${uploaded["insiden_dokumentasi"].length} berkas terunggah`
+                      : uploaded[slot.key]?.length
+                      ? `${uploaded[slot.key].length} berkas terunggah`
                       : "Belum ada berkas"}
                   </p>
                 </div>
-
-                <div>
-                  <label className="mb-1.5 block text-sm text-ink">Bentuk Ganti Rugi / Pertanggungjawaban</label>
-                  <textarea
-                    value={insidenTanggungJawab}
-                    onChange={(e) => setInsidenTanggungJawab(e.target.value)}
-                    rows={2}
-                    className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-4 border-t border-line pt-6">
-            <p className="font-mono text-xs uppercase tracking-wide text-core">Peminjaman Alat/Bahan</p>
-            <div>
-              <label className="mb-1.5 block text-sm text-ink">Apakah ada peminjaman alat/bahan?</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setAdaPeminjaman("tidak")}
-                  className={`border px-4 py-2.5 text-sm transition-colors ${
-                    adaPeminjaman === "tidak" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
-                  }`}
-                >
-                  Tidak
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAdaPeminjaman("ya")}
-                  className={`border px-4 py-2.5 text-sm transition-colors ${
-                    adaPeminjaman === "ya" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
-                  }`}
-                >
-                  Ya
-                </button>
-              </div>
+              ))}
             </div>
 
-            {adaPeminjaman === "ya" && (
-              <div className="space-y-5">
-                <div>
-                  <label className="mb-1.5 block text-sm text-ink">Pinjam Alat?</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setPinjamAlat("tidak")}
-                      className={`border px-4 py-2.5 text-sm transition-colors ${
-                        pinjamAlat === "tidak" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
-                      }`}
-                    >
-                      Tidak
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPinjamAlat("ya")}
-                      className={`border px-4 py-2.5 text-sm transition-colors ${
-                        pinjamAlat === "ya" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
-                      }`}
-                    >
-                      Ya
-                    </button>
-                  </div>
+            <div className="space-y-4 border-t border-line pt-6">
+              <p className="font-mono text-xs uppercase tracking-wide text-core">Laporan Insiden</p>
+              <div>
+                <label className="mb-1.5 block text-sm text-ink">Apakah terjadi insiden selama kegiatan?</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAdaInsiden("tidak")}
+                    className={`border px-4 py-2.5 text-sm transition-colors ${
+                      adaInsiden === "tidak" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                    }`}
+                  >
+                    Tidak
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdaInsiden("ya")}
+                    className={`border px-4 py-2.5 text-sm transition-colors ${
+                      adaInsiden === "ya" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                    }`}
+                  >
+                    Ya
+                  </button>
                 </div>
-
-                {pinjamAlat === "ya" && (
-                  <div>
-                    <label className="mb-1.5 block text-sm text-ink">Daftar Alat yang Dipinjam</label>
-                    <PinjamRowsEditor
-                      list={alatList}
-                      setList={setAlatList}
-                      label="alat"
-                      options={alatOptions}
-                      satuanOptions={SATUAN_ALAT}
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="mb-1.5 block text-sm text-ink">Pinjam Bahan?</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setPinjamBahan("tidak")}
-                      className={`border px-4 py-2.5 text-sm transition-colors ${
-                        pinjamBahan === "tidak" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
-                      }`}
-                    >
-                      Tidak
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPinjamBahan("ya")}
-                      className={`border px-4 py-2.5 text-sm transition-colors ${
-                        pinjamBahan === "ya" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
-                      }`}
-                    >
-                      Ya
-                    </button>
-                  </div>
-                </div>
-
-                {pinjamBahan === "ya" && (
-                  <div>
-                    <label className="mb-1.5 block text-sm text-ink">Daftar Bahan yang Dipinjam</label>
-                    <PinjamRowsEditor
-                      list={bahanList}
-                      setList={setBahanList}
-                      label="bahan"
-                      options={bahanOptions}
-                      satuanOptions={SATUAN_BAHAN}
-                    />
-                  </div>
-                )}
               </div>
-            )}
+
+              {adaInsiden === "ya" && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 block text-sm text-ink">Jenis Insiden</label>
+                    <select
+                      value={insidenJenis}
+                      onChange={(e) => setInsidenJenis(e.target.value)}
+                      className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
+                    >
+                      <option value="">Pilih jenis insiden</option>
+                      {INSIDEN_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {insidenJenis === "lainnya" && (
+                    <div>
+                      <label className="mb-1.5 block text-sm text-ink">Jelaskan Jenis Insiden</label>
+                      <input
+                        value={insidenJenisLainnya}
+                        onChange={(e) => setInsidenJenisLainnya(e.target.value)}
+                        className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="mb-1.5 block text-sm text-ink">Nama Alat/Bahan</label>
+                    <input
+                      value={insidenNamaAlat}
+                      onChange={(e) => setInsidenNamaAlat(e.target.value)}
+                      placeholder="mis. Beaker Glass 500ml"
+                      className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm text-ink">Jumlah Alat/Bahan</label>
+                    <input
+                      value={insidenJumlah}
+                      onChange={(e) => setInsidenJumlah(e.target.value)}
+                      placeholder="mis. 2 buah, atau 500 ml"
+                      className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm text-ink">Penyebab Insiden</label>
+                    <textarea
+                      value={insidenPenyebab}
+                      onChange={(e) => setInsidenPenyebab(e.target.value)}
+                      rows={2}
+                      className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm text-ink">Pihak yang Terlibat (Nama dan NIM/NIP)</label>
+                    <input
+                      value={insidenPihakTerkait}
+                      onChange={(e) => setInsidenPihakTerkait(e.target.value)}
+                      placeholder="mis. Budi Santoso / 221910801000"
+                      className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm text-ink">Dokumentasi Insiden</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingKey === "insiden_dokumentasi"}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUpload("insiden_dokumentasi", file);
+                        e.target.value = "";
+                      }}
+                      className="block w-full text-sm text-core file:mr-3 file:border file:border-line file:bg-mist file:px-3 file:py-1.5 file:text-xs file:uppercase file:tracking-wide"
+                    />
+                    <p className="mt-1 text-xs text-core">
+                      {uploadingKey === "insiden_dokumentasi"
+                        ? "Mengunggah..."
+                        : uploaded["insiden_dokumentasi"]?.length
+                        ? `${uploaded["insiden_dokumentasi"].length} berkas terunggah`
+                        : "Belum ada berkas"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm text-ink">Bentuk Ganti Rugi / Pertanggungjawaban</label>
+                    <textarea
+                      value={insidenTanggungJawab}
+                      onChange={(e) => setInsidenTanggungJawab(e.target.value)}
+                      rows={2}
+                      className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4 border-t border-line pt-6">
+              <p className="font-mono text-xs uppercase tracking-wide text-core">Peminjaman Alat/Bahan</p>
+              <div>
+                <label className="mb-1.5 block text-sm text-ink">Apakah ada peminjaman alat/bahan?</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAdaPeminjaman("tidak")}
+                    className={`border px-4 py-2.5 text-sm transition-colors ${
+                      adaPeminjaman === "tidak" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                    }`}
+                  >
+                    Tidak
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdaPeminjaman("ya")}
+                    className={`border px-4 py-2.5 text-sm transition-colors ${
+                      adaPeminjaman === "ya" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                    }`}
+                  >
+                    Ya
+                  </button>
+                </div>
+              </div>
+
+              {adaPeminjaman === "ya" && (
+                <div className="space-y-5">
+                  <div>
+                    <label className="mb-1.5 block text-sm text-ink">Pinjam Alat?</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPinjamAlat("tidak")}
+                        className={`border px-4 py-2.5 text-sm transition-colors ${
+                          pinjamAlat === "tidak" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                        }`}
+                      >
+                        Tidak
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPinjamAlat("ya")}
+                        className={`border px-4 py-2.5 text-sm transition-colors ${
+                          pinjamAlat === "ya" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                        }`}
+                      >
+                        Ya
+                      </button>
+                    </div>
+                  </div>
+
+                  {pinjamAlat === "ya" && (
+                    <div>
+                      <label className="mb-1.5 block text-sm text-ink">Daftar Alat yang Dipinjam</label>
+                      <PinjamRowsEditor
+                        list={alatList}
+                        setList={setAlatList}
+                        label="alat"
+                        options={alatOptions}
+                        satuanOptions={SATUAN_ALAT}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="mb-1.5 block text-sm text-ink">Pinjam Bahan?</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPinjamBahan("tidak")}
+                        className={`border px-4 py-2.5 text-sm transition-colors ${
+                          pinjamBahan === "tidak" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                        }`}
+                      >
+                        Tidak
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPinjamBahan("ya")}
+                        className={`border px-4 py-2.5 text-sm transition-colors ${
+                          pinjamBahan === "ya" ? "border-petrol bg-mist text-ink" : "border-line text-core hover:border-petrol"
+                        }`}
+                      >
+                        Ya
+                      </button>
+                    </div>
+                  </div>
+
+                  {pinjamBahan === "ya" && (
+                    <div>
+                      <label className="mb-1.5 block text-sm text-ink">Daftar Bahan yang Dipinjam</label>
+                      <PinjamRowsEditor
+                        list={bahanList}
+                        setList={setBahanList}
+                        label="bahan"
+                        options={bahanOptions}
+                        satuanOptions={SATUAN_BAHAN}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="shrink-0 border-t border-line px-6 py-4">
-          <Button type="button" onClick={handleSubmit} className="w-full">
-            {submitting ? "Menyimpan..." : "Selesaikan Administrasi"}
+          <Button type="button" onClick={handleSubmit} disabled={prefillLoading} className="w-full">
+            {submitting ? "Menyimpan..." : isRevision ? "Simpan Revisi" : "Selesaikan Administrasi"}
           </Button>
         </div>
       </div>
