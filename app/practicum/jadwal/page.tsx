@@ -74,7 +74,8 @@ export default async function JadwalPage({
   }
 
   const { data, error, count } = await query
-    .order("tanggal", { ascending: false })
+    .order("tanggal", { ascending: true })
+    .order("jam_mulai", { ascending: true })
     .range(from, to);
 
   const jadwal = (data as PracticumRequest[]) ?? [];
