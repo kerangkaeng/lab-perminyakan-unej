@@ -67,6 +67,22 @@ export function assertFileSize(
   }
 }
 
+// Dokumentasi praktikum (pretest, tes alat, kegiatan, insiden) punya limit
+// FLAT 1 MB untuk gambar MAUPUN PDF — beda dari assertFileSize() di atas
+// yang dipakai tabel admin generic (PDF boleh sampai 10 MB di sana).
+// Sengaja fungsi terpisah supaya tidak mengubah perilaku upload admin yang
+// sudah ada.
+export const MAX_DOC_BYTES = 1 * 1024 * 1024; // 1 MB
+export const MAX_DOC_FILES_PER_CATEGORY = 2;
+
+export function assertDocFileSize(file: { size: number }) {
+  if (file.size > MAX_DOC_BYTES) {
+    throw new FileTooLargeError(
+      `Ukuran file dokumentasi maks. 1 MB. Ukuran file kamu: ${formatSize(file.size)}.`
+    );
+  }
+}
+
 export const B2_BUCKET_PUBLIC = process.env.B2_BUCKET_PUBLIC || "lab-content-public";
 export const B2_BUCKET_PRIVATE = process.env.B2_BUCKET_PRIVATE || "lab-practicum-docs";
 
