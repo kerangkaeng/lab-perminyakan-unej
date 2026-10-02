@@ -1,11 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { NON_PRAKTIKUM_OPTIONS } from "@/lib/constants/kegiatan";
+import { supabasePublic } from "@/lib/supabase/authed";
+import { nonPraktikumLabel } from "@/lib/constants/kegiatan";
 
 type JenisKegiatan = "praktikum" | "non_praktikum";
+
+type ConflictRow = {
+  id: string;
+  jenis_kegiatan: JenisKegiatan;
+  praktikum_nama: string | null;
+  modul: string | null;
+  kegiatan_non_praktikum: string | null;
+  deskripsi_lainnya: string | null;
+  jam_mulai: string;
+  jam_selesai: string;
+  status: "approved" | "pending";
+};
+
+function conflictLabel(c: ConflictRow) {
+  return c.jenis_kegiatan === "praktikum"
+    ? [c.praktikum_nama, c.modul].filter(Boolean).join(" — ")
+    : c.kegiatan_non_praktikum === "lainnya" && c.deskripsi_lainnya
+    ? c.deskripsi_lainnya
+    : nonPraktikumLabel(c.kegiatan_non_praktikum);
+}
 
 export function AjukanForm({
   facilityNames,
@@ -20,6 +42,60 @@ export function AjukanForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Field-field ini perlu jadi controlled state (bukan cuma dibaca lewat
+  // FormData saat submit) supaya bisa dipakai memicu pengecekan bentrok
+  // jadwal secara langsung saat diisi. `name` tetap dipasang di elemen
+  // input-nya masing-masing supaya FormData saat submit tetap jalan
+  // seperti sebelumnya.
+  const [lokasi, setLokasi] = useState("");
+  const [tanggal, setTanggal] = useState("");
+  const [jamMulai, setJamMulai] = useState("");
+  const [jamSelesai, setJamSelesai] = useState("");
+
+  const [conflicts, setConflicts] = useState<ConflictRow[]>([]);
+  const [checkingConflict, setCheckingConflict] = useState(false);
+
+  // Cek jadwal bentrok: hanya jalan kalau lab, tanggal, jam mulai & jam
+  // selesai semuanya sudah terisi dan valid (mulai < selesai). Dibuat
+  // debounce 400ms supaya tidak nge-query tiap ketikan. Ini HANYA
+  // peringatan, bukan validasi yang memblokir — pengaju tetap bisa kirim
+  // pengajuan meski ada bentrok, karena keputusan akhir tetap di admin.
+  useEffect(() => {
+    if (!lokasi || !tanggal || !jamMulai || !jamSelesai || jamMulai >= jamSelesai) {
+      setConflicts([]);
+      return;
+    }
+
+    let active = true;
+    setCheckingConflict(true);
+
+    const timeout = setTimeout(async () => {
+      const supabase = supabasePublic();
+      // Dua kegiatan bentrok kalau: kegiatan lain mulai sebelum kegiatan
+      // baru selesai, DAN kegiatan lain selesai setelah kegiatan baru
+      // mulai (overlap klasik dua rentang waktu).
+      const { data, error } = await supabase
+        .from("practicum_requests")
+        .select(
+          "id, jenis_kegiatan, praktikum_nama, modul, kegiatan_non_praktikum, deskripsi_lainnya, jam_mulai, jam_selesai, status"
+        )
+        .in("status", ["approved", "pending"])
+        .eq("lokasi", lokasi)
+        .eq("tanggal", tanggal)
+        .lt("jam_mulai", jamSelesai)
+        .gt("jam_selesai", jamMulai);
+
+      if (!active) return;
+      setConflicts(error ? [] : ((data as ConflictRow[]) ?? []));
+      setCheckingConflict(false);
+    }, 400);
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
+  }, [lokasi, tanggal, jamMulai, jamSelesai]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -66,8 +142,16 @@ export function AjukanForm({
     form.reset();
     setJenis("praktikum");
     setKegiatanNonPraktikum("");
+    setLokasi("");
+    setTanggal("");
+    setJamMulai("");
+    setJamSelesai("");
+    setConflicts([]);
     router.refresh();
   }
+
+  const approvedConflicts = conflicts.filter((c) => c.status === "approved");
+  const pendingConflicts = conflicts.filter((c) => c.status === "pending");
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 max-w-xl">
@@ -184,6 +268,8 @@ export function AjukanForm({
         <select
           name="lokasi"
           required
+          value={lokasi}
+          onChange={(e) => setLokasi(e.target.value)}
           className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
         >
           <option value="">Pilih laboratorium</option>
@@ -202,6 +288,8 @@ export function AjukanForm({
             name="tanggal"
             type="date"
             required
+            value={tanggal}
+            onChange={(e) => setTanggal(e.target.value)}
             className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
           />
         </div>
@@ -211,6 +299,8 @@ export function AjukanForm({
             name="jam_mulai"
             type="time"
             required
+            value={jamMulai}
+            onChange={(e) => setJamMulai(e.target.value)}
             className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
           />
         </div>
@@ -220,10 +310,58 @@ export function AjukanForm({
             name="jam_selesai"
             type="time"
             required
+            value={jamSelesai}
+            onChange={(e) => setJamSelesai(e.target.value)}
             className="w-full border border-line bg-mist px-4 py-2.5 text-sm"
           />
         </div>
       </div>
+
+      {jamMulai && jamSelesai && jamMulai >= jamSelesai && (
+        <p className="text-xs text-red-700">Jam mulai harus sebelum jam selesai.</p>
+      )}
+
+      {checkingConflict && (
+        <p className="text-xs text-core">Memeriksa jadwal di lab tersebut...</p>
+      )}
+
+      {!checkingConflict && (approvedConflicts.length > 0 || pendingConflicts.length > 0) && (
+        <div className="border border-rig bg-rig/5 px-4 py-3 space-y-2">
+          <p className="text-sm font-medium text-ink">
+            ⚠ Ada kegiatan lain di {lokasi} pada jam yang sama/berdekatan:
+          </p>
+          {approvedConflicts.length > 0 && (
+            <ul className="text-xs text-ink space-y-1">
+              {approvedConflicts.map((c) => (
+                <li key={c.id}>
+                  <span className="font-mono text-core">
+                    {c.jam_mulai}–{c.jam_selesai}
+                  </span>{" "}
+                  — {conflictLabel(c)}{" "}
+                  <span className="text-petrol font-mono text-[11px] uppercase">(sudah disetujui)</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {pendingConflicts.length > 0 && (
+            <ul className="text-xs text-core space-y-1">
+              {pendingConflicts.map((c) => (
+                <li key={c.id}>
+                  <span className="font-mono">
+                    {c.jam_mulai}–{c.jam_selesai}
+                  </span>{" "}
+                  — {conflictLabel(c)}{" "}
+                  <span className="font-mono text-[11px] uppercase">(masih menunggu ditinjau)</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="text-xs text-core">
+            Kamu tetap bisa mengirim pengajuan ini — admin akan meninjau dan mempertimbangkan bentrok
+            jadwal ini saat memutuskan.
+          </p>
+        </div>
+      )}
 
       <Button type="submit">{loading ? "Mengirim..." : "Kirim Pengajuan"}</Button>
     </form>
