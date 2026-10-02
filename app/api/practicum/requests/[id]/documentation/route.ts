@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { docStoragePath } from "@/lib/supabase/storage";
-import { uploadPrivateFile, getPrivateSignedUrls } from "@/lib/storage/b2";
+import {
+  uploadPrivateFile,
+  getPrivateSignedUrls,
+  assertDocFileSize,
+  FileTooLargeError,
+  MAX_DOC_FILES_PER_CATEGORY,
+} from "@/lib/storage/b2";
 
 const ALLOWED_CATEGORIES = [
   "doc_pretest",
@@ -67,6 +73,25 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "Kategori dokumentasi tidak sesuai jenis kegiatan." }, { status: 400 });
   }
 
+  const currentList: string[] = (reqRow as any)[category] ?? [];
+  if (currentList.length >= MAX_DOC_FILES_PER_CATEGORY) {
+    return NextResponse.json(
+      {
+        error: `Maksimal ${MAX_DOC_FILES_PER_CATEGORY} berkas untuk kategori dokumentasi ini. Hapus salah satu dulu kalau mau ganti (hubungi admin/asisten kalau belum ada fitur hapusnya).`,
+      },
+      { status: 400 }
+    );
+  }
+
+  try {
+    assertDocFileSize(file);
+  } catch (e) {
+    if (e instanceof FileTooLargeError) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
+    throw e;
+  }
+
   const path = docStoragePath(params.id, category, file.name);
   const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -77,7 +102,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "Gagal mengunggah berkas." }, { status: 500 });
   }
 
-  const currentList: string[] = (reqRow as any)[category] ?? [];
   const updatedList = [...currentList, path];
 
   const { data: updated, error: updateError } = await supabase
