@@ -24,3 +24,16 @@ export function canManagePracticumRequests(role: AppRole): boolean {
 export function canViewPracticumRequests(role: AppRole): boolean {
   return role === "admin" || role === "asisten";
 }
+
+/**
+ * Membuka kembali administrasi yang sudah "completed" supaya pengaju bisa
+ * merevisi ("Izinkan Revisi") — admin dan asisten. Ini SENGAJA dipisah dari
+ * canManagePracticumRequests(): asisten boleh melakukan aksi spesifik ini
+ * walau tidak boleh approve/reject/hapus. Enforcement sesungguhnya (asisten
+ * tidak bisa mengubah kolom lain selain completed/catatan_admin) ada di
+ * trigger database practicum_requests_restrict_asisten_update(), bukan di
+ * sini — fungsi ini cuma untuk kontrol tampilan tombol & pesan error UI.
+ */
+export function canRequestRevision(role: AppRole): boolean {
+  return role === "admin" || role === "asisten";
+}
