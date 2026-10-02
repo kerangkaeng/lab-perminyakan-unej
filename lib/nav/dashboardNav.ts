@@ -7,9 +7,14 @@ export type DashboardNavItem = {
 };
 
 export const primaryNavItems: DashboardNavItem[] = [
-  { href: "/practicum/ajukan", label: "Ajukan Kegiatan", roles: ["mahasiswa", "admin"] },
-  { href: "/practicum/status", label: "Status Pengajuan", roles: ["mahasiswa", "admin"] },
-  { href: "/practicum/jadwal", label: "Jadwal", roles: ["mahasiswa", "admin"] },
+  // "asisten" ikut dimasukkan di tiga item ini — secara identitas dia
+  // tetap mahasiswa aktif (lihat session.userType), jadi tetap boleh
+  // mengajukan kegiatannya sendiri, memantau status pengajuannya sendiri,
+  // dan melihat jadwal, terpisah dari tugasnya mengelola pengajuan orang
+  // lain lewat "Kelola Pengajuan".
+  { href: "/practicum/ajukan", label: "Ajukan Kegiatan", roles: ["mahasiswa", "admin", "asisten"] },
+  { href: "/practicum/status", label: "Status Pengajuan", roles: ["mahasiswa", "admin", "asisten"] },
+  { href: "/practicum/jadwal", label: "Jadwal", roles: ["mahasiswa", "admin", "asisten"] },
   // asisten ikut ditambahkan di sini — halaman & tombol aksinya sendiri
   // yang menentukan dia cuma bisa lihat, bukan approve/reject (lihat
   // AdminRequestsTable.tsx + canManagePracticumRequests()).
