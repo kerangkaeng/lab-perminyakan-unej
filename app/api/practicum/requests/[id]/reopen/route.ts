@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
+import { canRequestRevision } from "@/lib/admin/permissions";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 
 // PATCH /api/admin/practicum-requests/[id]/reopen
@@ -21,13 +22,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
   }
 
-  // Sama seperti route admin lain: pengecekan ini cuma untuk pesan error
-  // yang jelas di UI. Enforcement sesungguhnya tetap harus ada di RLS
-  // policy Supabase (practicum_requests, kolom `completed` hanya bisa
-  // diubah oleh admin ATAU oleh requester_id sendiri saat mengisi
-  // administrasi pertama kali — sesuaikan dengan policy yang sudah ada).
-  if (session.appRole !== "admin") {
-    return NextResponse.json({ error: "Hanya admin yang bisa melakukan aksi ini." }, { status: 403 });
+  // Admin DAN asisten boleh "Izinkan Revisi". Pengecekan ini cuma untuk
+  // pesan error yang jelas di UI — enforcement sesungguhnya tetap di
+  // database: RLS policy "requests_update_asisten_reopen" (row-level) +
+  // trigger practicum_requests_restrict_asisten_update() (column/value-
+  // level, memastikan asisten CUMA bisa ubah completed & catatan_admin,
+  // persis true->false, tidak bisa approve/reject lewat jalur ini).
+  if (!canRequestRevision(session.appRole)) {
+    return NextResponse.json({ error: "Kamu tidak punya izin untuk aksi ini." }, { status: 403 });
   }
 
   const body = await req.json().catch(() => ({}));
