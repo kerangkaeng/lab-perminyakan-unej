@@ -8,6 +8,13 @@ import { JenisKegiatan } from "@/types";
 import { DOC_SLOTS_PRAKTIKUM, DOC_SLOTS_NON_PRAKTIKUM, INSIDEN_OPTIONS, SATUAN_ALAT, SATUAN_BAHAN } from "@/lib/constants/kegiatan";
 import { supabasePublic } from "@/lib/supabase/authed";
 
+// Duplikat sengaja dari lib/storage/b2.ts (MAX_DOC_BYTES, MAX_DOC_FILES_PER_CATEGORY)
+// — TIDAK boleh import b2.ts langsung di sini karena itu server-only
+// (menarik @aws-sdk/client-s3 ke dalam bundle client). Kalau nilai di
+// b2.ts diubah, update juga di sini.
+const MAX_DOC_BYTES = 1 * 1024 * 1024; // 1 MB
+const MAX_DOC_FILES_PER_CATEGORY = 2;
+
 type Props = {
   requestId: string;
   jenisKegiatan: JenisKegiatan;
@@ -155,8 +162,20 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
   const [submitting, setSubmitting] = useState(false);
 
   async function handleUpload(category: string, file: File) {
-    setUploadingKey(category);
     setError(null);
+
+    if (file.size > MAX_DOC_BYTES) {
+      setError(
+        `Ukuran file dokumentasi maks. 1 MB. Ukuran file kamu: ${(file.size / (1024 * 1024)).toFixed(2)} MB.`
+      );
+      return;
+    }
+    if ((uploaded[category]?.length ?? 0) >= MAX_DOC_FILES_PER_CATEGORY) {
+      setError(`Maksimal ${MAX_DOC_FILES_PER_CATEGORY} berkas untuk kategori dokumentasi ini.`);
+      return;
+    }
+
+    setUploadingKey(category);
     const form = new FormData();
     form.append("category", category);
     form.append("file", file);
@@ -426,29 +445,35 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
 
             <div className="space-y-4">
               <p className="font-mono text-xs uppercase tracking-wide text-core">Dokumentasi Kegiatan</p>
-              {docSlots.map((slot) => (
-                <div key={slot.key}>
-                  <label className="mb-1.5 block text-sm text-ink">{slot.label}</label>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    disabled={uploadingKey === slot.key}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleUpload(slot.key, file);
-                      e.target.value = "";
-                    }}
-                    className="block w-full text-sm text-core file:mr-3 file:border file:border-line file:bg-mist file:px-3 file:py-1.5 file:text-xs file:uppercase file:tracking-wide"
-                  />
-                  <p className="mt-1 text-xs text-core">
-                    {uploadingKey === slot.key
-                      ? "Mengunggah..."
-                      : uploaded[slot.key]?.length
-                      ? `${uploaded[slot.key].length} berkas terunggah`
-                      : "Belum ada berkas"}
-                  </p>
-                </div>
-              ))}
+              {docSlots.map((slot) => {
+                const count = uploaded[slot.key]?.length ?? 0;
+                const reachedLimit = count >= MAX_DOC_FILES_PER_CATEGORY;
+                return (
+                  <div key={slot.key}>
+                    <label className="mb-1.5 block text-sm text-ink">{slot.label}</label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      disabled={uploadingKey === slot.key || reachedLimit}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUpload(slot.key, file);
+                        e.target.value = "";
+                      }}
+                      className="block w-full text-sm text-core file:mr-3 file:border file:border-line file:bg-mist file:px-3 file:py-1.5 file:text-xs file:uppercase file:tracking-wide disabled:opacity-50"
+                    />
+                    <p className="mt-1 text-xs text-core">
+                      {uploadingKey === slot.key
+                        ? "Mengunggah..."
+                        : reachedLimit
+                        ? `${count}/${MAX_DOC_FILES_PER_CATEGORY} berkas terunggah (maks. tercapai)`
+                        : count
+                        ? `${count}/${MAX_DOC_FILES_PER_CATEGORY} berkas terunggah`
+                        : `Belum ada berkas — maks. ${MAX_DOC_FILES_PER_CATEGORY} berkas, masing-masing maks. 1 MB`}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="space-y-4 border-t border-line pt-6">
@@ -551,20 +576,25 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
                     <input
                       type="file"
                       accept="image/*"
-                      disabled={uploadingKey === "insiden_dokumentasi"}
+                      disabled={
+                        uploadingKey === "insiden_dokumentasi" ||
+                        (uploaded["insiden_dokumentasi"]?.length ?? 0) >= MAX_DOC_FILES_PER_CATEGORY
+                      }
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) handleUpload("insiden_dokumentasi", file);
                         e.target.value = "";
                       }}
-                      className="block w-full text-sm text-core file:mr-3 file:border file:border-line file:bg-mist file:px-3 file:py-1.5 file:text-xs file:uppercase file:tracking-wide"
+                      className="block w-full text-sm text-core file:mr-3 file:border file:border-line file:bg-mist file:px-3 file:py-1.5 file:text-xs file:uppercase file:tracking-wide disabled:opacity-50"
                     />
                     <p className="mt-1 text-xs text-core">
                       {uploadingKey === "insiden_dokumentasi"
                         ? "Mengunggah..."
+                        : (uploaded["insiden_dokumentasi"]?.length ?? 0) >= MAX_DOC_FILES_PER_CATEGORY
+                        ? `${uploaded["insiden_dokumentasi"].length}/${MAX_DOC_FILES_PER_CATEGORY} berkas terunggah (maks. tercapai)`
                         : uploaded["insiden_dokumentasi"]?.length
-                        ? `${uploaded["insiden_dokumentasi"].length} berkas terunggah`
-                        : "Belum ada berkas"}
+                        ? `${uploaded["insiden_dokumentasi"].length}/${MAX_DOC_FILES_PER_CATEGORY} berkas terunggah`
+                        : `Belum ada berkas — maks. ${MAX_DOC_FILES_PER_CATEGORY} berkas, masing-masing maks. 1 MB`}
                     </p>
                   </div>
 
