@@ -29,6 +29,10 @@ export type CasUser = {
    * kolom `role`/hak akses (itu tetap manual lewat SQL).
    */
   status?: string;
+  email?: string;
+  fakultas?: string;
+  /** Path relatif foto dari SISTER (mis. "images/foto/221910801047.JPG"), BUKAN URL penuh. */
+  foto?: string;
 };
 
 /**
@@ -37,10 +41,23 @@ export type CasUser = {
  * dengan yang dipakai saat redirect ke /cas/login, karena CAS mencocokkan
  * ticket terhadap service URL secara exact-match.
  *
- * CATATAN: nama tag atribut (nama, prodi, status, dst) di bawah ini adalah
- * tebakan berdasarkan konvensi umum CAS attribute release. Sesuaikan dengan
- * respons XML asli dari sso.unej.ac.id begitu tersedia (cek lewat log
- * DEBUG SEMENTARA di bawah saat testing login pertama kali).
+ * Nama tag atribut di bawah ini sudah DIKONFIRMASI dari XML asli
+ * sso.unej.ac.id (dicek lewat log debug 2026-10-08):
+ *   - nama      -> cas:cn / cas:displayname
+ *   - prodi     -> cas:namaunitkerja (mis. "Teknik Perminyakan")
+ *   - status    -> cas:status (mis. "Mahasiswa" / "Dosen" / "Tendik")
+ *   - email     -> cas:emailsrd (format resmi @mail.unej.ac.id, lebih stabil
+ *                  daripada cas:email/cas:displaymail yang kadang kosong
+ *                  atau isinya email pribadi)
+ *   - fakultas  -> diparsing dari cas:leveluser, format contoh:
+ *                  "Mahasiswa,Mahasiswa Teknik Perminyakan,Mahasiswa Fak. Teknik"
+ *                  (comma-separated, ambil segmen yang mengandung "Fak").
+ *                  Pola ini baru diverifikasi untuk akun mahasiswa — kalau
+ *                  nanti ada akun dosen/tendik yang fakultas-nya tidak
+ *                  kebaca, cek lagi raw XML-nya, formatnya mungkin beda.
+ *   - foto      -> cas:foto, path RELATIF (bukan URL penuh), domain dasarnya
+ *                  belum dikonfirmasi — jangan dirender sebagai <img src>
+ *                  langsung sebelum base URL-nya dipastikan.
  */
 export async function validateCasTicket(
   ticket: string,
@@ -55,11 +72,6 @@ export async function validateCasTicket(
 
   const xml = await res.text();
 
-  // DEBUG SEMENTARA: cetak XML mentah ke log server supaya kita bisa lihat
-  // atribut asli apa saja yang dikirim CAS SISTER (nama tag untuk membedakan
-  // mahasiswa/dosen/tendik, dsb). HAPUS blok ini setelah selesai diagnosis.
-  console.log("=== CAS serviceValidate raw XML ===\n" + xml);
-
   const isSuccess =
     xml.includes("cas:authenticationSuccess") || xml.includes("<authenticationSuccess");
   if (!isSuccess) return null;
@@ -69,11 +81,14 @@ export async function validateCasTicket(
   if (!userMatch) return null;
 
   const identifier = userMatch[1].trim();
-  const nama = extractAttribute(xml, ["nama", "name", "fullname", "cn", "displayName"]);
-  const prodi = extractAttribute(xml, ["prodi", "program_studi", "programStudi", "department"]);
-  // Nama tag atribut ini masih tebakan — cek log XML mentah di atas saat
-  // testing pertama kali, lalu tambahkan/sesuaikan key di sini kalau nama
-  // atribut asli dari SISTER berbeda.
+  const nama = extractAttribute(xml, ["cn", "displayname", "nama", "name", "fullname"]);
+  const prodi = extractAttribute(xml, [
+    "namaunitkerja",
+    "prodi",
+    "program_studi",
+    "programStudi",
+    "department",
+  ]);
   const status = extractAttribute(xml, [
     "status",
     "jenis",
@@ -84,15 +99,35 @@ export async function validateCasTicket(
     "memberOf",
     "affiliation",
   ]);
+  const email = extractAttribute(xml, ["emailsrd", "email", "displaymail"]);
+  const foto = extractAttribute(xml, ["foto"]);
+  const fakultas = extractFakultas(xml);
 
-  return { identifier, nama, prodi, status };
+  return { identifier, nama, prodi, status, email, foto, fakultas };
 }
 
 function extractAttribute(xml: string, keys: string[]): string | undefined {
   for (const key of keys) {
     const re = new RegExp(`<cas:${key}>([^<]+)</cas:${key}>`, "i");
     const match = xml.match(re);
-    if (match) return match[1].trim();
+    if (match && match[1].trim()) return match[1].trim();
   }
   return undefined;
+}
+
+/**
+ * cas:leveluser isinya daftar affiliasi dipisah koma, mis.:
+ * "Mahasiswa,Mahasiswa Teknik Perminyakan,Mahasiswa Fak. Teknik"
+ * Fakultas diambil dari segmen yang mengandung "Fak", lalu prefix status
+ * (Mahasiswa/Dosen/Tendik/dst) di depannya dibuang.
+ */
+function extractFakultas(xml: string): string | undefined {
+  const leveluser = extractAttribute(xml, ["leveluser"]);
+  if (!leveluser) return undefined;
+
+  const parts = leveluser.split(",").map((p) => p.trim());
+  const match = parts.find((p) => /fak\.?\s/i.test(p) || /fakultas/i.test(p));
+  if (!match) return undefined;
+
+  return match.replace(/^(mahasiswa|dosen|tendik|staf|pegawai)\s+/i, "").trim() || undefined;
 }
