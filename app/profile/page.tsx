@@ -6,15 +6,17 @@ import type { AppRole } from "@/lib/auth/session";
 
 export const revalidate = 0;
 
-// Base URL foto profil SISTER — cas:foto cuma ngasih path relatif
-// (mis. "images/foto/221910801047.JPG"), digabung di sini jadi URL penuh.
-// Bisa diganti tanpa ubah kode lewat env var SISTER_PHOTO_BASE_URL (Vercel)
-// kalau ternyata domain aslinya beda dari default di bawah.
-const SISTER_PHOTO_BASE_URL = (process.env.SISTER_PHOTO_BASE_URL || "https://sister.unej.ac.id").replace(/\/+$/, "") + "/";
+// Foto profil SISTER: cas:foto cuma ngasih path relatif (mis.
+// "images/foto/221910801047.JPG"). Di halaman SIAKAD, foto itu ditampilkan
+// lewat endpoint /Imagesx/Viewprofile?path=<path>, BUKAN file statis di
+// /images/foto/..., jadi URL penuhnya dibentuk seperti itu.
+// Domain dasarnya bisa diganti tanpa ubah kode lewat env var
+// SISTER_PHOTO_BASE_URL (Vercel), tanpa garis miring di akhir.
+const SISTER_PHOTO_BASE_URL = (process.env.SISTER_PHOTO_BASE_URL || "https://siakad.unej.ac.id").replace(/\/+$/, "");
 
 function buildFotoUrl(path: string | null): string | null {
   if (!path) return null;
-  return `${SISTER_PHOTO_BASE_URL}${path.replace(/^\/+/, "")}`;
+  return `${SISTER_PHOTO_BASE_URL}/Imagesx/Viewprofile?path=${encodeURIComponent(path.replace(/^\/+/, ""))}`;
 }
 
 interface UserRow {
