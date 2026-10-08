@@ -117,6 +117,9 @@ export async function GET(req: NextRequest) {
         nama: casUser.nama || casUser.identifier,
         prodi: casUser.prodi ?? null,
         user_type: userType,
+        email: casUser.email ?? null,
+        fakultas: casUser.fakultas ?? null,
+        foto: casUser.foto ?? null,
         // Role tetap DEFAULT 'mahasiswa' untuk semua akun baru, apa pun
         // status SISTER-nya. Admin cuma di-set manual lewat SQL — lihat
         // catatan promote-admin. Ini SENGAJA tidak otomatis supaya admin
@@ -135,8 +138,8 @@ export async function GET(req: NextRequest) {
     userRow = inserted;
   } else {
     // Akun sudah ada: sinkronkan data identitas (nama, prodi, user_type,
-    // dan label nim/nip) setiap login supaya selalu akurat mengikuti
-    // SISTER — TANPA pernah mengubah kolom `role`.
+    // email, fakultas, foto, dan label nim/nip) setiap login supaya selalu
+    // akurat mengikuti SISTER — TANPA pernah mengubah kolom `role`.
     const { data: synced, error: syncError } = await admin
       .from("users")
       .update({
@@ -145,6 +148,9 @@ export async function GET(req: NextRequest) {
         user_type: userType,
         nim: isMahasiswa ? casUser.identifier : null,
         nip: isMahasiswa ? null : casUser.identifier,
+        email: casUser.email ?? null,
+        fakultas: casUser.fakultas ?? null,
+        foto: casUser.foto ?? null,
       })
       .eq("id", userRow.id)
       .select("id, auth_uid, nim, nama, role")
