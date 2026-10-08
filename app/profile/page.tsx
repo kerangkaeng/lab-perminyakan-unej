@@ -8,7 +8,9 @@ export const revalidate = 0;
 
 // Base URL foto profil SISTER — cas:foto cuma ngasih path relatif
 // (mis. "images/foto/221910801047.JPG"), digabung di sini jadi URL penuh.
-const SISTER_PHOTO_BASE_URL = "https://sister.unej.ac.id/";
+// Bisa diganti tanpa ubah kode lewat env var SISTER_PHOTO_BASE_URL (Vercel)
+// kalau ternyata domain aslinya beda dari default di bawah.
+const SISTER_PHOTO_BASE_URL = (process.env.SISTER_PHOTO_BASE_URL || "https://sister.unej.ac.id").replace(/\/+$/, "") + "/";
 
 function buildFotoUrl(path: string | null): string | null {
   if (!path) return null;
@@ -77,7 +79,7 @@ export default async function ProfilePage() {
       ) : (
         <div className="max-w-lg">
           {fotoUrl && (
-            <ProfilePhoto src={fotoUrl} alt={`Foto profil ${user?.nama ?? ""}`} />
+            <ProfilePhoto src={fotoUrl} alt={`Foto profil ${user?.nama ?? ""}`} name={user?.nama} />
           )}
           <ProfileField label="Nama" value={user?.nama} />
           <ProfileField
