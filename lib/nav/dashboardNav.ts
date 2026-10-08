@@ -19,6 +19,9 @@ export const primaryNavItems: DashboardNavItem[] = [
   // yang menentukan dia cuma bisa lihat, bukan approve/reject (lihat
   // AdminRequestsTable.tsx + canManagePracticumRequests()).
   { href: "/admin/practicum-requests", label: "Kelola Pengajuan", roles: ["admin", "asisten"] },
+  // Rekap Excel admin-only (lihat catatan akses di recap/route.ts) — beda
+  // dari "Kelola Pengajuan" yang juga boleh diakses asisten.
+  { href: "/admin/rekap", label: "Rekap", roles: ["admin"] },
   { href: "/admin/news", label: "News", roles: ["admin"] },
   // "dosen" belum punya item nav sama sekali — belum ada fitur untuknya.
 ];
