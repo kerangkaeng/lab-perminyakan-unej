@@ -1,6 +1,7 @@
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import type { AppRole } from "@/lib/auth/session";
 
 export const revalidate = 0;
 
@@ -10,9 +11,18 @@ interface UserRow {
   nip: string | null;
   prodi: string | null;
   user_type: string | null;
-  role: "mahasiswa" | "admin";
+  role: AppRole;
   identifier: string;
+  email: string | null;
+  fakultas: string | null;
 }
+
+const ROLE_LABEL: Record<AppRole, string> = {
+  mahasiswa: "Mahasiswa",
+  admin: "Admin",
+  asisten: "Asisten",
+  dosen: "Dosen",
+};
 
 function ProfileField({ label, value }: { label: string; value?: string | null }) {
   return (
@@ -34,7 +44,7 @@ export default async function ProfilePage() {
     const supabase = supabaseAuthed(token);
     const { data, error } = await supabase
       .from("users")
-      .select("nama, nim, nip, prodi, user_type, role, identifier")
+      .select("nama, nim, nip, prodi, user_type, role, identifier, email, fakultas")
       .eq("id", session.usersId)
       .single();
 
@@ -58,11 +68,13 @@ export default async function ProfilePage() {
             label={user?.nim ? "NIM" : "NIP"}
             value={user?.nim ?? user?.nip}
           />
-          <ProfileField label="Program Studi" value={user?.prodi} />
+          <ProfileField label="Program Studi / Unit Kerja" value={user?.prodi} />
+          <ProfileField label="Fakultas" value={user?.fakultas} />
+          <ProfileField label="Email SISTER" value={user?.email} />
           <ProfileField label="Status (SISTER)" value={user?.user_type} />
           <ProfileField
             label="Role Akses"
-            value={user?.role === "admin" ? "Admin" : "Mahasiswa"}
+            value={user?.role ? ROLE_LABEL[user.role] : undefined}
           />
           <ProfileField label="Identifier CAS" value={user?.identifier} />
         </div>
