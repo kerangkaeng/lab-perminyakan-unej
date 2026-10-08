@@ -5,6 +5,15 @@ import type { AppRole } from "@/lib/auth/session";
 
 export const revalidate = 0;
 
+// Base URL foto profil SISTER — cas:foto cuma ngasih path relatif
+// (mis. "images/foto/221910801047.JPG"), digabung di sini jadi URL penuh.
+const SISTER_PHOTO_BASE_URL = "https://sister.unej.ac.id/";
+
+function buildFotoUrl(path: string | null): string | null {
+  if (!path) return null;
+  return `${SISTER_PHOTO_BASE_URL}${path.replace(/^\/+/, "")}`;
+}
+
 interface UserRow {
   nama: string;
   nim: string | null;
@@ -15,6 +24,7 @@ interface UserRow {
   identifier: string;
   email: string | null;
   fakultas: string | null;
+  foto: string | null;
 }
 
 const ROLE_LABEL: Record<AppRole, string> = {
@@ -44,7 +54,7 @@ export default async function ProfilePage() {
     const supabase = supabaseAuthed(token);
     const { data, error } = await supabase
       .from("users")
-      .select("nama, nim, nip, prodi, user_type, role, identifier, email, fakultas")
+      .select("nama, nim, nip, prodi, user_type, role, identifier, email, fakultas, foto")
       .eq("id", session.usersId)
       .single();
 
@@ -55,6 +65,8 @@ export default async function ProfilePage() {
     }
   }
 
+  const fotoUrl = buildFotoUrl(user?.foto ?? null);
+
   return (
     <DashboardShell title="Profil Saya">
       {!session ? (
@@ -63,6 +75,17 @@ export default async function ProfilePage() {
         <p className="text-sm text-red-700">{loadError}</p>
       ) : (
         <div className="max-w-lg">
+          {fotoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={fotoUrl}
+              alt={`Foto profil ${user?.nama ?? ""}`}
+              className="mb-6 h-32 w-32 border border-line object-cover"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+          )}
           <ProfileField label="Nama" value={user?.nama} />
           <ProfileField
             label={user?.nim ? "NIM" : "NIP"}
