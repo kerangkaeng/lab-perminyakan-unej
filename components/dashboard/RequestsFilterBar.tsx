@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { Download } from "lucide-react";
 
 const JENIS_OPTIONS = [
   { value: "all", label: "Semua Jenis" },
@@ -21,7 +22,14 @@ const SORT_OPTIONS = [
   { value: "asc", label: "Tanggal Kegiatan: Terlama Dulu" },
 ];
 
-export function RequestsFilterBar({ labs }: { labs: string[] }) {
+export function RequestsFilterBar({
+  labs,
+  canDownloadRecap = false,
+}: {
+  labs: string[];
+  /** admin-only (lihat app/api/admin/practicum-requests/recap/route.ts) — tombol "Download Excel" disembunyikan kalau false. */
+  canDownloadRecap?: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -44,8 +52,13 @@ export function RequestsFilterBar({ labs }: { labs: string[] }) {
   const selectClass =
     "border border-line bg-mist px-3 py-2 text-sm text-ink focus:outline-none focus:border-petrol";
 
+  // Tombol download memakai filter (jenis/lab/status/urutan) yang SEDANG
+  // AKTIF di layar — query param-nya sama persis, jadi cukup diteruskan
+  // apa adanya ke endpoint rekap.
+  const recapHref = `/api/admin/practicum-requests/recap?${searchParams.toString()}`;
+
   return (
-    <div className="mb-6 flex flex-wrap gap-3">
+    <div className="mb-6 flex flex-wrap items-center gap-3">
       <select
         value={jenis}
         onChange={(e) => updateParam("jenis", e.target.value)}
@@ -107,6 +120,16 @@ export function RequestsFilterBar({ labs }: { labs: string[] }) {
         >
           Reset Filter
         </button>
+      )}
+
+      {canDownloadRecap && (
+        <a
+          href={recapHref}
+          className="ml-auto inline-flex items-center gap-1.5 border border-petrol text-petrol px-3 py-2 text-sm hover:bg-petrol hover:text-paper transition-colors"
+        >
+          <Download size={15} />
+          Download Excel
+        </a>
       )}
     </div>
   );
