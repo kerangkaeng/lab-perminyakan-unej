@@ -1,6 +1,7 @@
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { ProfilePhoto } from "@/components/profile/ProfilePhoto";
 import type { AppRole } from "@/lib/auth/session";
 
 export const revalidate = 0;
@@ -76,15 +77,7 @@ export default async function ProfilePage() {
       ) : (
         <div className="max-w-lg">
           {fotoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={fotoUrl}
-              alt={`Foto profil ${user?.nama ?? ""}`}
-              className="mb-6 h-32 w-32 border border-line object-cover"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-              }}
-            />
+            <ProfilePhoto src={fotoUrl} alt={`Foto profil ${user?.nama ?? ""}`} />
           )}
           <ProfileField label="Nama" value={user?.nama} />
           <ProfileField
