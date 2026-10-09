@@ -4,9 +4,10 @@ import { supabaseServer } from "@/lib/supabase/server";
 import {
   uploadPrivateFile,
   deletePrivateFile,
-  getPrivateSignedUrl,
+  fetchPrivateFileForProxy,
   detectImageType,
   isProfilePhotoKey,
+  profilePhotoUrl,
   MAX_PROFILE_PHOTO_BYTES,
   PROFILE_PHOTO_PREFIX,
   PROFILE_PHOTO_TYPES,
@@ -15,10 +16,46 @@ import {
 // Foto profil diunggah sendiri oleh user yang sedang login. Penulisan ke
 // tabel users memakai service role, tapi SELALU dibatasi ke session.usersId
 // (bukan id dari request), jadi user hanya bisa mengubah fotonya sendiri.
+//
+// Foto sudah di-crop & di-resize di browser (512x512) sebelum diunggah,
+// jadi ukurannya kecil. Server tetap memvalidasi tipe (magic bytes) & ukuran.
+
+export const dynamic = "force-dynamic";
 
 async function currentFoto(usersId: string): Promise<string | null> {
   const { data } = await supabaseServer().from("users").select("foto").eq("id", usersId).single();
   return (data?.foto as string | null) ?? null;
+}
+
+// GET /api/profile/photo?v=<versi>  -> foto profil user yang sedang login.
+// Di-stream lewat server (bucket tetap privat) dan tidak kedaluwarsa seperti
+// signed URL, jadi bisa dipakai di <img> di mana saja (profil, sidebar, dll).
+export async function GET() {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
+  }
+
+  const key = await currentFoto(session.usersId);
+  if (!isProfilePhotoKey(key, session.usersId)) {
+    return NextResponse.json({ error: "Belum ada foto profil." }, { status: 404 });
+  }
+
+  const file = await fetchPrivateFileForProxy(key);
+  if (!file) {
+    return NextResponse.json({ error: "Foto profil tidak ditemukan." }, { status: 404 });
+  }
+
+  return new NextResponse(Buffer.from(file.body) as unknown as BodyInit, {
+    status: 200,
+    headers: {
+      "Content-Type": file.contentType,
+      "X-Content-Type-Options": "nosniff",
+      // Private: hanya cache browser (bukan CDN bersama). Aman immutable
+      // karena parameter ?v= berubah setiap foto diganti.
+      "Cache-Control": "private, max-age=31536000, immutable",
+    },
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -62,7 +99,7 @@ export async function POST(req: NextRequest) {
       await deletePrivateFile(oldKey).catch((e) => console.error("Hapus foto lama gagal", e));
     }
 
-    return NextResponse.json({ url: await getPrivateSignedUrl(key) });
+    return NextResponse.json({ url: profilePhotoUrl(key) });
   } catch (e) {
     console.error("Upload foto profil error", e);
     return NextResponse.json({ error: "Gagal mengunggah foto profil." }, { status: 500 });
