@@ -1,15 +1,28 @@
-// Integrasi CAS SSO Universitas Jember (SISTER UNEJ).
+ // Integrasi CAS SSO Universitas Jember (SISTER UNEJ).
 // CAS pakai protokol XML lama (bukan OAuth2), jadi login dilakukan via
 // redirect + validasi ticket server-side, bukan token exchange biasa.
 
 const CAS_BASE_URL = process.env.CAS_BASE_URL || "https://sso.unej.ac.id/cas";
 
+// OPSIONAL: minta CAS menjalankan 2FA lewat parameter opt-in MFA bawaan
+// Apereo CAS (nama parameter default: `authn_method`). Isi env var
+// CAS_MFA_METHOD dengan ID provider MFA di server CAS UNEJ (mis.
+// "mfa-gauth" untuk Google Authenticator). Kosong = tidak dikirim.
+// CATATAN: hanya berfungsi kalau trigger opt-in MFA diaktifkan di server
+// CAS UNEJ; kalau tidak, parameter ini diabaikan atau (jika ID provider
+// salah) CAS bisa menolak login — jadi biarkan kosong sampai terkonfirmasi.
+const CAS_MFA_METHOD = process.env.CAS_MFA_METHOD || "";
+
 export function getCasLoginUrl(serviceUrl: string, options?: { renew?: boolean }) {
-  const url = `${CAS_BASE_URL}/login?service=${encodeURIComponent(serviceUrl)}`;
+  let url = `${CAS_BASE_URL}/login?service=${encodeURIComponent(serviceUrl)}`;
   // `renew=true` memaksa CAS menampilkan form login (NIM/password + 2FA jika ada)
   // walau sesi SSO di browser masih aktif — tanpa ini, CAS akan skip form
   // selama cookie TGT di sso.unej.ac.id belum expired/di-logout.
-  return options?.renew ? `${url}&renew=true` : url;
+  if (options?.renew) url += "&renew=true";
+  // authn_method ditaruh di URL login saja, BUKAN di service URL, supaya
+  // pencocokan service saat validasi ticket tidak berubah.
+  if (CAS_MFA_METHOD) url += `&authn_method=${encodeURIComponent(CAS_MFA_METHOD)}`;
+  return url;
 }
 
 export function getCasLogoutUrl(serviceUrl?: string) {
