@@ -1,4 +1,4 @@
- // Integrasi CAS SSO Universitas Jember (SISTER UNEJ).
+// Integrasi CAS SSO Universitas Jember (SISTER UNEJ).
 // CAS pakai protokol XML lama (bukan OAuth2), jadi login dilakukan via
 // redirect + validasi ticket server-side, bukan token exchange biasa.
 
@@ -46,8 +46,6 @@ export type CasUser = {
   status?: string;
   email?: string;
   fakultas?: string;
-  /** Nilai mentah cas:foto — bisa path relatif ATAU URL penuh (lihat buildFotoUrl di app/profile/page.tsx). */
-  foto?: string;
   /**
    * SEMUA atribut yang dikirim CAS apa adanya (nama tag -> daftar nilai).
    * Disimpan ke users.cas_attributes supaya nama atribut yang benar bisa
@@ -224,7 +222,6 @@ export async function validateCasTicket(
     prodi: pick(attributes, ["namaunitkerja", "prodi", "program_studi", "programStudi", "department"]),
     status: pick(attributes, ["status", "jenis", "tipe", "userType", "user_type", "kategori", "affiliation"]),
     email: pick(attributes, ["emailsrd", "email", "displaymail", "mail"]),
-    foto: pick(attributes, ["foto", "photo", "fotourl", "picture", "image"]),
     fakultas: extractFakultas(attributes),
     attributes,
   };
