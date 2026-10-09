@@ -77,14 +77,18 @@ export default async function StrukturOrganisasiPage() {
   const peneliti = rows.filter((r) => r.role_type === "dosen_peneliti").map((r) => toPerson(r.users!));
 
   return (
-    <div className="container-lab py-16">
-      <p className="eyebrow mb-3">Tentang Kami</p>
-      <h1 className="mb-12 text-3xl font-display font-semibold md:text-4xl">Struktur Organisasi</h1>
-      {failed ? (
-        <p className="text-sm text-red-700">Gagal memuat struktur organisasi. Coba lagi beberapa saat.</p>
-      ) : (
-        <OrgChart labs={labs} peneliti={peneliti} />
-      )}
+    <div className="py-16">
+      <div className="container-lab">
+        <p className="eyebrow mb-3">Tentang Kami</p>
+        <h1 className="mb-12 text-3xl font-display font-semibold md:text-4xl">Struktur Organisasi</h1>
+      </div>
+      <div className="mx-auto w-full max-w-[1500px] px-6 sm:px-8 lg:px-10">
+        {failed ? (
+          <p className="text-sm text-red-700">Gagal memuat struktur organisasi. Coba lagi beberapa saat.</p>
+        ) : (
+          <OrgChart labs={labs} peneliti={peneliti} />
+        )}
+      </div>
     </div>
   );
 }
