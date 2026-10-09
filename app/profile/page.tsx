@@ -3,23 +3,9 @@ import { supabaseAuthed } from "@/lib/supabase/authed";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ProfilePhoto } from "@/components/profile/ProfilePhoto";
 import type { AppRole } from "@/lib/auth/session";
+import { getPrivateSignedUrl, isProfilePhotoKey } from "@/lib/storage/b2";
 
 export const revalidate = 0;
-
-// Foto profil SISTER: cas:foto cuma ngasih path relatif (mis.
-// "images/foto/221910801047.JPG"). Di halaman SIAKAD, foto itu ditampilkan
-// lewat endpoint /Imagesx/Viewprofile?path=<path>, BUKAN file statis di
-// /images/foto/..., jadi URL penuhnya dibentuk seperti itu.
-// Domain dasarnya bisa diganti tanpa ubah kode lewat env var
-// SISTER_PHOTO_BASE_URL (Vercel), tanpa garis miring di akhir.
-const SISTER_PHOTO_BASE_URL = (process.env.SISTER_PHOTO_BASE_URL || "https://siakad.unej.ac.id").replace(/\/+$/, "");
-
-function buildFotoUrl(path: string | null): string | null {
-  if (!path) return null;
-  // Kalau SSO sudah mengirim URL penuh, pakai apa adanya.
-  if (/^https?:\/\//i.test(path)) return path;
-  return `${SISTER_PHOTO_BASE_URL}/Imagesx/Viewprofile?path=${encodeURIComponent(path.replace(/^\/+/, ""))}`;
-}
 
 interface UserRow {
   nama: string;
@@ -80,7 +66,16 @@ export default async function ProfilePage() {
     }
   }
 
-  const fotoUrl = buildFotoUrl(user?.foto ?? null);
+  // Foto diunggah sendiri oleh user (disimpan di bucket privat) -> tampilkan
+  // lewat signed URL sementara. Nilai lama dari SSO diabaikan.
+  let fotoUrl: string | null = null;
+  if (session && isProfilePhotoKey(user?.foto, session.usersId)) {
+    try {
+      fotoUrl = await getPrivateSignedUrl(user!.foto!);
+    } catch (e) {
+      console.error("Signed URL foto profil gagal", e);
+    }
+  }
 
   return (
     <DashboardShell title="Profil Saya">
@@ -90,9 +85,7 @@ export default async function ProfilePage() {
         <p className="text-sm text-red-700">{loadError}</p>
       ) : (
         <div className="max-w-lg">
-          {fotoUrl && (
-            <ProfilePhoto src={fotoUrl} alt={`Foto profil ${user?.nama ?? ""}`} name={user?.nama} />
-          )}
+          <ProfilePhoto src={fotoUrl} name={user?.nama ?? session.nama} />
           <ProfileField label="Nama" value={user?.nama} />
           <ProfileField
             label={user?.nim ? "NIM" : "NIP"}
@@ -117,7 +110,7 @@ export default async function ProfilePage() {
                 <>
                   <p className="mt-3 text-xs text-core">
                     Isi apa adanya yang dikirim CAS pada login terakhir. Pakai ini untuk memastikan
-                    nama atribut (mis. foto) yang sebenarnya.
+                    nama atribut yang sebenarnya.
                   </p>
                   <pre className="mt-3 overflow-x-auto bg-mist p-3 text-xs">
                     {JSON.stringify(user.cas_attributes, null, 2)}
