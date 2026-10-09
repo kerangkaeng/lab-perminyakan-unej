@@ -16,6 +16,8 @@ const SISTER_PHOTO_BASE_URL = (process.env.SISTER_PHOTO_BASE_URL || "https://sia
 
 function buildFotoUrl(path: string | null): string | null {
   if (!path) return null;
+  // Kalau SSO sudah mengirim URL penuh, pakai apa adanya.
+  if (/^https?:\/\//i.test(path)) return path;
   return `${SISTER_PHOTO_BASE_URL}/Imagesx/Viewprofile?path=${encodeURIComponent(path.replace(/^\/+/, ""))}`;
 }
 
@@ -30,6 +32,7 @@ interface UserRow {
   email: string | null;
   fakultas: string | null;
   foto: string | null;
+  cas_attributes: Record<string, string[]> | null;
 }
 
 const ROLE_LABEL: Record<AppRole, string> = {
@@ -57,16 +60,23 @@ export default async function ProfilePage() {
 
   if (session && token) {
     const supabase = supabaseAuthed(token);
-    const { data, error } = await supabase
+    const baseColumns = "nama, nim, nip, prodi, user_type, role, identifier, email, fakultas, foto";
+    // Atribut mentah SSO hanya diminta untuk admin (dipakai sebagai alat
+    // diagnosa pemetaan atribut). Kalau migrasi 003 belum dijalankan,
+    // fallback ke kolom dasar supaya profil tetap tampil.
+    let { data, error } = await supabase
       .from("users")
-      .select("nama, nim, nip, prodi, user_type, role, identifier, email, fakultas, foto")
+      .select(session.appRole === "admin" ? `${baseColumns}, cas_attributes` : baseColumns)
       .eq("id", session.usersId)
       .single();
+    if (error && session.appRole === "admin") {
+      ({ data, error } = await supabase.from("users").select(baseColumns).eq("id", session.usersId).single());
+    }
 
     if (error) {
       loadError = "Gagal memuat data profil.";
     } else {
-      user = data as UserRow;
+      user = data as unknown as UserRow;
     }
   }
 
@@ -97,6 +107,29 @@ export default async function ProfilePage() {
             value={user?.role ? ROLE_LABEL[user.role] : undefined}
           />
           <ProfileField label="Identifier CAS" value={user?.identifier} />
+
+          {session.appRole === "admin" && (
+            <details className="mt-8 border border-line p-4">
+              <summary className="cursor-pointer text-xs font-mono uppercase text-core">
+                Atribut mentah SSO (khusus admin)
+              </summary>
+              {user?.cas_attributes ? (
+                <>
+                  <p className="mt-3 text-xs text-core">
+                    Isi apa adanya yang dikirim CAS pada login terakhir. Pakai ini untuk memastikan
+                    nama atribut (mis. foto) yang sebenarnya.
+                  </p>
+                  <pre className="mt-3 overflow-x-auto bg-mist p-3 text-xs">
+                    {JSON.stringify(user.cas_attributes, null, 2)}
+                  </pre>
+                </>
+              ) : (
+                <p className="mt-3 text-xs text-core">
+                  Belum ada data. Jalankan migrasi 003, lalu logout dan login ulang.
+                </p>
+              )}
+            </details>
+          )}
         </div>
       )}
     </DashboardShell>
