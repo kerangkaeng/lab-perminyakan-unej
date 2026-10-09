@@ -63,6 +63,7 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
 
   const [uploaded, setUploaded] = useState<Record<string, string[]>>({});
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const [deletingPath, setDeletingPath] = useState<string | null>(null);
 
   const [adaInsiden, setAdaInsiden] = useState<"ya" | "tidak" | "">("");
   const [insidenJenis, setInsidenJenis] = useState("");
@@ -81,7 +82,7 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
   const [alatOptions, setAlatOptions] = useState<EquipmentOption[]>([]);
   const [bahanOptions, setBahanOptions] = useState<EquipmentOption[]>([]);
 
-  const [prefillLoading, setPrefillLoading] = useState(isRevision);
+  const [prefillLoading, setPrefillLoading] = useState(true);
   const [prefillError, setPrefillError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -100,13 +101,15 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
     loadEquipment();
   }, []);
 
-  // Prefill: hanya jalan kalau ini revisi (bukan pengisian pertama kali).
+  // Selalu ambil daftar berkas yang SUDAH tersimpan untuk pengajuan ini, supaya
+  // tampilan form sinkron dengan database (mis. sisa unggahan sebelumnya) —
+  // tanpa ini kuota "maks. 2 berkas" bisa terasa terkunci padahal form
+  // tampak kosong. Prefill isian form (insiden, peminjaman) hanya untuk revisi.
   // Ambil data lama (insiden, peminjaman, daftar berkas yang sudah
   // terunggah) dari endpoint documentation, lalu isi semua state form
   // dengan data itu supaya pengaju tinggal koreksi bagian yang salah,
   // bukan mengisi ulang dari nol.
   useEffect(() => {
-    if (!isRevision) return;
     let active = true;
 
     (async () => {
@@ -114,7 +117,11 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
       if (!active) return;
 
       if (!res.ok) {
-        setPrefillError("Gagal memuat data sebelumnya. Kamu tetap bisa mengisi ulang dari awal.");
+        setPrefillError(
+          isRevision
+            ? "Gagal memuat data sebelumnya. Kamu tetap bisa mengisi ulang dari awal."
+            : "Gagal memuat berkas yang sudah terunggah. Tutup lalu buka lagi form ini."
+        );
         setPrefillLoading(false);
         return;
       }
@@ -133,7 +140,7 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
       }
       setUploaded(uploadedFromSigned);
 
-      if (rd) {
+      if (rd && isRevision) {
         setAdaInsiden(rd.ada_insiden ? "ya" : "tidak");
         setInsidenJenis(rd.insiden_jenis ?? "");
         setInsidenJenisLainnya(rd.insiden_jenis_lainnya ?? "");
@@ -191,7 +198,58 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
       setError(body.error || "Gagal mengunggah berkas.");
       return;
     }
-    setUploaded((prev) => ({ ...prev, [category]: [...(prev[category] ?? []), file.name] }));
+    const okBody = await res.json().catch(() => ({}));
+    const savedPath: string = okBody.path ?? file.name;
+    setUploaded((prev) => ({ ...prev, [category]: [...(prev[category] ?? []), savedPath] }));
+  }
+
+  async function handleDelete(category: string, path: string) {
+    setError(null);
+    setDeletingPath(path);
+    const res = await fetch(`/api/practicum/requests/${requestId}/documentation`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category, path }),
+    });
+    setDeletingPath(null);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error || "Gagal menghapus berkas.");
+      return;
+    }
+    setUploaded((prev) => ({ ...prev, [category]: (prev[category] ?? []).filter((p) => p !== path) }));
+  }
+
+  // Nama tampilan dari path penyimpanan: <id>/<kategori>/<timestamp>-<nama>
+  function fileLabel(path: string): string {
+    const last = path.split("/").pop() ?? path;
+    return last.replace(/^\d{10,}-/, "");
+  }
+
+  function UploadedFiles({ category }: { category: string }) {
+    const files = uploaded[category] ?? [];
+    if (files.length === 0) return null;
+    return (
+      <ul className="mt-2 space-y-1">
+        {files.map((path) => (
+          <li key={path} className="flex items-center justify-between gap-2 border border-line bg-mist px-3 py-1.5 text-xs">
+            <span className="min-w-0 truncate text-ink" title={fileLabel(path)}>
+              {fileLabel(path)}
+            </span>
+            <button
+              type="button"
+              onClick={() => handleDelete(category, path)}
+              disabled={deletingPath === path || uploadingKey === category}
+              className="shrink-0 text-core hover:text-red-700 disabled:opacity-50"
+              aria-label={`Hapus ${fileLabel(path)}`}
+            >
+              {deletingPath === path ? "Menghapus…" : <Trash2 size={14} />}
+            </button>
+          </li>
+        ))}
+      </ul>
+    );
   }
 
   function updateRow(list: PinjamRow[], setList: (v: PinjamRow[]) => void, index: number, patch: Partial<PinjamRow>) {
@@ -471,6 +529,7 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
                         ? `${count}/${MAX_DOC_FILES_PER_CATEGORY} berkas terunggah`
                         : `Belum ada berkas — maks. ${MAX_DOC_FILES_PER_CATEGORY} berkas, masing-masing maks. 1 MB`}
                     </p>
+                    <UploadedFiles category={slot.key} />
                   </div>
                 );
               })}
@@ -596,6 +655,7 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
                         ? `${uploaded["insiden_dokumentasi"].length}/${MAX_DOC_FILES_PER_CATEGORY} berkas terunggah`
                         : `Belum ada berkas — maks. ${MAX_DOC_FILES_PER_CATEGORY} berkas, masing-masing maks. 1 MB`}
                     </p>
+                    <UploadedFiles category="insiden_dokumentasi" />
                   </div>
 
                   <div>
