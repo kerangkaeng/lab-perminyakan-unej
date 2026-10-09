@@ -166,6 +166,25 @@ export async function fetchPublicFileForProxy(key: string): Promise<{
   }
 }
 
+/** Ambil isi file dari bucket PRIVAT (dipakai proxy foto profil; wajib dicek hak aksesnya oleh pemanggil). */
+export async function fetchPrivateFileForProxy(key: string): Promise<{
+  body: Uint8Array;
+  contentType: string;
+} | null> {
+  const client = storageClient();
+  try {
+    const result = await client.send(new GetObjectCommand({ Bucket: B2_BUCKET_PRIVATE, Key: key }));
+    if (!result.Body) return null;
+    return {
+      body: await result.Body.transformToByteArray(),
+      contentType: result.ContentType || "application/octet-stream",
+    };
+  } catch (e) {
+    console.error("fetchPrivateFileForProxy error", e);
+    return null;
+  }
+}
+
 /**
  * Upload ke bucket PRIVAT. Mengembalikan cuma key/path-nya (BUKAN URL),
  * karena file ini tidak boleh diakses langsung — harus lewat
@@ -267,4 +286,13 @@ export function detectImageType(buf: Buffer): keyof typeof PROFILE_PHOTO_TYPES |
 /** Key foto profil milik user tertentu; nilai lama dari SSO (mis. "images/foto/...") bukan key valid. */
 export function isProfilePhotoKey(value: string | null | undefined, usersId: string): value is string {
   return !!value && value.startsWith(`${PROFILE_PHOTO_PREFIX}${usersId}/`);
+}
+
+/**
+ * URL foto profil milik user yang sedang login. Parameter `v` hanya untuk
+ * cache-busting (berubah setiap foto diganti), sehingga browser boleh
+ * meng-cache lama tapi foto baru langsung tampil.
+ */
+export function profilePhotoUrl(key: string): string {
+  return `/api/profile/photo?v=${encodeURIComponent(key.split("/").pop() ?? "")}`;
 }
