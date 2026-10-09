@@ -27,6 +27,13 @@ function toPerson(u: NonNullable<Row["users"]>): OrgPerson {
   };
 }
 
+// Praktikum per laboratorium, berurutan sesuai semester. Dicocokkan dengan
+// judul praktikum (tidak peka huruf besar/kecil, cukup memuat kata kunci).
+const LAB_PRAKTIKUM: Record<Bidang, string[]> = {
+  pemboran_produksi: ["pemboran"],
+  reservoir: ["sedimentologi", "fluida reservoir", "petrofisik"],
+};
+
 export default async function StrukturOrganisasiPage() {
   const db = supabaseServer();
   const [rolesRes, modulesRes] = await Promise.all([
@@ -46,33 +53,37 @@ export default async function StrukturOrganisasiPage() {
     return r ? toPerson(r.users!) : null;
   };
 
-  const labs: LabUnit[] = BIDANG_VALUES.map((b) => ({
-    key: b,
-    name: BIDANG_LABEL[b],
-    kepala: holder("kepala_lab", b),
-    laboran: holder("laboran", b),
-  }));
-
-  const praktikum: PraktikumUnit[] = ((modulesRes.data ?? []) as { id: string; title: string }[]).map((m) => ({
+  const modules = (modulesRes.data ?? []) as { id: string; title: string }[];
+  const toPraktikum = (m: { id: string; title: string }): PraktikumUnit => ({
     id: m.id,
     title: m.title,
     dosen: rows.filter((r) => r.role_type === "dosen_mk" && r.module_id === m.id).map((r) => toPerson(r.users!)),
     asisten: rows.filter((r) => r.role_type === "asisten" && r.module_id === m.id).map((r) => toPerson(r.users!)),
-  }));
+  });
+
+  const labs: LabUnit[] = BIDANG_VALUES.map((b) => {
+    const seen = new Set<string>();
+    const praktikum: PraktikumUnit[] = [];
+    for (const kw of LAB_PRAKTIKUM[b]) {
+      for (const m of modules.filter((x) => x.title.toLowerCase().includes(kw))) {
+        if (seen.has(m.id)) continue;
+        seen.add(m.id);
+        praktikum.push(toPraktikum(m));
+      }
+    }
+    return { key: b, name: BIDANG_LABEL[b], kepala: holder("kepala_lab", b), laboran: holder("laboran", b), praktikum };
+  });
 
   const peneliti = rows.filter((r) => r.role_type === "dosen_peneliti").map((r) => toPerson(r.users!));
 
   return (
     <div className="container-lab py-16">
       <p className="eyebrow mb-3">Tentang Kami</p>
-      <h1 className="mb-2 text-3xl font-display font-semibold md:text-4xl">Struktur Organisasi</h1>
-      <p className="mb-12 max-w-2xl text-sm text-core">
-        Susunan pengelola Laboratorium Teknik Perminyakan. Klik nama untuk melihat foto.
-      </p>
+      <h1 className="mb-12 text-3xl font-display font-semibold md:text-4xl">Struktur Organisasi</h1>
       {failed ? (
         <p className="text-sm text-red-700">Gagal memuat struktur organisasi. Coba lagi beberapa saat.</p>
       ) : (
-        <OrgChart labs={labs} praktikum={praktikum} peneliti={peneliti} />
+        <OrgChart labs={labs} peneliti={peneliti} />
       )}
     </div>
   );
