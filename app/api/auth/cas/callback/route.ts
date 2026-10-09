@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { validateCasTicket } from "@/lib/auth/cas";
 import { createSessionToken, SESSION_COOKIE } from "@/lib/auth/session";
+import { safeRedirectPath } from "@/lib/auth/redirect";
 
 export async function GET(req: NextRequest) {
   const ticket = req.nextUrl.searchParams.get("ticket");
-  const redirectPath = req.nextUrl.searchParams.get("redirect") || "/practicum/status";
+  const redirectPath = safeRedirectPath(req.nextUrl.searchParams.get("redirect"));
   const loginUrl = new URL("/login", req.nextUrl.origin);
 
   if (!ticket) {
@@ -184,6 +185,20 @@ export async function GET(req: NextRequest) {
 
       userRow = updated;
     }
+  }
+
+  // Simpan atribut mentah dari CAS. Sengaja best-effort & terpisah dari
+  // insert/update utama: kalau migrasi 003 belum dijalankan (kolom belum
+  // ada), login tetap berhasil dan cuma dicatat di log.
+  const { error: attrError } = await admin
+    .from("users")
+    .update({
+      cas_attributes: casUser.attributes,
+      cas_attributes_updated_at: new Date().toISOString(),
+    })
+    .eq("id", userRow.id);
+  if (attrError) {
+    console.error("CAS callback - simpan cas_attributes gagal (sudah jalankan migrasi 003?)", attrError.message);
   }
 
   const token = await createSessionToken({
