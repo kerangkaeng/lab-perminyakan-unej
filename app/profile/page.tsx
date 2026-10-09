@@ -4,6 +4,8 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ProfilePhoto } from "@/components/profile/ProfilePhoto";
 import type { AppRole } from "@/lib/auth/session";
 import { isProfilePhotoKey, profilePhotoUrl } from "@/lib/storage/b2";
+import { supabaseServer } from "@/lib/supabase/server";
+import { describeLabRole, type LabRoleType } from "@/lib/lab-roles";
 
 export const revalidate = 0;
 
@@ -71,6 +73,18 @@ export default async function ProfilePage() {
   const fotoUrl =
     session && isProfilePhotoKey(user?.foto, session.usersId) ? profilePhotoUrl(user!.foto!) : null;
 
+  // Jabatan Lab yang dipegang user ini (ditetapkan admin).
+  let jabatan: string[] = [];
+  if (session) {
+    const { data: rows } = await supabaseServer()
+      .from("lab_roles")
+      .select("role_type, bidang, practicum_modules(title)")
+      .eq("user_id", session.usersId);
+    jabatan = ((rows ?? []) as any[]).map((r) =>
+      describeLabRole(r.role_type as LabRoleType, r.bidang, r.practicum_modules?.title ?? null)
+    );
+  }
+
   return (
     <DashboardShell title="Profil Saya">
       {!session ? (
@@ -93,6 +107,18 @@ export default async function ProfilePage() {
             label="Role Akses"
             value={user?.role ? ROLE_LABEL[user.role] : undefined}
           />
+          <div className="border-b border-line py-3">
+            <p className="text-xs font-mono uppercase text-core">Jabatan Lab</p>
+            {jabatan.length > 0 ? (
+              <ul className="mt-1 space-y-0.5 text-ink">
+                {jabatan.map((j) => (
+                  <li key={j}>{j}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-ink">—</p>
+            )}
+          </div>
           <ProfileField label="Identifier CAS" value={user?.identifier} />
 
           {session.appRole === "admin" && (
