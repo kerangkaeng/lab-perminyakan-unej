@@ -23,6 +23,8 @@ export const primaryNavItems: DashboardNavItem[] = [
   // dari "Kelola Pengajuan" yang juga boleh diakses asisten.
   { href: "/admin/rekap", label: "Rekap", roles: ["admin"] },
   { href: "/admin/news", label: "News", roles: ["admin"] },
+  // Jabatan Lab: admin menetapkan Kepala Lab, Laboran, Dosen, Asisten dari user terdaftar.
+  { href: "/admin/lab-roles", label: "Jabatan Lab", roles: ["admin"] },
   // "dosen" belum punya item nav sama sekali — belum ada fitur untuknya.
 ];
 
