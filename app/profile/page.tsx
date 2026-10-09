@@ -3,7 +3,7 @@ import { supabaseAuthed } from "@/lib/supabase/authed";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ProfilePhoto } from "@/components/profile/ProfilePhoto";
 import type { AppRole } from "@/lib/auth/session";
-import { getPrivateSignedUrl, isProfilePhotoKey } from "@/lib/storage/b2";
+import { isProfilePhotoKey, profilePhotoUrl } from "@/lib/storage/b2";
 
 export const revalidate = 0;
 
@@ -66,16 +66,10 @@ export default async function ProfilePage() {
     }
   }
 
-  // Foto diunggah sendiri oleh user (disimpan di bucket privat) -> tampilkan
-  // lewat signed URL sementara. Nilai lama dari SSO diabaikan.
-  let fotoUrl: string | null = null;
-  if (session && isProfilePhotoKey(user?.foto, session.usersId)) {
-    try {
-      fotoUrl = await getPrivateSignedUrl(user!.foto!);
-    } catch (e) {
-      console.error("Signed URL foto profil gagal", e);
-    }
-  }
+  // Foto diunggah sendiri oleh user (bucket privat), disajikan lewat
+  // /api/profile/photo. Nilai lama dari SSO diabaikan.
+  const fotoUrl =
+    session && isProfilePhotoKey(user?.foto, session.usersId) ? profilePhotoUrl(user!.foto!) : null;
 
   return (
     <DashboardShell title="Profil Saya">
