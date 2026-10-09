@@ -89,7 +89,7 @@ function Praktikum({ p, defaultOpen }: { p: PraktikumUnit; defaultOpen: boolean 
                 {p.asisten.length === 0 ? (
                   <EmptySlot label="Asisten" />
                 ) : (
-                  <ul className="grid gap-3 sm:grid-cols-2">
+                  <ul className="grid gap-3">
                     {p.asisten.map((a, i) => (
                       <motion.li
                         key={a.id}
@@ -112,6 +112,14 @@ function Praktikum({ p, defaultOpen }: { p: PraktikumUnit; defaultOpen: boolean 
 }
 
 export function OrgChart({ labs, peneliti }: { labs: LabUnit[]; peneliti: OrgPerson[] }) {
+  // Lebar kolom laboratorium sebanding dengan jumlah praktikumnya, dan garis
+  // datar dari akar dihitung dari titik tengah kolom pertama sampai terakhir.
+  const weights = labs.map((l) => Math.max(1, l.praktikum.length));
+  const total = weights.reduce((a, b) => a + b, 0);
+  const center = (i: number) => (weights.slice(0, i).reduce((a, b) => a + b, 0) + weights[i] / 2) / total;
+  const barL = center(0) * 100;
+  const barR = (1 - center(labs.length - 1)) * 100;
+
   return (
     <div className="flex flex-col items-center">
       <Step>
@@ -123,48 +131,63 @@ export function OrgChart({ labs, peneliti }: { labs: LabUnit[]; peneliti: OrgPer
 
       <Link />
 
-      <div className="org-row">
-        {labs.map((lab, i) => (
-          <div key={lab.key} className="org-col">
-            <Step delay={0.1 + i * 0.05}>
-              <div className="rounded border border-line bg-white px-4 py-3 text-center shadow-card">
-                <span className="block font-mono text-[11px] uppercase tracking-wider text-core">Laboratorium</span>
-                <span className="font-semibold">{lab.name}</span>
-              </div>
-            </Step>
-            <Link />
-            <Step delay={0.2}>
-              {lab.kepala ? (
-                <PersonCard person={lab.kepala} tone="core" label="Kepala Laboratorium" />
-              ) : (
-                <EmptySlot label="Kepala Laboratorium" />
-              )}
-            </Step>
-            <Link />
-            <Step delay={0.3}>
-              {lab.laboran ? (
-                <PersonCard person={lab.laboran} tone="plain" label="Laboran / Teknisi" />
-              ) : (
-                <EmptySlot label="Laboran / Teknisi" />
-              )}
-            </Step>
+      <div className="org-row" style={{ ["--bar-l" as string]: `${barL}%`, ["--bar-r" as string]: `${barR}%` }}>
+        {labs.map((lab, i) => {
+          const n = lab.praktikum.length;
+          return (
+            <div key={lab.key} className="org-col" style={{ flex: `${weights[i]} 1 0%` }}>
+              <Step delay={0.1 + i * 0.05} className="mx-auto w-full max-w-sm">
+                <div className="rounded border border-line bg-white px-4 py-3 text-center shadow-card">
+                  <span className="block font-mono text-[11px] uppercase tracking-wider text-core">Laboratorium</span>
+                  <span className="font-semibold">{lab.name}</span>
+                </div>
+              </Step>
+              <Link />
+              <Step delay={0.2} className="mx-auto w-full max-w-sm">
+                {lab.kepala ? (
+                  <PersonCard person={lab.kepala} tone="core" label="Kepala Laboratorium" />
+                ) : (
+                  <EmptySlot label="Kepala Laboratorium" />
+                )}
+              </Step>
+              <Link />
+              <Step delay={0.3} className="mx-auto w-full max-w-sm">
+                {lab.laboran ? (
+                  <PersonCard person={lab.laboran} tone="plain" label="Laboran / Teknisi" />
+                ) : (
+                  <EmptySlot label="Laboran / Teknisi" />
+                )}
+              </Step>
 
-            {lab.praktikum.map((p, j) => (
-              <div key={p.id}>
-                <Link />
-                <Step delay={0.1}>
-                  <Praktikum p={p} defaultOpen={j === 0} />
-                </Step>
-              </div>
-            ))}
-          </div>
-        ))}
+              {n > 0 && (
+                <>
+                  <Link />
+                  <div
+                    className={`prak-row ${n > 1 ? "multi" : ""}`}
+                    style={{
+                      ["--bar-l" as string]: `${100 / (2 * n)}%`,
+                      ["--bar-r" as string]: `${100 / (2 * n)}%`,
+                    }}
+                  >
+                    {lab.praktikum.map((p) => (
+                      <div key={p.id} className="prak-col">
+                        <Step delay={0.1}>
+                          <Praktikum p={p} defaultOpen />
+                        </Step>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {peneliti.length > 0 && (
-        <Step className="mt-14 w-full max-w-5xl border-t border-line pt-8">
+        <Step className="mt-14 w-full border-t border-line pt-8">
           <p className="mb-3 text-center font-mono text-[11px] uppercase tracking-wider text-core">Dosen Peneliti</p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {peneliti.map((d) => (
               <PersonCard key={d.id} person={d} tone="plain" />
             ))}
