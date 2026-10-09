@@ -56,7 +56,7 @@ function Praktikum({ p, defaultOpen }: { p: PraktikumUnit; defaultOpen: boolean 
         aria-expanded={open}
         className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rig"
       >
-        <span className="font-display text-base font-semibold text-ink">{p.title}</span>
+        <span className="min-w-0 break-words font-display text-sm font-semibold text-ink lg:text-base">{p.title}</span>
         <ChevronDown className={`h-5 w-5 shrink-0 text-petrol transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -112,34 +112,59 @@ function Praktikum({ p, defaultOpen }: { p: PraktikumUnit; defaultOpen: boolean 
 }
 
 export function OrgChart({ labs, peneliti }: { labs: LabUnit[]; peneliti: OrgPerson[] }) {
-  // Semua kolom laboratorium sama lebar supaya bagan simetris; garis datar
-  // dari akar membentang dari titik tengah kolom pertama sampai terakhir.
-  const barSide = (100 / labs.length / 2).toFixed(4);
+  if (labs.length === 0) return null;
+
+  // Lebar kolom lab = 24px (padding md:px-3 kiri+kanan) + bagian sebanding
+  // jumlah praktikum dari sisa lebar. Dengan begitu tiap kartu praktikum
+  // (di semua lab) PERSIS sama lebar, berapa pun lebar layarnya.
+  //   kolom_i = 24px + g_i * (100% - 24px * jumlahLab) / totalPraktikum
+  const L = labs.length;
+  const weights = labs.map((l) => Math.max(1, l.praktikum.length));
+  const N = weights.reduce((a, b) => a + b, 0);
+  const colW = (g: number) => `(24px + ${g} * (100% - ${24 * L}px) / ${N})`;
+  const first = colW(weights[0]);
+  const last = colW(weights[L - 1]);
+
+  // Garis datar: dari pusat kolom pertama sampai pusat kolom terakhir.
+  const barL = `calc(${first} / 2)`;
+  const barR = `calc(${last} / 2)`;
+  // Akar tepat di tengah antara kedua pusat itu.
+  const rootX = `calc((${first} / 2 + 100% - ${last} / 2) / 2)`;
+
+  const cardCls = "mx-auto w-full max-w-sm md:max-w-[var(--card-max)]";
 
   return (
     <div className="flex flex-col items-center">
-      <Step>
-        <div className="rounded border border-petrol bg-petrol px-8 py-4 text-center text-paper shadow-card">
-          <span className="block font-mono text-[11px] uppercase tracking-wider text-rig-light">Pengelola</span>
-          <span className="font-display text-lg font-semibold">Teknik Perminyakan UNEJ</span>
+      <div className="w-full" style={{ ["--root-x" as string]: rootX }}>
+        <div className="org-root">
+          <Step>
+            <div className="rounded border border-petrol bg-petrol px-8 py-4 text-center text-paper shadow-card">
+              <span className="block font-mono text-[11px] uppercase tracking-wider text-rig-light">Pengelola</span>
+              <span className="font-display text-lg font-semibold">Teknik Perminyakan UNEJ</span>
+            </div>
+          </Step>
+          <Link />
         </div>
-      </Step>
+      </div>
 
-      <Link />
-
-      <div className="org-row" style={{ ["--bar-l" as string]: `${barSide}%`, ["--bar-r" as string]: `${barSide}%` }}>
+      <div className="org-row" style={{ ["--bar-l" as string]: barL, ["--bar-r" as string]: barR }}>
         {labs.map((lab, i) => {
           const n = lab.praktikum.length;
+          const g = weights[i];
           return (
-            <div key={lab.key} className="org-col">
-              <Step delay={0.1 + i * 0.05} className="mx-auto w-full max-w-sm">
+            <div
+              key={lab.key}
+              className="org-col"
+              style={{ ["--grow" as string]: g, ["--card-max" as string]: `calc(100% / ${g})` }}
+            >
+              <Step delay={0.1 + i * 0.05} className={cardCls}>
                 <div className="rounded border border-line bg-white px-4 py-3 text-center shadow-card">
                   <span className="block font-mono text-[11px] uppercase tracking-wider text-core">Laboratorium</span>
                   <span className="font-semibold">{lab.name}</span>
                 </div>
               </Step>
               <Link />
-              <Step delay={0.2} className="mx-auto w-full max-w-sm">
+              <Step delay={0.2} className={cardCls}>
                 {lab.kepala ? (
                   <PersonCard person={lab.kepala} tone="core" label="Kepala Laboratorium" />
                 ) : (
@@ -147,7 +172,7 @@ export function OrgChart({ labs, peneliti }: { labs: LabUnit[]; peneliti: OrgPer
                 )}
               </Step>
               <Link />
-              <Step delay={0.3} className="mx-auto w-full max-w-sm">
+              <Step delay={0.3} className={cardCls}>
                 {lab.laboran ? (
                   <PersonCard person={lab.laboran} tone="plain" label="Laboran / Teknisi" />
                 ) : (
