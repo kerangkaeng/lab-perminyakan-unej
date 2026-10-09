@@ -33,13 +33,17 @@
     @apply relative mx-auto flex w-full flex-col items-center gap-y-6 pt-6 md:flex-row md:items-start md:gap-y-0;
   }
   .org-col {
-    @apply relative flex w-full max-w-md flex-col md:max-w-none md:px-3;
+    @apply relative flex w-full max-w-md flex-col md:max-w-none md:flex-1 md:px-3;
   }
   .prak-row {
     @apply relative flex w-full flex-col gap-6 pt-6 md:flex-row md:items-start md:gap-0;
   }
   .prak-col {
     @apply relative w-full md:flex-1 md:px-1.5;
+  }
+  /* Satu praktikum saja: kartu di tengah dengan lebar wajar */
+  .prak-row:not(.multi) .prak-col {
+    @apply mx-auto max-w-sm md:flex-none;
   }
   .org-col::before,
   .prak-col::before {
@@ -58,8 +62,8 @@
       content: "";
       position: absolute;
       top: 0;
-      left: var(--bar-l, 25%);
-      right: var(--bar-r, 25%);
+      left: calc(var(--bar-l, 25%) - 1px);
+      right: calc(var(--bar-r, 25%) - 1px);
       height: 2px;
       background: #6E7B6D;
     }
