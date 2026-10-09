@@ -10,6 +10,8 @@
 // bukan lewat Supabase Auth langsung.
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { cache } from "react";
+import { supabaseServer } from "@/lib/supabase/server";
 
 export const SESSION_COOKIE = "lab_session";
 
@@ -84,8 +86,39 @@ export function getSessionToken(): string | null {
   return cookies().get(SESSION_COOKIE)?.value ?? null;
 }
 
-export async function getSession(): Promise<Session | null> {
+/**
+ * Sesi saat ini. Role aplikasi SELALU dibaca ulang dari database (bukan
+ * dari isi token), karena Jabatan Lab bisa diubah admin kapan saja — kalau
+ * hanya mengandalkan token (berlaku 7 hari), pencopotan akses admin baru
+ * berlaku setelah user login ulang. Di-cache per request supaya layout,
+ * sidebar, dan halaman tidak query berulang.
+ *
+ * Catatan: middleware (Edge) tetap memakai role di token untuk menentukan
+ * boleh/tidaknya MASUK ke path /admin, jadi user yang BARU dinaikkan
+ * aksesnya perlu login ulang. Penurunan akses langsung berlaku karena
+ * halaman & API selalu memeriksa lewat fungsi ini.
+ */
+async function resolveSession(): Promise<Session | null> {
   const token = getSessionToken();
   if (!token) return null;
-  return verifySessionToken(token);
+
+  const session = await verifySessionToken(token);
+  if (!session) return null;
+
+  try {
+    const { data, error } = await supabaseServer()
+      .from("users")
+      .select("role")
+      .eq("id", session.usersId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null; // akun sudah dihapus
+    return { ...session, appRole: data.role as AppRole };
+  } catch (e) {
+    // Gagal memverifikasi role -> turunkan ke akses paling rendah (fail-safe).
+    console.error("getSession - gagal membaca role terbaru", e);
+    return { ...session, appRole: "mahasiswa" };
+  }
 }
+
+export const getSession = cache(resolveSession);
