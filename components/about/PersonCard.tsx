@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Avatar } from "@/components/profile/Avatar";
+import { initialsOf } from "@/components/profile/Avatar";
 
 export type OrgPerson = {
   id: string;
@@ -22,9 +22,33 @@ const TONE: Record<Tone, string> = {
   asisten: "bg-white text-ink border-line border-t-2 border-t-rig hover:border-petrol hover:-translate-y-0.5",
 };
 
+/** Foto persegi selebar kartu; kalau belum ada / gagal dimuat, tampil inisial. */
+function SquarePhoto({ src, name }: { src: string | null; name: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+
+  return (
+    <span className="relative block aspect-square w-full overflow-hidden bg-mist">
+      {src && !failed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={`Foto ${name}`}
+          className="h-full w-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span aria-hidden className="flex h-full w-full items-center justify-center font-display text-5xl text-core">
+          {initialsOf(name)}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /**
  * Kartu satu orang. Awalnya hanya nama + NIM/NIP; klik untuk membuka foto
- * di tempat (tanpa pindah halaman), klik lagi untuk menutup.
+ * di atas identitas (persegi, selebar kartu), klik lagi untuk menutup.
  */
 export function PersonCard({
   person,
@@ -51,26 +75,8 @@ export function PersonCard({
       onClick={() => setOpen((o) => !o)}
       aria-expanded={open}
       aria-label={`${person.nama}${person.ident ? `, ${person.ident}` : ""}. ${open ? "Tutup" : "Lihat"} foto`}
-      className={`relative w-full rounded border px-4 py-3 text-left shadow-card transition duration-300 ease-smooth hover:shadow-card-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-rig ${TONE[tone]} ${className}`}
+      className={`relative w-full overflow-hidden rounded border text-left shadow-card transition duration-300 ease-smooth hover:shadow-card-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-rig ${TONE[tone]} ${className}`}
     >
-      {index !== undefined && (
-        <span
-          className={`absolute right-3 top-3 font-mono text-[10px] ${dark ? "text-rig-light" : "text-rig"}`}
-          aria-hidden
-        >
-          {String(index).padStart(2, "0")}
-        </span>
-      )}
-      {label && (
-        <span className={`mb-1 block font-mono text-[11px] uppercase tracking-wider ${dark ? "text-rig-light" : "text-core"}`}>
-          {label}
-        </span>
-      )}
-      <span className="block pr-6 text-sm font-semibold leading-snug">{person.nama}</span>
-      <span className={`mt-0.5 block font-mono text-xs ${dark ? "text-paper/70" : "text-core"}`}>
-        {person.ident ?? "—"}
-      </span>
-
       <AnimatePresence initial={false}>
         {open && (
           <motion.span
@@ -81,12 +87,31 @@ export function PersonCard({
             exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
           >
-            <span className="mt-3 flex justify-center">
-              <Avatar src={person.photo} name={person.nama} size={112} className={dark ? "border-paper/30" : ""} />
-            </span>
+            <SquarePhoto src={person.photo} name={person.nama} />
           </motion.span>
         )}
       </AnimatePresence>
+
+      {index !== undefined && !open && (
+        <span
+          className={`absolute right-3 top-3 font-mono text-[10px] ${dark ? "text-rig-light" : "text-rig"}`}
+          aria-hidden
+        >
+          {String(index).padStart(2, "0")}
+        </span>
+      )}
+
+      <span className="block px-4 py-3">
+        {label && (
+          <span className={`mb-1 block font-mono text-[11px] uppercase tracking-wider ${dark ? "text-rig-light" : "text-core"}`}>
+            {label}
+          </span>
+        )}
+        <span className="block pr-6 text-sm font-semibold leading-snug">{person.nama}</span>
+        <span className={`mt-0.5 block font-mono text-xs ${dark ? "text-paper/70" : "text-core"}`}>
+          {person.ident ?? "—"}
+        </span>
+      </span>
     </button>
   );
 }
