@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
+import { supabaseServer } from "@/lib/supabase/server";
 import { docStoragePath } from "@/lib/supabase/storage";
 import {
   uploadPrivateFile,
+  deletePrivateFile,
   getPrivateSignedUrls,
   assertDocFileSize,
   FileTooLargeError,
@@ -58,10 +60,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "Pengajuan tidak ditemukan." }, { status: 404 });
   }
 
+  // Hanya PENGAJU yang boleh mengunggah dokumentasi — sama dengan aturan
+  // penyelesaian administrasi (route /complete). Admin/asisten cukup melihat
+  // (GET). Dulu admin ikut boleh mengunggah, tapi tidak bisa menyelesaikan,
+  // sehingga berkasnya nyangkut di pengajuan dan memakan kuota pengaju.
   const isOwner = reqRow.requester_id === session.usersId;
-  const canView = isOwner || session.appRole === "admin" || session.appRole === "asisten";
-  if (!canView) {
-    return NextResponse.json({ error: "Kamu tidak berhak melihat dokumentasi ini." }, { status: 403 });
+  if (!isOwner) {
+    return NextResponse.json(
+      { error: "Hanya pengaju kegiatan yang dapat mengunggah dokumentasi." },
+      { status: 403 }
+    );
   }
   if (reqRow.status !== "approved") {
     return NextResponse.json({ error: "Pengajuan belum disetujui admin." }, { status: 400 });
@@ -77,7 +85,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (currentList.length >= MAX_DOC_FILES_PER_CATEGORY) {
     return NextResponse.json(
       {
-        error: `Maksimal ${MAX_DOC_FILES_PER_CATEGORY} berkas untuk kategori dokumentasi ini. Hapus salah satu dulu kalau mau ganti (hubungi admin/asisten kalau belum ada fitur hapusnya).`,
+        error: `Maksimal ${MAX_DOC_FILES_PER_CATEGORY} berkas untuk kategori dokumentasi ini. Hapus salah satu dulu kalau mau ganti.`,
       },
       { status: 400 }
     );
@@ -104,7 +112,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const updatedList = [...currentList, path];
 
-  const { data: updated, error: updateError } = await supabase
+  // Kepemilikan sudah dicek di atas, jadi penyimpanan referensi memakai
+  // service role (tidak bergantung pada policy UPDATE RLS yang bisa saja
+  // hanya mengizinkan admin).
+  const { data: updated, error: updateError } = await supabaseServer()
     .from("practicum_requests")
     .update({ [category]: updatedList })
     .eq("id", params.id)
@@ -215,4 +226,65 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   };
 
   return NextResponse.json({ data: signed, equipmentNames, requestData });
+}
+
+
+// Hapus satu berkas dokumentasi (hanya pengaju, selama administrasi belum
+// selesai). Dipakai untuk mengganti berkas yang salah / membersihkan sisa
+// unggahan lama supaya kuota per kategori tidak terkunci.
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getSession();
+  const token = getSessionToken();
+  if (!session || !token) {
+    return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const category = body?.category;
+  const path = body?.path;
+  if (
+    typeof category !== "string" ||
+    !ALLOWED_CATEGORIES.includes(category as Category) ||
+    typeof path !== "string"
+  ) {
+    return NextResponse.json({ error: "Permintaan tidak valid." }, { status: 400 });
+  }
+
+  const { data: reqRow, error: fetchError } = await supabaseAuthed(token)
+    .from("practicum_requests")
+    .select("*")
+    .eq("id", params.id)
+    .single();
+
+  if (fetchError || !reqRow) {
+    return NextResponse.json({ error: "Pengajuan tidak ditemukan." }, { status: 404 });
+  }
+  if (reqRow.requester_id !== session.usersId) {
+    return NextResponse.json(
+      { error: "Hanya pengaju kegiatan yang dapat menghapus dokumentasi." },
+      { status: 403 }
+    );
+  }
+  if (reqRow.completed) {
+    return NextResponse.json({ error: "Administrasi kegiatan ini sudah ditandai selesai." }, { status: 400 });
+  }
+
+  const currentList: string[] = (reqRow as any)[category] ?? [];
+  if (!currentList.includes(path)) {
+    return NextResponse.json({ error: "Berkas tidak ditemukan." }, { status: 404 });
+  }
+
+  const { error: updateError } = await supabaseServer()
+    .from("practicum_requests")
+    .update({ [category]: currentList.filter((p) => p !== path) })
+    .eq("id", params.id);
+
+  if (updateError) {
+    console.error("Hapus referensi dokumentasi error", updateError);
+    return NextResponse.json({ error: "Gagal menghapus berkas." }, { status: 500 });
+  }
+
+  await deletePrivateFile(path).catch((e) => console.error("Hapus berkas dokumentasi di storage gagal", e));
+
+  return NextResponse.json({ ok: true });
 }
