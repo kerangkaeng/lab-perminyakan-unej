@@ -112,13 +112,9 @@ function Praktikum({ p, defaultOpen }: { p: PraktikumUnit; defaultOpen: boolean 
 }
 
 export function OrgChart({ labs, peneliti }: { labs: LabUnit[]; peneliti: OrgPerson[] }) {
-  // Lebar kolom laboratorium sebanding dengan jumlah praktikumnya, dan garis
-  // datar dari akar dihitung dari titik tengah kolom pertama sampai terakhir.
-  const weights = labs.map((l) => Math.max(1, l.praktikum.length));
-  const total = weights.reduce((a, b) => a + b, 0);
-  const center = (i: number) => (weights.slice(0, i).reduce((a, b) => a + b, 0) + weights[i] / 2) / total;
-  const barL = center(0) * 100;
-  const barR = (1 - center(labs.length - 1)) * 100;
+  // Semua kolom laboratorium sama lebar supaya bagan simetris; garis datar
+  // dari akar membentang dari titik tengah kolom pertama sampai terakhir.
+  const barSide = (100 / labs.length / 2).toFixed(4);
 
   return (
     <div className="flex flex-col items-center">
@@ -131,11 +127,11 @@ export function OrgChart({ labs, peneliti }: { labs: LabUnit[]; peneliti: OrgPer
 
       <Link />
 
-      <div className="org-row" style={{ ["--bar-l" as string]: `${barL}%`, ["--bar-r" as string]: `${barR}%` }}>
+      <div className="org-row" style={{ ["--bar-l" as string]: `${barSide}%`, ["--bar-r" as string]: `${barSide}%` }}>
         {labs.map((lab, i) => {
           const n = lab.praktikum.length;
           return (
-            <div key={lab.key} className="org-col" style={{ flex: `${weights[i]} 1 0%` }}>
+            <div key={lab.key} className="org-col">
               <Step delay={0.1 + i * 0.05} className="mx-auto w-full max-w-sm">
                 <div className="rounded border border-line bg-white px-4 py-3 text-center shadow-card">
                   <span className="block font-mono text-[11px] uppercase tracking-wider text-core">Laboratorium</span>
