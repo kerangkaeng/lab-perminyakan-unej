@@ -235,3 +235,36 @@ export function keyFromProxyUrl(url: string): string | null {
   if (idx === -1) return null;
   return url.slice(idx + prefix.length);
 }
+
+// ============================================================
+// Foto profil — diunggah sendiri oleh user (BUKAN dari atribut SSO, karena
+// mengambil atribut foto dari SSO butuh login dengan 2FA).
+// Disimpan di bucket PRIVAT (key `profile/<usersId>/...`) dan ditampilkan
+// lewat signed URL sementara, supaya foto tidak bisa ditebak/diakses publik.
+// ============================================================
+export const PROFILE_PHOTO_PREFIX = "profile/";
+export const MAX_PROFILE_PHOTO_BYTES = 1 * 1024 * 1024; // 1 MB, sama dengan limit gambar lain
+
+/** Tipe gambar yang diterima untuk foto profil -> ekstensi file. */
+export const PROFILE_PHOTO_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+/** Cek signature (magic bytes) supaya file palsu yang sekadar diberi Content-Type gambar ditolak. */
+export function detectImageType(buf: Buffer): keyof typeof PROFILE_PHOTO_TYPES | null {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+  if (buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return "image/png";
+  }
+  if (buf.length >= 12 && buf.subarray(0, 4).toString("ascii") === "RIFF" && buf.subarray(8, 12).toString("ascii") === "WEBP") {
+    return "image/webp";
+  }
+  return null;
+}
+
+/** Key foto profil milik user tertentu; nilai lama dari SSO (mis. "images/foto/...") bukan key valid. */
+export function isProfilePhotoKey(value: string | null | undefined, usersId: string): value is string {
+  return !!value && value.startsWith(`${PROFILE_PHOTO_PREFIX}${usersId}/`);
+}
