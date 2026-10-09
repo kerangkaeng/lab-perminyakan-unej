@@ -27,23 +27,47 @@ function toPerson(u: NonNullable<Row["users"]>): OrgPerson {
   };
 }
 
-// Praktikum per laboratorium, berurutan sesuai semester. Dicocokkan dengan
-// judul praktikum (tidak peka huruf besar/kecil, cukup memuat kata kunci).
-const LAB_PRAKTIKUM: Record<Bidang, string[]> = {
+// FALLBACK saja. Penempatan praktikum sekarang otomatis lewat
+// practicum_modules.facility_id -> facilities.bidang (diatur admin di menu
+// Facilities & Modul Praktikum). Daftar kata kunci ini hanya dipakai kalau
+// lab modul itu belum punya bidang, atau migrasi 006 belum dijalankan —
+// supaya praktikum lama tidak tiba-tiba hilang dari bagan.
+const LEGACY_KEYWORDS: Record<Bidang, string[]> = {
   pemboran_produksi: ["pemboran"],
   reservoir: ["sedimentologi", "fluida reservoir", "petrofisik"],
 };
 
+type ModuleRow = { id: string; title: string; facility_id?: string | null; urutan?: number | null };
+
+function legacyIndex(title: string, bidang: Bidang): number {
+  const t = title.toLowerCase();
+  const i = LEGACY_KEYWORDS[bidang].findIndex((kw) => t.includes(kw));
+  return i === -1 ? 999 : i;
+}
+
+function legacyBidang(title: string): Bidang | null {
+  return BIDANG_VALUES.find((b) => legacyIndex(title, b) !== 999) ?? null;
+}
+
 export default async function StrukturOrganisasiPage() {
   const db = supabaseServer();
-  const [rolesRes, modulesRes] = await Promise.all([
-    db
-      .from("lab_roles")
-      .select("role_type, bidang, module_id, users!lab_roles_user_id_fkey(id, nama, nim, nip, foto)")
-      .neq("role_type", "admin")
-      .order("created_at", { ascending: true }),
-    db.from("practicum_modules").select("id, title").eq("status", "published").order("title", { ascending: true }),
+
+  const rolesPromise = db
+    .from("lab_roles")
+    .select("role_type, bidang, module_id, users!lab_roles_user_id_fkey(id, nama, nim, nip, foto)")
+    .neq("role_type", "admin")
+    .order("created_at", { ascending: true });
+
+  // Coba kolom baru (migrasi 006). Kalau belum ada, ulangi dengan kolom lama.
+  let [modulesRes, facilitiesRes] = await Promise.all([
+    db.from("practicum_modules").select("id, title, facility_id, urutan").eq("status", "published"),
+    db.from("facilities").select("id, bidang"),
   ]);
+  if (modulesRes.error || facilitiesRes.error) {
+    modulesRes = (await db.from("practicum_modules").select("id, title").eq("status", "published")) as typeof modulesRes;
+    facilitiesRes = { data: [], error: null } as unknown as typeof facilitiesRes;
+  }
+  const rolesRes = await rolesPromise;
 
   const failed = !!rolesRes.error || !!modulesRes.error;
   const rows = ((rolesRes.data ?? []) as unknown as Row[]).filter((r) => r.users);
@@ -53,8 +77,23 @@ export default async function StrukturOrganisasiPage() {
     return r ? toPerson(r.users!) : null;
   };
 
-  const modules = (modulesRes.data ?? []) as { id: string; title: string }[];
-  const toPraktikum = (m: { id: string; title: string }): PraktikumUnit => ({
+  const bidangOfFacility = new Map<string, Bidang>();
+  for (const f of (facilitiesRes.data ?? []) as { id: string; bidang: string | null }[]) {
+    if (f.bidang && (BIDANG_VALUES as readonly string[]).includes(f.bidang)) {
+      bidangOfFacility.set(f.id, f.bidang as Bidang);
+    }
+  }
+
+  // Tentukan lab tiap modul: dari facility.bidang; kalau kosong, fallback kata kunci judul.
+  const modules = (modulesRes.data ?? []) as ModuleRow[];
+  const byBidang = new Map<Bidang, ModuleRow[]>(BIDANG_VALUES.map((b) => [b, []]));
+  for (const m of modules) {
+    const b = (m.facility_id ? bidangOfFacility.get(m.facility_id) : undefined) ?? legacyBidang(m.title);
+    if (b) byBidang.get(b)!.push(m);
+    else console.warn(`Struktur Organisasi: modul "${m.title}" belum terhubung ke lab (isi Bidang pada Facilities).`);
+  }
+
+  const toPraktikum = (m: ModuleRow): PraktikumUnit => ({
     id: m.id,
     title: m.title,
     dosen: rows.filter((r) => r.role_type === "dosen_mk" && r.module_id === m.id).map((r) => toPerson(r.users!)),
@@ -62,15 +101,15 @@ export default async function StrukturOrganisasiPage() {
   });
 
   const labs: LabUnit[] = BIDANG_VALUES.map((b) => {
-    const seen = new Set<string>();
-    const praktikum: PraktikumUnit[] = [];
-    for (const kw of LAB_PRAKTIKUM[b]) {
-      for (const m of modules.filter((x) => x.title.toLowerCase().includes(kw))) {
-        if (seen.has(m.id)) continue;
-        seen.add(m.id);
-        praktikum.push(toPraktikum(m));
-      }
-    }
+    // Urutan: kolom "urutan" (kecil dulu, kosong di akhir) -> urutan kata kunci lama -> abjad.
+    const praktikum = [...byBidang.get(b)!]
+      .sort(
+        (x, y) =>
+          (x.urutan ?? 9999) - (y.urutan ?? 9999) ||
+          legacyIndex(x.title, b) - legacyIndex(y.title, b) ||
+          x.title.localeCompare(y.title, "id")
+      )
+      .map(toPraktikum);
     return { key: b, name: BIDANG_LABEL[b], kepala: holder("kepala_lab", b), laboran: holder("laboran", b), praktikum };
   });
 
