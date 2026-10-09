@@ -29,10 +29,10 @@
 @layer components {
   /* Struktur Organisasi: dua kolom laboratorium dengan konektor siku */
   .org-row {
-    @apply relative mx-auto flex w-full max-w-3xl flex-col items-center gap-y-10 pt-6 md:flex-row md:items-start md:gap-y-0;
+    @apply relative mx-auto flex w-full max-w-5xl flex-col items-center gap-y-12 pt-6 md:flex-row md:items-start md:gap-y-0;
   }
   .org-col {
-    @apply relative flex w-full max-w-sm flex-col items-center md:max-w-none md:flex-1 md:px-3;
+    @apply relative flex w-full max-w-md flex-col md:max-w-none md:flex-1 md:px-3;
   }
   @media (min-width: 768px) {
     .org-row::before {
@@ -48,6 +48,8 @@
       content: "";
       position: absolute;
       top: -24px;
+      left: 50%;
+      margin-left: -1px;
       width: 2px;
       height: 24px;
       background: #6E7B6D;
