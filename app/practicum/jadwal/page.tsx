@@ -38,11 +38,8 @@ function buildHref(page: number, jenis: string, lab: string) {
   return `/practicum/jadwal?${params.toString()}`;
 }
 
-export default async function JadwalPage({
-  searchParams,
-}: {
-  searchParams: { page?: string; jenis?: string; lab?: string };
-}) {
+export default async function JadwalPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ page?: string; jenis?: string; lab?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const currentPage = Math.max(1, parseInt(searchParams.page ?? "1", 10) || 1);
   const jenisFilter = searchParams.jenis ?? "all";
   const labFilter = searchParams.lab ?? "all";
