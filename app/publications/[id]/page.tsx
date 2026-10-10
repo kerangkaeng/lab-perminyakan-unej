@@ -38,7 +38,8 @@ function CitationLine({ pub }: { pub: PublicationRow }) {
   return <p className="text-base italic text-core">{parts.join(", ")}</p>;
 }
 
-export default async function PublicationDetailPage({ params }: { params: { id: string } }) {
+export default async function PublicationDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const supabase = supabasePublic();
   const { data } = await supabase
     .from("publications")
