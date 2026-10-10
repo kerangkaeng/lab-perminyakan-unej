@@ -23,7 +23,8 @@ interface ModuleRow {
   file_url: string | null;
 }
 
-export default async function FacilityDetailPage({ params }: { params: { slug: string } }) {
+export default async function FacilityDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {
+  const params = await paramsPromise;
   const supabase = supabasePublic();
   const { data: facilityRow } = await supabase
     .from("facilities")
