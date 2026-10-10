@@ -11,7 +11,7 @@ export const revalidate = 0;
 
 export default async function StatusPengajuanPage() {
   const session = await getSession();
-  const token = getSessionToken();
+  const token = await getSessionToken();
 
   let requests: PracticumRequest[] = [];
   let loadError: string | null = null;
