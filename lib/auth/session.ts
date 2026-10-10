@@ -82,8 +82,9 @@ export async function verifySessionToken(token: string): Promise<Session | null>
   }
 }
 
-export function getSessionToken(): string | null {
-  return cookies().get(SESSION_COOKIE)?.value ?? null;
+export async function getSessionToken(): Promise<string | null> {
+  // Next.js 15: cookies() bersifat async.
+  return (await cookies()).get(SESSION_COOKIE)?.value ?? null;
 }
 
 /**
@@ -99,7 +100,7 @@ export function getSessionToken(): string | null {
  * halaman & API selalu memeriksa lewat fungsi ini.
  */
 async function resolveSession(): Promise<Session | null> {
-  const token = getSessionToken();
+  const token = await getSessionToken();
   if (!token) return null;
 
   const session = await verifySessionToken(token);
