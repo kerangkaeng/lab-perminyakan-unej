@@ -41,7 +41,7 @@ function ProfileField({ label, value }: { label: string; value?: string | null }
 
 export default async function ProfilePage() {
   const session = await getSession();
-  const token = getSessionToken();
+  const token = await getSessionToken();
 
   let user: UserRow | null = null;
   let loadError: string | null = null;
