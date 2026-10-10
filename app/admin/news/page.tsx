@@ -25,7 +25,7 @@ function NewsStatusBadge({ status }: { status: NewsRecord["status"] }) {
 }
 
 export default async function AdminNewsPage() {
-  const token = getSessionToken();
+  const token = await getSessionToken();
   let items: NewsRecord[] = [];
   let loadError: string | null = null;
 
