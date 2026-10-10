@@ -16,11 +16,8 @@ interface GalleryItem {
   date: string;
 }
 
-export default async function GalleryPage({
-  searchParams,
-}: {
-  searchParams: { category?: string };
-}) {
+export default async function GalleryPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ category?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const activeCategory = searchParams?.category;
   const supabase = supabasePublic();
 
