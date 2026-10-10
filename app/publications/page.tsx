@@ -19,11 +19,8 @@ const typeLabels: Record<string, string> = {
   Thesis: "Tugas Akhir",
 };
 
-export default async function PublicationsPage({
-  searchParams,
-}: {
-  searchParams: { keyword?: string };
-}) {
+export default async function PublicationsPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ keyword?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const activeKeyword = searchParams?.keyword;
   const supabase = supabasePublic();
 
