@@ -6,7 +6,8 @@ export function generateStaticParams() {
   return researchProjects.map((p) => ({ slug: p.slug }));
 }
 
-export default function ResearchProjectDetailPage({ params }: { params: { slug: string } }) {
+export default async function ResearchProjectDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {
+  const params = await paramsPromise;
   const project = researchProjects.find((p) => p.slug === params.slug);
   if (!project) return notFound();
 
