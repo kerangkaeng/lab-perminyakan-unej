@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/Button";
 
 export const revalidate = 0;
 
-export default async function ModuleDetailPage({ params }: { params: { slug: string } }) {
+export default async function ModuleDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {
+  const params = await paramsPromise;
   const supabase = supabasePublic();
   const { data } = await supabase
     .from("practicum_modules")
