@@ -9,7 +9,8 @@ import { canAccessAdminTable } from "@/lib/admin/permissions";
 
 export const revalidate = 0;
 
-export default async function AdminTableListPage({ params }: { params: { table: string } }) {
+export default async function AdminTableListPage({ params: paramsPromise }: { params: Promise<{ table: string }> }) {
+  const params = await paramsPromise;
   const config = adminTables[params.table];
   if (!config) return notFound();
 
