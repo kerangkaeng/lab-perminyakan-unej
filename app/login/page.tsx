@@ -4,11 +4,8 @@ const errorMessages: Record<string, string> = {
   server_error: "Terjadi kesalahan pada server. Silakan coba lagi.",
 };
 
-export default function LoginPage({
-  searchParams,
-}: {
-  searchParams: { error?: string; redirect?: string };
-}) {
+export default async function LoginPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ error?: string; redirect?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const redirectPath = searchParams?.redirect || "/practicum/status";
   const casLoginHref = `/api/auth/cas/login?redirect=${encodeURIComponent(redirectPath)}`;
 
