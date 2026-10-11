@@ -2,11 +2,18 @@
 // MobileMenu, dan active-state. Dikelompokkan supaya menu atas tidak
 // berisi delapan item sejajar. Semua label berbahasa Indonesia.
 
-export type NavLeaf = { href: string; label: string };
+export type NavLeaf = {
+  href: string;
+  label: string;
+  /** Hanya aktif kalau path PERSIS sama (tanpa turunannya). */
+  exact?: boolean;
+  /** Prefix path lain yang juga dianggap bagian dari item ini. */
+  alsoMatches?: string[];
+};
 export type NavEntry = {
   label: string;
-  /** Halaman tujuan saat label grup diklik. */
-  href: string;
+  /** Halaman tujuan saat label diklik. Grup dengan sub-menu tidak punya href (label hanya membuka menu). */
+  href?: string;
   /** Sub-menu (opsional). Tanpa items = link biasa. */
   items?: NavLeaf[];
   /** Ditonjolkan sebagai fitur utama (Praktikum). */
@@ -48,37 +55,45 @@ export const mainNav: NavEntry[] = [
   { label: "Jadwal", href: "/practicum/jadwal" },
   {
     label: "Layanan Lab",
-    href: "/practicum",
     highlight: true,
     items: [
-      { href: "/practicum/ajukan", label: "Ajukan Kegiatan" },
-      { href: "/practicum/status", label: "Status Pengajuan" },
-      { href: "/practicum/modules", label: "Modul Praktikum" },
+      // Belum login -> middleware mengarahkan ke halaman login lalu kembali ke sini.
+      { href: "/practicum/ajukan", label: "Pengajuan Kegiatan" },
+      // Halaman baru, belum diimplementasikan (placeholder).
+      { href: "/peminjaman", label: "Pengajuan Peminjaman" },
+      // Pusat informasi praktikum (modul, jadwal, pengumuman).
+      { href: "/practicum", label: "Praktikum", exact: true, alsoMatches: ["/practicum/modules"] },
     ],
   },
   { label: "Kontak", href: "/contact" },
 ];
 
-function matches(pathname: string | null | undefined, href: string): boolean {
+function matches(pathname: string | null | undefined, href: string, exact = false): boolean {
   if (!pathname) return false;
-  return pathname === href || pathname.startsWith(href + "/");
+  return pathname === href || (!exact && pathname.startsWith(href + "/"));
+}
+
+function leafMatches(leaf: NavLeaf, pathname: string | null | undefined): boolean {
+  return (
+    matches(pathname, leaf.href, leaf.exact) ||
+    (leaf.alsoMatches ?? []).some((prefix) => matches(pathname, prefix))
+  );
 }
 
 /** Sub-menu mana yang aktif: yang href-nya paling panjang (paling spesifik) cocok. */
 export function activeLeaf(entry: NavEntry, pathname: string | null | undefined): NavLeaf | null {
   let best: NavLeaf | null = null;
   for (const leaf of entry.items ?? []) {
-    if (matches(pathname, leaf.href) && (!best || leaf.href.length > best.href.length)) best = leaf;
+    if (leafMatches(leaf, pathname) && (!best || leaf.href.length > best.href.length)) best = leaf;
   }
   return best;
 }
 
 /**
- * Grup aktif kalau salah satu sub-menunya cocok. Untuk grup dengan sub-menu,
- * href grup sendiri TIDAK dipakai (mis. /practicum/announcements milik
- * "Informasi", bukan "Praktikum"). Tanpa sub-menu: cocokkan href-nya.
+ * Grup dengan sub-menu aktif kalau salah satu sub-menunya cocok (href grup
+ * tidak ada). Tanpa sub-menu: cocokkan href-nya.
  */
 export function isEntryActive(entry: NavEntry, pathname: string | null | undefined): boolean {
-  if (entry.items?.length) return activeLeaf(entry, pathname) !== null || pathname === entry.href;
-  return matches(pathname, entry.href);
+  if (entry.items?.length) return activeLeaf(entry, pathname) !== null;
+  return entry.href ? matches(pathname, entry.href) : false;
 }
