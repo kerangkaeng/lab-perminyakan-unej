@@ -83,7 +83,7 @@ function Praktikum({ p, defaultOpen }: { p: PraktikumUnit; defaultOpen: boolean 
 
               <div>
                 <div className="mb-2 flex items-center gap-3">
-                  <p className="font-mono text-[11px] uppercase tracking-wider text-core">Asisten Praktikum</p>
+                  <p className="font-mono text-[11px] uppercase tracking-wider text-muted">Asisten Praktikum</p>
                   <span className="h-px flex-1 bg-line" />
                 </div>
                 {p.asisten.length === 0 ? (
@@ -159,14 +159,14 @@ export function OrgChart({ labs, peneliti }: { labs: LabUnit[]; peneliti: OrgPer
             >
               <Step delay={0.1 + i * 0.05} className={cardCls}>
                 <div className="rounded border border-line bg-white px-4 py-3 text-center shadow-card">
-                  <span className="block font-mono text-[11px] uppercase tracking-wider text-core">Laboratorium</span>
+                  <span className="block font-mono text-[11px] uppercase tracking-wider text-muted">Laboratorium</span>
                   <span className="font-semibold">{lab.name}</span>
                 </div>
               </Step>
               <Link />
               <Step delay={0.2} className={cardCls}>
                 {lab.kepala ? (
-                  <PersonCard person={lab.kepala} tone="core" label="Kepala Laboratorium" />
+                  <PersonCard person={lab.kepala} tone="kepala" label="Kepala Laboratorium" />
                 ) : (
                   <EmptySlot label="Kepala Laboratorium" />
                 )}
@@ -174,7 +174,7 @@ export function OrgChart({ labs, peneliti }: { labs: LabUnit[]; peneliti: OrgPer
               <Link />
               <Step delay={0.3} className={cardCls}>
                 {lab.laboran ? (
-                  <PersonCard person={lab.laboran} tone="plain" label="Laboran / Teknisi" />
+                  <PersonCard person={lab.laboran} tone="laboran" label="Laboran / Teknisi" />
                 ) : (
                   <EmptySlot label="Laboran / Teknisi" />
                 )}
@@ -207,7 +207,7 @@ export function OrgChart({ labs, peneliti }: { labs: LabUnit[]; peneliti: OrgPer
 
       {peneliti.length > 0 && (
         <Step className="mt-14 w-full border-t border-line pt-8">
-          <p className="mb-3 text-center font-mono text-[11px] uppercase tracking-wider text-core">Dosen Peneliti</p>
+          <p className="mb-3 text-center font-mono text-[11px] uppercase tracking-wider text-muted">Dosen Peneliti</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {peneliti.map((d) => (
               <PersonCard key={d.id} person={d} tone="plain" />
