@@ -15,17 +15,20 @@ export type OrgPerson = {
 
 type Tone = "kepala" | "laboran" | "dosen" | "asisten" | "plain";
 
-// Semua kartu identitas punya struktur yang sama (garis atas oksida); yang
-// membedakan peran hanya tingkat kecerahan latar, makin ke bawah makin cerah:
-// kepala lab > laboran > dosen MK > asisten (putih). "plain" (dosen peneliti) = putih.
-const BASE =
-  "border border-line border-t-2 border-t-oxide hover:border-oxide hover:-translate-y-0.5";
+// Latar makin ke bawah makin cerah: kepala lab > laboran > dosen MK > asisten (putih).
+// Penanda tepi:
+//  - kepala lab & laboran : garis SAMPING tebal, warnanya disesuaikan masing-masing
+//  - dosen MK & asisten   : garis ATAS (satu grup praktikum), warna disesuaikan:
+//                           dosen MK biru baja terang, asisten oksida
+//  - dosen peneliti       : kartu putih polos
+const BASE = "border border-line";
+const TOP = `${BASE} border-t-2 hover:-translate-y-0.5`;
 const TONE: Record<Tone, string> = {
-  kepala: `${BASE} bg-tide-deep text-ink`,
-  laboran: `${BASE} bg-tide-mid text-ink`,
-  dosen: `${BASE} bg-tide text-ink`,
-  asisten: `${BASE} bg-white text-ink`,
-  plain: `${BASE} bg-white text-ink`,
+  kepala: `${BASE} border-l-4 border-l-petrol bg-tide-deep text-ink`,
+  laboran: `${BASE} border-l-4 border-l-tide-edge bg-tide-mid text-ink`,
+  dosen: `${TOP} border-t-tide-top bg-tide text-ink hover:border-tide-top`,
+  asisten: `${TOP} border-t-oxide bg-white text-ink hover:border-oxide`,
+  plain: `${BASE} bg-white text-ink hover:border-petrol`,
 };
 
 // Teks sekunder: petrol untuk label (kontras >= 7:1 di semua latar);
@@ -145,4 +148,4 @@ export function EmptySlot({ label }: { label: string }) {
       <span className="block text-sm italic text-muted">Belum ditetapkan</span>
     </div>
   );
-}
+}-
