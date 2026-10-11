@@ -37,3 +37,34 @@ export const contentNavItems: DashboardNavItem[] = Object.entries(adminTables).m
     roles: key === "announcements" ? ["admin", "asisten"] : ["admin"],
   })
 );
+
+// ============================================================
+// Pengelompokan untuk sidebar & menu mobile. Tiga kelompok berjudul:
+//   - Kegiatan Saya : aktivitas pengguna sendiri (ajukan, status, jadwal)
+//   - Pengelolaan   : tugas admin/asisten (kelola pengajuan, rekap, jabatan)
+//   - Konten Situs  : berita + semua tabel konten (bisa dilipat)
+// Hak akses tetap ditentukan oleh `roles` tiap item di atas.
+// ============================================================
+export type DashboardSection = {
+  key: "kegiatan" | "pengelolaan" | "konten";
+  title: string;
+  items: DashboardNavItem[];
+  /** Daftar panjang -> ditampilkan sebagai grup yang bisa dilipat. */
+  collapsible?: boolean;
+};
+
+const KEGIATAN = new Set(["/practicum/ajukan", "/practicum/status", "/practicum/jadwal"]);
+const PENGELOLAAN = new Set(["/admin/practicum-requests", "/admin/rekap", "/admin/lab-roles"]);
+
+export function dashboardSectionsFor(role: DashboardNavItem["roles"][number]): DashboardSection[] {
+  const visible = (items: DashboardNavItem[]) => items.filter((i) => i.roles.includes(role));
+  const primary = visible(primaryNavItems);
+  const news = primary.filter((i) => i.href === "/admin/news");
+
+  const sections: DashboardSection[] = [
+    { key: "kegiatan", title: "Kegiatan Saya", items: primary.filter((i) => KEGIATAN.has(i.href)) },
+    { key: "pengelolaan", title: "Pengelolaan", items: primary.filter((i) => PENGELOLAAN.has(i.href)) },
+    { key: "konten", title: "Konten Situs", items: [...news, ...visible(contentNavItems)], collapsible: true },
+  ];
+  return sections.filter((s) => s.items.length > 0);
+}
