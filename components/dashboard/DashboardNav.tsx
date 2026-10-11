@@ -3,17 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ChevronDown, LayoutGrid } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 export type NavItem = { href: string; label: string };
+export type NavSectionData = { key: string; title: string; items: NavItem[]; collapsible?: boolean };
 
-function NavLink({ item }: { item: NavItem }) {
+function isActive(pathname: string | null, href: string) {
+  return pathname === href || !!pathname?.startsWith(href + "/");
+}
+
+function NavLink({ item, small = false }: { item: NavItem; small?: boolean }) {
   const pathname = usePathname();
-  const active = pathname === item.href || pathname?.startsWith(item.href + "/");
+  const active = isActive(pathname, item.href);
   return (
     <Link
       href={item.href}
-      className={`block break-words rounded px-3 py-2 text-sm transition-colors ${
+      aria-current={active ? "page" : undefined}
+      className={`block break-words rounded px-3 text-sm transition-colors ${small ? "py-1.5" : "py-2"} ${
         active ? "bg-mist font-medium text-petrol" : "text-ink/80 hover:bg-mist hover:text-rig"
       }`}
     >
@@ -22,56 +28,41 @@ function NavLink({ item }: { item: NavItem }) {
   );
 }
 
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <p className="px-3 pb-1 font-mono text-[11px] uppercase tracking-wider text-core">{children}</p>;
+}
+
 /**
- * Trigger "Konten" — daftar 10+ tabel admin disembunyikan di accordion yang
- * meluas KE BAWAH di dalam sidebar (bukan flyout ke samping), supaya tidak
- * pernah keluar dari lebar sidebar (tidak ada scroll horizontal).
+ * Kelompok yang bisa dilipat ("Konten Situs": berita + 10+ tabel). Terbuka
+ * otomatis kalau salah satu itemnya sedang aktif. Meluas KE BAWAH di dalam
+ * sidebar (bukan flyout) supaya tidak pernah melebihi lebar sidebar.
  */
-function ContentAccordion({ items }: { items: NavItem[] }) {
+function CollapsibleSection({ section }: { section: NavSectionData }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  const isAnyActive = items.some((i) => pathname === i.href || pathname?.startsWith(i.href + "/"));
+  const anyActive = section.items.some((i) => isActive(pathname, i.href));
+  const [open, setOpen] = useState(anyActive);
 
   return (
-    <div className="w-full min-w-0">
+    <div className="min-w-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className={`flex w-full min-w-0 items-center justify-between rounded px-3 py-2 text-sm transition-colors ${
-          isAnyActive ? "bg-mist font-medium text-petrol" : "text-ink/80 hover:bg-mist hover:text-rig"
-        }`}
+        className="flex w-full items-center justify-between px-3 pb-1 font-mono text-[11px] uppercase tracking-wider text-core transition-colors hover:text-rig"
       >
-        <span className="flex min-w-0 items-center gap-2">
-          <LayoutGrid size={15} className="shrink-0" />
-          <span className="break-words">Konten</span>
-        </span>
+        <span>{section.title}</span>
         <ChevronDown size={14} className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
-
-      {/* Trik CSS grid-template-rows: animasi tinggi halus tanpa perlu ukur
-          tinggi lewat JS, dan overflow-hidden mencegah isi meluber. */}
       <div
         className={`grid overflow-hidden transition-[grid-template-rows] duration-200 ease-smooth ${
           open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
         <div className="min-h-0 min-w-0 overflow-hidden">
-          <div className="mt-1 ml-4 flex min-w-0 flex-col gap-0.5 border-l border-line pl-3">
-            {items.map((item) => {
-              const active = pathname === item.href || pathname?.startsWith(item.href + "/");
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`block break-words rounded px-3 py-1.5 text-sm transition-colors ${
-                    active ? "bg-mist font-medium text-petrol" : "text-ink/80 hover:bg-mist hover:text-rig"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
+          <div className="flex min-w-0 flex-col gap-0.5">
+            {section.items.map((item) => (
+              <NavLink key={item.href} item={item} small />
+            ))}
           </div>
         </div>
       </div>
@@ -79,19 +70,23 @@ function ContentAccordion({ items }: { items: NavItem[] }) {
   );
 }
 
-export function DashboardNav({
-  primaryItems,
-  contentItems,
-}: {
-  primaryItems: NavItem[];
-  contentItems: NavItem[];
-}) {
+export function DashboardNav({ sections }: { sections: NavSectionData[] }) {
   return (
-    <nav className="flex w-full min-w-0 flex-col gap-1">
-      {primaryItems.map((item) => (
-        <NavLink key={item.href} item={item} />
-      ))}
-      {contentItems.length > 0 && <ContentAccordion items={contentItems} />}
+    <nav aria-label="Menu dashboard" className="flex w-full min-w-0 flex-col gap-5">
+      {sections.map((section) =>
+        section.collapsible ? (
+          <CollapsibleSection key={section.key} section={section} />
+        ) : (
+          <div key={section.key} className="min-w-0">
+            <SectionTitle>{section.title}</SectionTitle>
+            <div className="flex flex-col gap-0.5">
+              {section.items.map((item) => (
+                <NavLink key={item.href} item={item} />
+              ))}
+            </div>
+          </div>
+        )
+      )}
     </nav>
   );
 }
