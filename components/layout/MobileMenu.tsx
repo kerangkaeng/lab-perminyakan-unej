@@ -57,7 +57,7 @@ export function MobileMenu({
         <nav className="flex flex-1 flex-col overflow-y-auto px-5 py-4">
           {/* Menu situs, dikelompokkan seperti navbar desktop */}
           {mainNav.map((entry) => (
-            <div key={entry.href} className="border-b border-line py-3">
+            <div key={entry.label} className="border-b border-line py-3">
               {entry.items?.length ? (
                 <>
                   <p className={`font-display text-lg ${entry.highlight ? "text-petrol" : "text-ink"}`}>{entry.label}</p>
@@ -75,7 +75,7 @@ export function MobileMenu({
                   </div>
                 </>
               ) : (
-                <Link href={entry.href} onClick={onClose} className="block font-display text-lg text-ink">
+                <Link href={entry.href ?? "/"} onClick={onClose} className="block font-display text-lg text-ink">
                   {entry.label}
                 </Link>
               )}
