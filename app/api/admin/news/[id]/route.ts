@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
-import { uploadPublicFile, buildKey, assertFileSize, FileTooLargeError } from "@/lib/storage/b2";
+import { uploadPublicFile, buildKey, assertFileSize, FileTooLargeError, InvalidFileTypeError } from "@/lib/storage/b2";
 
 export async function PATCH(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
@@ -50,8 +50,11 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
     }
     const key = buildKey("news", file.name);
     try {
-      updatePayload.cover_image = await uploadPublicFile(file, key, file.type || "image/jpeg");
+      updatePayload.cover_image = await uploadPublicFile(file, key, undefined, "image");
     } catch (uploadError) {
+      if (uploadError instanceof InvalidFileTypeError) {
+        return NextResponse.json({ error: uploadError.message }, { status: 400 });
+      }
       console.error("Upload cover berita error", uploadError);
       return NextResponse.json({ error: "Gagal mengunggah gambar sampul." }, { status: 500 });
     }
