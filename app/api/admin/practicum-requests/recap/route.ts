@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { todayWIB } from "@/lib/practicum/schedule";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { PracticumRequest } from "@/types";
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
   const workbook = await buildRecapWorkbook(filtered, { title: titleParts.join(" — ") });
   const buffer = await workbook.xlsx.writeBuffer();
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayWIB();
   const filename = `rekap-kegiatan-lab-${todayStr}.xlsx`;
 
   return new NextResponse(buffer as unknown as BodyInit, {
