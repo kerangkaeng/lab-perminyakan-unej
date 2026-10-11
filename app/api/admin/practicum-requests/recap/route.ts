@@ -20,7 +20,7 @@ import { buildRecapWorkbook } from "@/lib/admin/recapExcel";
 // juga meloloskan role asisten).
 export async function GET(req: NextRequest) {
   const session = await getSession();
-  const token = getSessionToken();
+  const token = await getSessionToken();
   if (!session || !token || session.appRole !== "admin") {
     return NextResponse.json({ error: "Kamu tidak berhak mengunduh rekap ini." }, { status: 403 });
   }
