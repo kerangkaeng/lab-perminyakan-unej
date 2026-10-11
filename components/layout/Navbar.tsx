@@ -81,11 +81,13 @@ export function Navbar({ session }: { session: NavSession }) {
     <>
       <header className="sticky top-0 z-40 bg-paper/90 backdrop-blur-md border-b border-line shadow-nav">
         <div className="container-lab flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-baseline gap-2 shrink-0 whitespace-nowrap">
+          {/* Logo teks: nama di atas, tagline di bawah (ditumpuk supaya hemat lebar
+              dan tagline tetap tampil di semua ukuran layar sm ke atas). */}
+          <Link href="/" className="flex shrink-0 flex-col leading-tight whitespace-nowrap">
             <span className="font-display text-lg font-semibold text-ink">Lab Perminyakan</span>
-            <span className="hidden 2xl:inline eyebrow">Petroleum Eng.</span>
+            <span className="hidden sm:block eyebrow">Petroleum Eng.</span>
           </Link>
-          <nav className="hidden xl:flex items-center gap-5 2xl:gap-7">
+          <nav className="hidden xl:flex items-center gap-4 2xl:gap-7">
             {mainNav.map((entry) => (
               <DesktopEntry key={entry.label} entry={entry} pathname={pathname} />
             ))}
