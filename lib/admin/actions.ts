@@ -17,7 +17,8 @@ async function uploadFile(
   // "file" (dipakai lab_documents) boleh gambar ATAU pdf -> deteksi otomatis.
   assertFileSize(file, fieldType === "file" ? "auto" : fieldType);
   const key = buildKey(`${table}/${fieldName}`, file.name);
-  return uploadPublicFile(file, key);
+  // Tipe divalidasi dari isi berkas sesuai jenis field (lihat uploadPublicFile).
+  return uploadPublicFile(file, key, undefined, fieldType);
 }
 
 /** Hapus file lama di B2 kalau field itu berisi URL proxy kita (/api/files/...). */
