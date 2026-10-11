@@ -27,6 +27,7 @@ export default async function PublicationsPage({ searchParams: searchParamsPromi
   const { data } = await supabase
     .from("publications")
     .select("*")
+    .eq("status", "published")
     .order("year", { ascending: false });
     
   const allPublications = (data ?? []) as PublicationRow[];
