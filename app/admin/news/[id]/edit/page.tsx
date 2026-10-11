@@ -5,8 +5,9 @@ import { getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { NewsRecord } from "@/types";
 
-export default async function EditNewsPage({ params }: { params: { id: string } }) {
-  const token = getSessionToken();
+export default async function EditNewsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
+  const token = await getSessionToken();
   if (!token) return notFound();
 
   const supabase = supabaseAuthed(token);
