@@ -22,13 +22,13 @@ const TONE: Record<Tone, string> = {
   asisten: "bg-white text-ink border-line border-t-2 border-t-rig hover:border-petrol hover:-translate-y-0.5",
 };
 
-/** Foto persegi selebar kartu; kalau belum ada / gagal dimuat, tampil inisial. */
+/** Foto persegi (sudut membulat) dengan sedikit jarak dari tepi kartu; kalau belum ada / gagal dimuat, tampil inisial. */
 function SquarePhoto({ src, name }: { src: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [src]);
 
   return (
-    <span className="relative block aspect-square w-full overflow-hidden bg-mist">
+    <span className="relative block aspect-square w-full overflow-hidden rounded-lg bg-mist">
       {src && !failed ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -87,7 +87,9 @@ export function PersonCard({
             exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
           >
-            <SquarePhoto src={person.photo} name={person.nama} />
+            <span className="block p-2 pb-0">
+              <SquarePhoto src={person.photo} name={person.nama} />
+            </span>
           </motion.span>
         )}
       </AnimatePresence>
