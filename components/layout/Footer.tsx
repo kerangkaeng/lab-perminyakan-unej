@@ -15,10 +15,12 @@ export function Footer() {
         <div>
           <p className="eyebrow mb-3">Navigasi</p>
           <ul className="space-y-2.5 text-sm">
-            <li><Link href="/facilities" className="hover:text-rig transition-colors">Facilities</Link></li>
-            <li><Link href="/research" className="hover:text-rig transition-colors">Research</Link></li>
-            <li><Link href="/publications" className="hover:text-rig transition-colors">Publications</Link></li>
-            <li><Link href="/practicum" className="hover:text-rig transition-colors">Practicum</Link></li>
+            <li><Link href="/about" className="hover:text-rig transition-colors">Profil</Link></li>
+            <li><Link href="/facilities" className="hover:text-rig transition-colors">Fasilitas</Link></li>
+            <li><Link href="/research" className="hover:text-rig transition-colors">Riset</Link></li>
+            <li><Link href="/publications" className="hover:text-rig transition-colors">Publikasi</Link></li>
+            <li><Link href="/practicum" className="hover:text-rig transition-colors">Praktikum</Link></li>
+            <li><Link href="/news" className="hover:text-rig transition-colors">Berita</Link></li>
           </ul>
         </div>
 
