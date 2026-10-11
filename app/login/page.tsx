@@ -6,7 +6,7 @@ const errorMessages: Record<string, string> = {
 
 export default async function LoginPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ error?: string; redirect?: string }> }) {
   const searchParams = await searchParamsPromise;
-  const redirectPath = searchParams?.redirect || "/practicum/status";
+  const redirectPath = searchParams?.redirect || "/";
   const casLoginHref = `/api/auth/cas/login?redirect=${encodeURIComponent(redirectPath)}`;
 
   return (
