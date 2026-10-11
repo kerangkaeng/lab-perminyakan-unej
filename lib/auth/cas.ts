@@ -4,6 +4,18 @@
 
 const CAS_BASE_URL = process.env.CAS_BASE_URL || "https://sso.unej.ac.id/cas";
 
+// Batas waktu menunggu server CAS. Tanpa ini, kalau sso.unej.ac.id lambat
+// atau tidak merespons, request callback login menggantung tanpa batas.
+const CAS_TIMEOUT_MS = 10_000;
+
+/** Server CAS tidak bisa dihubungi / timeout / error 5xx (bukan "ticket salah"). */
+export class CasUnavailableError extends Error {
+  constructor(message = "Server SSO tidak dapat dihubungi.") {
+    super(message);
+    this.name = "CasUnavailableError";
+  }
+}
+
 // OPSIONAL: minta CAS menjalankan 2FA lewat parameter opt-in MFA bawaan
 // Apereo CAS (nama parameter default: `authn_method`). Isi env var
 // CAS_MFA_METHOD dengan ID provider MFA di server CAS UNEJ (mis.
@@ -204,7 +216,15 @@ export async function validateCasTicket(
     serviceUrl
   )}&ticket=${encodeURIComponent(ticket)}`;
 
-  const res = await fetch(url, { cache: "no-store" });
+  let res: Response;
+  try {
+    res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(CAS_TIMEOUT_MS) });
+  } catch {
+    // Timeout / jaringan putus -> bedakan dari ticket tidak valid supaya
+    // pengguna diberi tahu "coba lagi", bukan "ticket salah".
+    throw new CasUnavailableError();
+  }
+  if (res.status >= 500) throw new CasUnavailableError();
   if (!res.ok) return null;
 
   const doc = parseXml(await res.text());
