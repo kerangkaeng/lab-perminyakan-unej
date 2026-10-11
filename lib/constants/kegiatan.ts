@@ -56,4 +56,6 @@ export const SATUAN_BAHAN = [
   // Volume
   "Mililiter",
   "Liter",
+  // Barang sekali pakai (termasuk alat habis pakai)
+  "Pcs",
 ] as const;
