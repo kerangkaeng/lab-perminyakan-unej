@@ -1,8 +1,71 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
+import { supabaseServer } from "@/lib/supabase/server";
+import { SATUAN_ALAT, SATUAN_BAHAN } from "@/lib/constants/kegiatan";
+import { wibDateTime } from "@/lib/practicum/schedule";
 
 const INSIDEN_VALUES = ["rusak_pecah", "hilang", "tumpah", "lainnya"];
+
+// Batas wajar peminjaman per kegiatan — mencegah payload JSON raksasa.
+const MAX_PINJAM_ITEMS = 50;
+const MAX_PINJAM_JUMLAH = 100000;
+
+type PinjamItem = { equipment_id: string; equipment_name: string; jumlah: number; satuan: string };
+
+/**
+ * Validasi + bersihkan daftar peminjaman. Hanya field yang dikenal yang
+ * disimpan (bukan objek mentah dari client), `equipment_id` harus ada di
+ * tabel equipment dengan jenis yang sesuai (alat/bahan), satuan harus salah
+ * satu dari daftar resmi, dan nama alat diambil dari database (bukan
+ * kiriman client). Melempar Error berisi pesan untuk pengguna kalau invalid.
+ */
+async function cleanPinjamItems(items: unknown, kind: "alat" | "bahan"): Promise<PinjamItem[]> {
+  const label = kind;
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error(`Mohon tambahkan minimal satu ${label} yang dipinjam.`);
+  }
+  if (items.length > MAX_PINJAM_ITEMS) {
+    throw new Error(`Maksimal ${MAX_PINJAM_ITEMS} ${label} dalam satu kegiatan.`);
+  }
+  const allowedSatuan: readonly string[] = kind === "alat" ? SATUAN_ALAT : SATUAN_BAHAN;
+
+  const raw: { equipment_id: string; jumlah: number; satuan: string }[] = [];
+  for (const item of items) {
+    const it = item as Record<string, unknown> | null;
+    const equipmentId = typeof it?.equipment_id === "string" ? it.equipment_id.trim() : "";
+    const jumlah = it?.jumlah;
+    const satuan = typeof it?.satuan === "string" ? it.satuan.trim() : "";
+    if (
+      !equipmentId ||
+      typeof jumlah !== "number" ||
+      !Number.isFinite(jumlah) ||
+      !(jumlah > 0) ||
+      jumlah > MAX_PINJAM_JUMLAH ||
+      !allowedSatuan.includes(satuan)
+    ) {
+      throw new Error(`Mohon lengkapi pilihan ${label}, jumlah (angka > 0), dan satuan yang valid.`);
+    }
+    raw.push({ equipment_id: equipmentId, jumlah, satuan });
+  }
+
+  const ids = Array.from(new Set(raw.map((r) => r.equipment_id)));
+  const { data: rows, error } = await supabaseServer()
+    .from("equipment")
+    .select("id, name")
+    .in("id", ids)
+    .eq("jenis", kind);
+  if (error) {
+    console.error("Validasi equipment peminjaman error", error);
+    throw new Error("Gagal memvalidasi data peminjaman. Silakan coba lagi.");
+  }
+  const nameById = new Map<string, string>((rows ?? []).map((r: { id: string; name: string }) => [r.id, r.name]));
+  if (nameById.size !== ids.length) {
+    throw new Error(`Ada ${label} yang tidak ditemukan atau bukan berjenis ${label}. Muat ulang halaman lalu pilih lagi.`);
+  }
+
+  return raw.map((r) => ({ ...r, equipment_name: nameById.get(r.equipment_id) ?? "" }));
+}
 
 export async function PATCH(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
@@ -48,6 +111,16 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
   }
   if (reqRow.completed) {
     return NextResponse.json({ error: "Administrasi kegiatan ini sudah selesai." }, { status: 400 });
+  }
+
+  // Administrasi baru boleh diselesaikan setelah kegiatannya selesai (WIB);
+  // kalau tidak, pengaju bisa menandai selesai sebelum kegiatan terjadi.
+  const activityEnd = wibDateTime(reqRow.tanggal, reqRow.jam_selesai);
+  if (activityEnd && activityEnd.getTime() > Date.now()) {
+    return NextResponse.json(
+      { error: "Kegiatan belum selesai. Administrasi baru bisa diselesaikan setelah kegiatan berakhir." },
+      { status: 400 }
+    );
   }
 
   const requiredDocs: string[] =
@@ -126,38 +199,19 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
       );
     }
 
-    function validateItems(items: unknown, label: string) {
-      if (!Array.isArray(items) || items.length === 0) {
-        throw new Error(`Mohon tambahkan minimal satu ${label} yang dipinjam.`);
-      }
-      for (const item of items) {
-        if (
-          !item ||
-          typeof item !== "object" ||
-          !("equipment_id" in item) ||
-          !item.equipment_id ||
-          !("jumlah" in item) ||
-          typeof item.jumlah !== "number" ||
-          !(item.jumlah > 0) ||
-          !("satuan" in item) ||
-          !String(item.satuan).trim()
-        ) {
-          throw new Error(`Mohon lengkapi pilihan ${label}, jumlah (angka > 0), dan satuannya.`);
-        }
-      }
-    }
-
+    let cleanAlat: PinjamItem[] = [];
+    let cleanBahan: PinjamItem[] = [];
     try {
-      if (pinjamAlat) validateItems(peminjaman_alat, "alat");
-      if (pinjamBahan) validateItems(peminjaman_bahan, "bahan");
+      if (pinjamAlat) cleanAlat = await cleanPinjamItems(peminjaman_alat, "alat");
+      if (pinjamBahan) cleanBahan = await cleanPinjamItems(peminjaman_bahan, "bahan");
     } catch (e) {
       return NextResponse.json({ error: (e as Error).message }, { status: 400 });
     }
 
     updatePayload.pinjam_alat = pinjamAlat;
     updatePayload.pinjam_bahan = pinjamBahan;
-    updatePayload.peminjaman_alat = pinjamAlat ? peminjaman_alat : null;
-    updatePayload.peminjaman_bahan = pinjamBahan ? peminjaman_bahan : null;
+    updatePayload.peminjaman_alat = pinjamAlat ? cleanAlat : null;
+    updatePayload.peminjaman_bahan = pinjamBahan ? cleanBahan : null;
   } else {
     updatePayload.pinjam_alat = null;
     updatePayload.pinjam_bahan = null;
