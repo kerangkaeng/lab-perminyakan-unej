@@ -3,9 +3,10 @@ import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { uploadPublicFile, buildKey, assertFileSize, FileTooLargeError } from "@/lib/storage/b2";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const session = await getSession();
-  const token = getSessionToken();
+  const token = await getSessionToken();
   if (!session || !token || session.appRole !== "admin") {
     return NextResponse.json({ error: "Kamu tidak berhak melakukan aksi ini." }, { status: 403 });
   }
@@ -71,9 +72,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ data });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const session = await getSession();
-  const token = getSessionToken();
+  const token = await getSessionToken();
   if (!session || !token || session.appRole !== "admin") {
     return NextResponse.json({ error: "Kamu tidak berhak melakukan aksi ini." }, { status: 403 });
   }
