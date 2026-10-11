@@ -1,248 +1,371 @@
-// Integrasi CAS SSO Universitas Jember (SISTER UNEJ).
-// CAS pakai protokol XML lama (bukan OAuth2), jadi login dilakukan via
-// redirect + validasi ticket server-side, bukan token exchange biasa.
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-const CAS_BASE_URL = process.env.CAS_BASE_URL || "https://sso.unej.ac.id/cas";
+// ============================================================
+// Backblaze B2 client (S3-compatible, dipilih karena tidak butuh kartu
+// kredit untuk daftar). KEDUA bucket sengaja dibuat PRIVATE — Backblaze
+// mewajibkan kartu/biaya verifikasi $1 khusus untuk mengaktifkan bucket
+// PUBLIC, jadi kita hindari itu sepenuhnya.
+//
+//   - B2_BUCKET_PUBLIC  : file yang boleh dilihat siapa saja (cover
+//                         berita, foto equipment, foto facility, dll).
+//                         Diakses lewat proxy kita sendiri
+//                         (/api/files/[...key]), BUKAN langsung ke B2 —
+//                         jadi bucket tetap private di sisi B2, tapi
+//                         hasil akhirnya tetap terasa "publik" untuk
+//                         pengunjung situs.
+//   - B2_BUCKET_PRIVATE : dokumentasi praktikum & insiden mahasiswa.
+//                         Diakses lewat signed URL sementara yang
+//                         mengecek kepemilikan (lihat route
+//                         documentation/route.ts).
+// ============================================================
 
-// Batas waktu menunggu server CAS. Tanpa ini, kalau sso.unej.ac.id lambat
-// atau tidak merespons, request callback login menggantung tanpa batas.
-const CAS_TIMEOUT_MS = 10_000;
-
-/** Server CAS tidak bisa dihubungi / timeout / error 5xx (bukan "ticket salah"). */
-export class CasUnavailableError extends Error {
-  constructor(message = "Server SSO tidak dapat dihubungi.") {
-    super(message);
-    this.name = "CasUnavailableError";
-  }
+function requiredEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`Environment variable ${name} belum diset.`);
+  return v;
 }
 
-// OPSIONAL: minta CAS menjalankan 2FA lewat parameter opt-in MFA bawaan
-// Apereo CAS (nama parameter default: `authn_method`). Isi env var
-// CAS_MFA_METHOD dengan ID provider MFA di server CAS UNEJ (mis.
-// "mfa-gauth" untuk Google Authenticator). Kosong = tidak dikirim.
-// CATATAN: hanya berfungsi kalau trigger opt-in MFA diaktifkan di server
-// CAS UNEJ; kalau tidak, parameter ini diabaikan atau (jika ID provider
-// salah) CAS bisa menolak login — jadi biarkan kosong sampai terkonfirmasi.
-const CAS_MFA_METHOD = process.env.CAS_MFA_METHOD || "";
+// ============================================================
+// Batas ukuran file — berlaku di SELURUH titik upload (admin CMS, cover
+// berita, gambar inline berita, dokumentasi praktikum & insiden).
+//   - Gambar: maksimal 1 MB
+//   - PDF   : maksimal 10 MB
+// ============================================================
+export const MAX_IMAGE_BYTES = 1 * 1024 * 1024; // 1 MB
+export const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
 
-export function getCasLoginUrl(serviceUrl: string, options?: { renew?: boolean }) {
-  let url = `${CAS_BASE_URL}/login?service=${encodeURIComponent(serviceUrl)}`;
-  // `renew=true` memaksa CAS menampilkan form login (NIM/password + 2FA jika ada)
-  // walau sesi SSO di browser masih aktif — tanpa ini, CAS akan skip form
-  // selama cookie TGT di sso.unej.ac.id belum expired/di-logout.
-  if (options?.renew) url += "&renew=true";
-  // authn_method ditaruh di URL login saja, BUKAN di service URL, supaya
-  // pencocokan service saat validasi ticket tidak berubah.
-  if (CAS_MFA_METHOD) url += `&authn_method=${encodeURIComponent(CAS_MFA_METHOD)}`;
-  return url;
-}
+export class FileTooLargeError extends Error {}
 
-export function getCasLogoutUrl(serviceUrl?: string) {
-  return serviceUrl
-    ? `${CAS_BASE_URL}/logout?service=${encodeURIComponent(serviceUrl)}`
-    : `${CAS_BASE_URL}/logout`;
-}
-
-export type CasAttributes = Record<string, string[]>;
-
-export type CasUser = {
-  /** Identitas mentah dari <cas:user> — bisa berupa NIM (mahasiswa) atau NIP (staf/laboran). */
-  identifier: string;
-  nama?: string;
-  prodi?: string;
-  /**
-   * Status/jenis akun dari SISTER (mis. "mahasiswa", "dosen", "tendik").
-   * HANYA untuk label tampilan — tidak pernah dipakai untuk menentukan
-   * kolom `role`/hak akses (itu tetap manual lewat SQL).
-   */
-  status?: string;
-  email?: string;
-  fakultas?: string;
-  /**
-   * SEMUA atribut yang dikirim CAS apa adanya (nama tag -> daftar nilai).
-   * Disimpan ke users.cas_attributes supaya nama atribut yang benar bisa
-   * dilihat langsung dari data nyata, bukan ditebak.
-   */
-  attributes: CasAttributes;
-};
-
-// ---------------------------------------------------------------------------
-// Parser XML minimal untuk respons serviceValidate. Struktur respons CAS
-// sederhana (tanpa DTD/namespace rumit), jadi tidak perlu dependency
-// tambahan. Sengaja TIDAK memakai regex per-nama-atribut lagi: semua tag di
-// dalam <cas:attributes> dibaca generik, apa pun namanya.
-// ---------------------------------------------------------------------------
-
-type XmlNode = {
-  name: string; // nama lokal tanpa prefix namespace
-  attrs: Record<string, string>;
-  children: XmlNode[];
-  text: string;
-};
-
-function decodeEntities(s: string): string {
-  return s
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, "&");
-}
-
-function localName(qname: string): string {
-  const i = qname.indexOf(":");
-  return i === -1 ? qname : qname.slice(i + 1);
-}
-
-function parseAttrs(raw: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  const re = /([\w:.-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(raw))) out[localName(m[1])] = decodeEntities(m[2] ?? m[3] ?? "");
-  return out;
-}
-
-export function parseXml(xml: string): XmlNode {
-  const root: XmlNode = { name: "#root", attrs: {}, children: [], text: "" };
-  const stack: XmlNode[] = [root];
-  const tokenRe = /<!\[CDATA\[([\s\S]*?)\]\]>|<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!DOCTYPE[^>]*>|<(\/?)([\w:.-]+)((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>|([^<]+)/g;
-  let m: RegExpExecArray | null;
-  while ((m = tokenRe.exec(xml))) {
-    const top = stack[stack.length - 1];
-    if (m[1] !== undefined) {
-      top.text += m[1]; // CDATA: apa adanya
-    } else if (m[3] !== undefined) {
-      if (m[2] === "/") {
-        if (stack.length > 1) stack.pop();
-      } else {
-        const node: XmlNode = { name: localName(m[3]), attrs: parseAttrs(m[4] ?? ""), children: [], text: "" };
-        top.children.push(node);
-        if (m[5] !== "/") stack.push(node);
-      }
-    } else if (m[6] !== undefined) {
-      top.text += decodeEntities(m[6]);
-    }
-  }
-  return root;
-}
-
-function find(node: XmlNode, name: string): XmlNode | undefined {
-  for (const c of node.children) {
-    if (c.name === name) return c;
-    const deeper = find(c, name);
-    if (deeper) return deeper;
-  }
-  return undefined;
-}
-
-function flatText(node: XmlNode): string {
-  return (node.text + node.children.map(flatText).join(" ")).trim();
-}
-
-function addValue(out: CasAttributes, key: string, value: string) {
-  const v = value.trim();
-  if (!key || !v) return;
-  (out[key] ??= []).push(v);
-}
-
-/** Kumpulkan SEMUA atribut dari blok <cas:authenticationSuccess>. */
-function collectAttributes(success: XmlNode): CasAttributes {
-  const out: CasAttributes = {};
-  const attrsBlock = success.children.find((c) => c.name === "attributes");
-
-  if (attrsBlock) {
-    for (const c of attrsBlock.children) {
-      // Gaya "jasig attributeStyle": <cas:attribute name="x" value="y"/>
-      if (c.name === "attribute" && c.attrs.name) {
-        addValue(out, c.attrs.name, c.attrs.value ?? flatText(c));
-      } else {
-        addValue(out, c.name, flatText(c));
-      }
-    }
-  }
-
-  // Beberapa server CAS (dan format CAS 2.0 lama) menaruh atribut langsung
-  // di bawah authenticationSuccess, sejajar dengan <cas:user>.
-  for (const c of success.children) {
-    if (["user", "attributes", "proxyGrantingTicket", "proxies"].includes(c.name)) continue;
-    addValue(out, c.name, flatText(c));
-  }
-  return out;
-}
-
-/** Ambil nilai pertama dari daftar kemungkinan nama (case-insensitive). */
-function pick(attrs: CasAttributes, keys: string[]): string | undefined {
-  const lower = new Map(Object.keys(attrs).map((k) => [k.toLowerCase(), k]));
-  for (const key of keys) {
-    const real = lower.get(key.toLowerCase());
-    if (real && attrs[real][0]) return attrs[real][0];
-  }
-  return undefined;
+function formatSize(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 /**
- * cas:leveluser isinya daftar affiliasi dipisah koma, mis.:
- * "Mahasiswa,Mahasiswa Teknik Perminyakan,Mahasiswa Fak. Teknik"
- * Bisa juga datang sebagai beberapa nilai terpisah — keduanya ditangani.
+ * Validasi ukuran file sebelum diupload. `kind`:
+ *   - "image" -> selalu pakai limit gambar (1 MB)
+ *   - "pdf"   -> selalu pakai limit PDF (10 MB)
+ *   - "auto"  -> deteksi dari file.type: image/* pakai limit gambar,
+ *                selain itu (termasuk application/pdf) pakai limit PDF.
+ *                Dipakai untuk field yang boleh diisi gambar ATAU PDF
+ *                (mis. dokumentasi praktikum, lab_documents).
+ * Melempar FileTooLargeError (bukan Error biasa) kalau melebihi limit,
+ * supaya pemanggil bisa membedakan ini validasi vs kegagalan network/API.
  */
-function extractFakultas(attrs: CasAttributes): string | undefined {
-  const lower = Object.keys(attrs).find((k) => k.toLowerCase() === "leveluser");
-  if (!lower) return pick(attrs, ["fakultas", "namafakultas"]);
+export function assertFileSize(
+  file: { size: number; type?: string },
+  kind: "image" | "pdf" | "auto"
+) {
+  const isImage = kind === "image" || (kind === "auto" && (file.type ?? "").startsWith("image/"));
+  const limit = isImage ? MAX_IMAGE_BYTES : MAX_PDF_BYTES;
 
-  const parts = attrs[lower].flatMap((v) => v.split(",")).map((p) => p.trim());
-  const match = parts.find((p) => /fak\.?\s/i.test(p) || /fakultas/i.test(p));
-  if (!match) return pick(attrs, ["fakultas", "namafakultas"]);
-  return match.replace(/^(mahasiswa|dosen|tendik|staf|pegawai)\s+/i, "").trim() || undefined;
+  if (file.size > limit) {
+    const label = isImage ? "gambar (maks. 1 MB)" : "PDF (maks. 10 MB)";
+    throw new FileTooLargeError(
+      `Ukuran file terlalu besar untuk ${label}. Ukuran file kamu: ${formatSize(file.size)}.`
+    );
+  }
+}
+
+// Dokumentasi praktikum (pretest, tes alat, kegiatan, insiden) punya limit
+// FLAT 1 MB untuk gambar MAUPUN PDF — beda dari assertFileSize() di atas
+// yang dipakai tabel admin generic (PDF boleh sampai 10 MB di sana).
+// Sengaja fungsi terpisah supaya tidak mengubah perilaku upload admin yang
+// sudah ada.
+export const MAX_DOC_BYTES = 1 * 1024 * 1024; // 1 MB
+export const MAX_DOC_FILES_PER_CATEGORY = 2;
+
+export function assertDocFileSize(file: { size: number }) {
+  if (file.size > MAX_DOC_BYTES) {
+    throw new FileTooLargeError(
+      `Ukuran file dokumentasi maks. 1 MB. Ukuran file kamu: ${formatSize(file.size)}.`
+    );
+  }
+}
+
+export const B2_BUCKET_PUBLIC = process.env.B2_BUCKET_PUBLIC || "lab-content-public";
+export const B2_BUCKET_PRIVATE = process.env.B2_BUCKET_PRIVATE || "lab-practicum-docs";
+
+let cachedClient: S3Client | null = null;
+
+function storageClient(): S3Client {
+  if (cachedClient) return cachedClient;
+
+  cachedClient = new S3Client({
+    region: process.env.B2_REGION || "us-west-004",
+    endpoint: requiredEnv("B2_ENDPOINT"),
+    credentials: {
+      accessKeyId: requiredEnv("B2_ACCESS_KEY_ID"),
+      secretAccessKey: requiredEnv("B2_SECRET_ACCESS_KEY"),
+    },
+  });
+  return cachedClient;
 }
 
 /**
- * Validasi ticket ke endpoint serviceValidate CAS 2.0/3.0.
- * `serviceUrl` yang dikirim ke sini HARUS persis sama (termasuk query string)
- * dengan yang dipakai saat redirect ke /cas/login, karena CAS mencocokkan
- * ticket terhadap service URL secara exact-match.
+ * Bikin path/key penyimpanan yang aman & unik.
+ * Contoh hasil: news/1737000000000-a1b2c3-cover.jpg
+ */
+export function buildKey(folder: string, filename: string): string {
+  const ext = filename.includes(".") ? filename.split(".").pop() : "bin";
+  const safeName = filename
+    .replace(/\.[^/.]+$/, "")
+    .replace(/[^a-zA-Z0-9-_]/g, "_")
+    .slice(0, 60);
+  const random = Math.random().toString(36).slice(2, 8);
+  return `${folder}/${Date.now()}-${random}-${safeName}.${ext}`;
+}
+
+// ============================================================
+// Validasi ISI berkas untuk bucket publik.
+//
+// Bucket publik disajikan dari domain situs ini (/api/files/...). Kalau
+// berkas HTML/SVG lolos dan disajikan dengan Content-Type aslinya, skripnya
+// berjalan di origin situs (stored XSS) — dan asisten boleh mengunggah
+// lampiran pengumuman. Karena itu tipe ditentukan dari ISI (magic bytes),
+// BUKAN dari file.type / nama file kiriman klien, dan hanya tipe di bawah
+// ini yang diterima.
+// ============================================================
+export class InvalidFileTypeError extends Error {}
+
+export type PublicUploadKind = "image" | "pdf" | "file";
+
+type Sniffed = { mime: string; ext: string };
+
+const MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+function startsWith(buf: Buffer, bytes: number[], offset = 0): boolean {
+  return buf.length >= offset + bytes.length && bytes.every((b, i) => buf[offset + i] === b);
+}
+
+/** Kenali tipe dari isi berkas. `filename` hanya dipakai untuk membedakan .doc/.docx. */
+export function sniffUploadType(buf: Buffer, filename = ""): Sniffed | null {
+  if (startsWith(buf, [0xff, 0xd8, 0xff])) return { mime: "image/jpeg", ext: "jpg" };
+  if (startsWith(buf, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return { mime: "image/png", ext: "png" };
+  if (startsWith(buf, [0x47, 0x49, 0x46, 0x38]) && (buf[4] === 0x37 || buf[4] === 0x39) && buf[5] === 0x61) {
+    return { mime: "image/gif", ext: "gif" };
+  }
+  if (buf.length >= 12 && buf.subarray(0, 4).toString("ascii") === "RIFF" && buf.subarray(8, 12).toString("ascii") === "WEBP") {
+    return { mime: "image/webp", ext: "webp" };
+  }
+  if (startsWith(buf, [0x25, 0x50, 0x44, 0x46, 0x2d])) return { mime: "application/pdf", ext: "pdf" }; // "%PDF-"
+  const lower = filename.toLowerCase();
+  if (startsWith(buf, [0x50, 0x4b, 0x03, 0x04]) && lower.endsWith(".docx")) return { mime: MIME_DOCX, ext: "docx" };
+  if (startsWith(buf, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]) && lower.endsWith(".doc")) {
+    return { mime: "application/msword", ext: "doc" };
+  }
+  return null;
+}
+
+const ALLOWED_BY_KIND: Record<PublicUploadKind, string[]> = {
+  image: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+  pdf: ["application/pdf"],
+  file: ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf", MIME_DOCX, "application/msword"],
+};
+
+const KIND_MESSAGE: Record<PublicUploadKind, string> = {
+  image: "Berkas harus berupa gambar JPG, PNG, WebP, atau GIF.",
+  pdf: "Berkas harus berupa PDF.",
+  file: "Berkas harus berupa gambar (JPG/PNG/WebP/GIF), PDF, atau dokumen Word (.doc/.docx).",
+};
+
+/** Ganti ekstensi key dengan ekstensi hasil deteksi (nama dari klien tidak dipercaya). */
+function withExt(key: string, ext: string): string {
+  const slash = key.lastIndexOf("/");
+  const dot = key.lastIndexOf(".");
+  const base = dot > slash ? key.slice(0, dot) : key;
+  return `${base}.${ext}`;
+}
+
+/**
+ * Upload ke bucket "publik" (yang secara teknis tetap private di B2).
+ * Mengembalikan URL PROXY di situs kita sendiri (/api/files/<key>) —
+ * ini yang dipakai langsung di <img src="..."> atau <a href="...">.
+ * Tidak pernah kedaluwarsa (beda dengan signed URL).
  *
- * Atribut dibaca dari respons nyata (lihat CasUser.attributes). Pemetaan ke
- * field aplikasi di bawah memakai daftar nama kandidat; nama yang SUDAH
- * terkonfirmasi dari XML sso.unej.ac.id ada di urutan pertama
- * (cn/displayname, namaunitkerja, status, emailsrd, leveluser, foto).
+ * Tipe berkas divalidasi dari ISI (lihat sniffUploadType) sesuai `kind`;
+ * Content-Type yang disimpan = hasil deteksi, parameter `contentType`
+ * kiriman pemanggil sengaja diabaikan. Melempar InvalidFileTypeError kalau
+ * tipe tidak diizinkan.
  */
-export async function validateCasTicket(
-  ticket: string,
-  serviceUrl: string
-): Promise<CasUser | null> {
-  const url = `${CAS_BASE_URL}/serviceValidate?service=${encodeURIComponent(
-    serviceUrl
-  )}&ticket=${encodeURIComponent(ticket)}`;
+export async function uploadPublicFile(
+  file: File | Buffer,
+  key: string,
+  _contentType?: string,
+  kind: PublicUploadKind = "file"
+): Promise<string> {
+  const client = storageClient();
+  const body = file instanceof File ? Buffer.from(await file.arrayBuffer()) : file;
+  const filename = file instanceof File ? file.name : key;
 
-  let res: Response;
-  try {
-    res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(CAS_TIMEOUT_MS) });
-  } catch {
-    // Timeout / jaringan putus -> bedakan dari ticket tidak valid supaya
-    // pengguna diberi tahu "coba lagi", bukan "ticket salah".
-    throw new CasUnavailableError();
+  const sniffed = sniffUploadType(body, filename);
+  if (!sniffed || !ALLOWED_BY_KIND[kind].includes(sniffed.mime)) {
+    throw new InvalidFileTypeError(KIND_MESSAGE[kind]);
   }
-  if (res.status >= 500) throw new CasUnavailableError();
-  if (!res.ok) return null;
+  const safeKey = withExt(key, sniffed.ext);
 
-  const doc = parseXml(await res.text());
-  const success = find(doc, "authenticationSuccess");
-  if (!success) return null;
+  await client.send(
+    new PutObjectCommand({
+      Bucket: B2_BUCKET_PUBLIC,
+      Key: safeKey,
+      Body: body,
+      ContentType: sniffed.mime,
+    })
+  );
 
-  const identifier = success.children.find((c) => c.name === "user")?.text.trim();
-  if (!identifier) return null;
+  return `/api/files/${safeKey}`;
+}
 
-  const attributes = collectAttributes(success);
+/**
+ * Ambil isi file dari bucket publik untuk di-stream lewat proxy route
+ * kita (/api/files/[...key]). Dipakai server-side saja.
+ */
+export async function fetchPublicFileForProxy(key: string): Promise<{
+  body: Uint8Array;
+  contentType: string;
+} | null> {
+  const client = storageClient();
+  try {
+    const result = await client.send(new GetObjectCommand({ Bucket: B2_BUCKET_PUBLIC, Key: key }));
+    if (!result.Body) return null;
+    const bytes = await result.Body.transformToByteArray();
+    return {
+      body: bytes,
+      contentType: result.ContentType || "application/octet-stream",
+    };
+  } catch (e) {
+    console.error("fetchPublicFileForProxy error", e);
+    return null;
+  }
+}
 
-  return {
-    identifier,
-    nama: pick(attributes, ["cn", "displayname", "nama", "name", "fullname"]),
-    prodi: pick(attributes, ["namaunitkerja", "prodi", "program_studi", "programStudi", "department"]),
-    status: pick(attributes, ["status", "jenis", "tipe", "userType", "user_type", "kategori", "affiliation"]),
-    email: pick(attributes, ["emailsrd", "email", "displaymail", "mail"]),
-    fakultas: extractFakultas(attributes),
-    attributes,
-  };
+/** Ambil isi file dari bucket PRIVAT (dipakai proxy foto profil; wajib dicek hak aksesnya oleh pemanggil). */
+export async function fetchPrivateFileForProxy(key: string): Promise<{
+  body: Uint8Array;
+  contentType: string;
+} | null> {
+  const client = storageClient();
+  try {
+    const result = await client.send(new GetObjectCommand({ Bucket: B2_BUCKET_PRIVATE, Key: key }));
+    if (!result.Body) return null;
+    return {
+      body: await result.Body.transformToByteArray(),
+      contentType: result.ContentType || "application/octet-stream",
+    };
+  } catch (e) {
+    console.error("fetchPrivateFileForProxy error", e);
+    return null;
+  }
+}
+
+/**
+ * Upload ke bucket PRIVAT. Mengembalikan cuma key/path-nya (BUKAN URL),
+ * karena file ini tidak boleh diakses langsung — harus lewat
+ * getPrivateSignedUrl() setiap kali mau ditampilkan, dan biasanya
+ * dilindungi pengecekan kepemilikan/role di route pemanggilnya.
+ */
+export async function uploadPrivateFile(
+  file: File | Buffer,
+  key: string,
+  contentType?: string
+): Promise<string> {
+  const client = storageClient();
+  const body = file instanceof File ? Buffer.from(await file.arrayBuffer()) : file;
+  const type = contentType || (file instanceof File ? file.type : "application/octet-stream");
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: B2_BUCKET_PRIVATE,
+      Key: key,
+      Body: body,
+      ContentType: type || "application/octet-stream",
+    })
+  );
+
+  return key;
+}
+
+/**
+ * Buat URL sementara (default 1 jam) untuk file di bucket privat.
+ * Dipakai persis seperti Supabase createSignedUrl dulu.
+ */
+export async function getPrivateSignedUrl(key: string, expiresInSeconds = 3600): Promise<string> {
+  const client = storageClient();
+  const command = new GetObjectCommand({ Bucket: B2_BUCKET_PRIVATE, Key: key });
+  return getSignedUrl(client, command, { expiresIn: expiresInSeconds });
+}
+
+export async function getPrivateSignedUrls(
+  keys: string[],
+  expiresInSeconds = 3600
+): Promise<{ key: string; url: string }[]> {
+  return Promise.all(
+    keys.map(async (key) => ({ key, url: await getPrivateSignedUrl(key, expiresInSeconds) }))
+  );
+}
+
+/** Hapus file dari bucket publik. */
+export async function deletePublicFile(key: string): Promise<void> {
+  const client = storageClient();
+  await client.send(new DeleteObjectCommand({ Bucket: B2_BUCKET_PUBLIC, Key: key }));
+}
+
+/** Hapus file dari bucket privat. */
+export async function deletePrivateFile(key: string): Promise<void> {
+  const client = storageClient();
+  await client.send(new DeleteObjectCommand({ Bucket: B2_BUCKET_PRIVATE, Key: key }));
+}
+
+/**
+ * Ekstrak key/path dari URL proxy kita (/api/files/xxx), kebalikan dari
+ * uploadPublicFile. Dipakai saat mau hapus file lama berdasarkan URL
+ * yang tersimpan di DB.
+ */
+export function keyFromProxyUrl(url: string): string | null {
+  const prefix = "/api/files/";
+  const idx = url.indexOf(prefix);
+  if (idx === -1) return null;
+  return url.slice(idx + prefix.length);
+}
+
+// ============================================================
+// Foto profil — diunggah sendiri oleh user (BUKAN dari atribut SSO, karena
+// mengambil atribut foto dari SSO butuh login dengan 2FA).
+// Disimpan di bucket PRIVAT (key `profile/<usersId>/...`) dan ditampilkan
+// lewat signed URL sementara, supaya foto tidak bisa ditebak/diakses publik.
+// ============================================================
+export const PROFILE_PHOTO_PREFIX = "profile/";
+export const MAX_PROFILE_PHOTO_BYTES = 1 * 1024 * 1024; // 1 MB, sama dengan limit gambar lain
+
+/** Tipe gambar yang diterima untuk foto profil -> ekstensi file. */
+export const PROFILE_PHOTO_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+/** Cek signature (magic bytes) supaya file palsu yang sekadar diberi Content-Type gambar ditolak. */
+export function detectImageType(buf: Buffer): keyof typeof PROFILE_PHOTO_TYPES | null {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+  if (buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return "image/png";
+  }
+  if (buf.length >= 12 && buf.subarray(0, 4).toString("ascii") === "RIFF" && buf.subarray(8, 12).toString("ascii") === "WEBP") {
+    return "image/webp";
+  }
+  return null;
+}
+
+/** Key foto profil milik user tertentu; nilai lama dari SSO (mis. "images/foto/...") bukan key valid. */
+export function isProfilePhotoKey(value: string | null | undefined, usersId: string): value is string {
+  return !!value && value.startsWith(`${PROFILE_PHOTO_PREFIX}${usersId}/`);
+}
+
+/**
+ * URL foto profil milik user yang sedang login. Parameter `v` hanya untuk
+ * cache-busting (berubah setiap foto diganti), sehingga browser boleh
+ * meng-cache lama tapi foto baru langsung tampil.
+ */
+export function profilePhotoUrl(key: string): string {
+  return `/api/profile/photo?v=${encodeURIComponent(key.split("/").pop() ?? "")}`;
 }
