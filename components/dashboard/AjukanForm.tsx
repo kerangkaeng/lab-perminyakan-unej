@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { NON_PRAKTIKUM_OPTIONS } from "@/lib/constants/kegiatan";
-import { supabasePublic } from "@/lib/supabase/authed";
 import { nonPraktikumLabel } from "@/lib/constants/kegiatan";
 
 type JenisKegiatan = "praktikum" | "non_praktikum";
@@ -71,23 +70,20 @@ export function AjukanForm({
     setCheckingConflict(true);
 
     const timeout = setTimeout(async () => {
-      const supabase = supabasePublic();
-      // Dua kegiatan bentrok kalau: kegiatan lain mulai sebelum kegiatan
-      // baru selesai, DAN kegiatan lain selesai setelah kegiatan baru
-      // mulai (overlap klasik dua rentang waktu).
-      const { data, error } = await supabase
-        .from("practicum_requests")
-        .select(
-          "id, jenis_kegiatan, praktikum_nama, modul, kegiatan_non_praktikum, deskripsi_lainnya, jam_mulai, jam_selesai, status"
-        )
-        .in("status", ["approved", "pending"])
-        .eq("lokasi", lokasi)
-        .eq("tanggal", tanggal)
-        .lt("jam_mulai", jamSelesai)
-        .gt("jam_selesai", jamMulai);
+      // Lewat server (service role): klien mahasiswa tidak bisa membaca
+      // pengajuan orang lain karena RLS, jadi query langsung dari browser
+      // selalu kosong dan peringatan tidak pernah muncul.
+      let rows: ConflictRow[] = [];
+      try {
+        const qs = new URLSearchParams({ lokasi, tanggal, jam_mulai: jamMulai, jam_selesai: jamSelesai });
+        const res = await fetch(`/api/practicum/conflicts?${qs}`);
+        if (res.ok) rows = ((await res.json()).data as ConflictRow[]) ?? [];
+      } catch {
+        rows = [];
+      }
 
       if (!active) return;
-      setConflicts(error ? [] : ((data as ConflictRow[]) ?? []));
+      setConflicts(rows);
       setCheckingConflict(false);
     }, 400);
 
