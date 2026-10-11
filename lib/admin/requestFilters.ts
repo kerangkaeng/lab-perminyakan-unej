@@ -1,4 +1,5 @@
 import { PracticumRequest } from "@/types";
+import { todayWIB } from "@/lib/practicum/schedule";
 
 export type StatusFilterValue = "all" | "pending" | "acted" | "admin_done" | "activity_pending";
 export type SortDirection = "asc" | "desc";
@@ -32,12 +33,10 @@ export function matchesStatusFilter(r: PracticumRequest, filter: string): boolea
   if (filter === "activity_pending") {
     if (r.status !== "approved" || r.completed) return false;
     // Bandingkan cuma tanggalnya (bukan jam) — "kegiatan sudah lewat"
-    // berarti tanggal kegiatan < hari ini.
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tanggalKegiatan = new Date(r.tanggal);
-    tanggalKegiatan.setHours(0, 0, 0, 0);
-    return tanggalKegiatan < today;
+    // berarti tanggal kegiatan < hari ini MENURUT WIB. Sengaja bandingkan
+    // string YYYY-MM-DD, bukan Date + setHours: itu bergantung zona waktu
+    // server (VPS biasanya UTC) dan meleset sehari pada 00.00–07.00 WIB.
+    return r.tanggal < todayWIB();
   }
 
   return true;
@@ -85,9 +84,5 @@ export function adminStatusLabel(r: PracticumRequest): string {
   if (r.status !== "approved") return "-";
   if (r.completed) return "Selesai";
   if (r.completed_at) return "Sedang Direvisi";
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tanggalKegiatan = new Date(r.tanggal);
-  tanggalKegiatan.setHours(0, 0, 0, 0);
-  return tanggalKegiatan < today ? "Belum Selesai (Kegiatan Sudah Lewat)" : "Belum Selesai";
+  return r.tanggal < todayWIB() ? "Belum Selesai (Kegiatan Sudah Lewat)" : "Belum Selesai";
 }
