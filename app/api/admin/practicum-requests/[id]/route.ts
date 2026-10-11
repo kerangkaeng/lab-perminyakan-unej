@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const session = await getSession();
-  const token = getSessionToken();
+  const token = await getSessionToken();
 
   if (!session || !token) {
     return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
@@ -46,9 +47,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ data });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const session = await getSession();
-  const token = getSessionToken();
+  const token = await getSessionToken();
 
   if (!session || !token) {
     return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
