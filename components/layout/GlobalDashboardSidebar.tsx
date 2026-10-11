@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth/session";
-import { primaryNavItems, contentNavItems } from "@/lib/nav/dashboardNav";
+import { dashboardSectionsFor } from "@/lib/nav/dashboardNav";
 import { DashboardNav } from "@/components/dashboard/DashboardNav";
 import { SidebarShell } from "@/components/layout/SidebarShell";
 import { Avatar } from "@/components/profile/Avatar";
@@ -10,8 +10,7 @@ export async function GlobalDashboardSidebar() {
   const session = await getSession();
   if (!session) return null;
 
-  const visiblePrimary = primaryNavItems.filter((item) => item.roles.includes(session.appRole));
-  const visibleContent = contentNavItems.filter((item) => item.roles.includes(session.appRole));
+  const sections = dashboardSectionsFor(session.appRole);
 
   // Foto profil (diunggah sendiri oleh user). Gagal query -> cukup tampil inisial.
   const { data: fotoRow } = await supabaseServer().from("users").select("foto").eq("id", session.usersId).maybeSingle();
@@ -35,7 +34,7 @@ export async function GlobalDashboardSidebar() {
         </div>
       </div>
 
-      <DashboardNav primaryItems={visiblePrimary} contentItems={visibleContent} />
+      <DashboardNav sections={sections} />
 
       <div className="mt-6 border-t border-line pt-5">
         <a href="/api/auth/logout" className="text-sm text-core hover:text-rig">
