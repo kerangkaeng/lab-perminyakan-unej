@@ -16,24 +16,24 @@ export type OrgPerson = {
 type Tone = "kepala" | "laboran" | "plain" | "dosen" | "asisten";
 
 const TONE: Record<Tone, string> = {
-  kepala: "bg-basalt text-[#F3EFE8] border-basalt hover:bg-basalt-light",
-  dosen: "bg-oxide-deep text-[#F6EFE9] border-oxide-deep hover:bg-oxide-deeper",
-  laboran: "bg-mist text-ink border-line border-l-4 border-l-basalt hover:border-basalt",
-  plain: "bg-white text-ink border-line hover:border-basalt",
+  kepala: "bg-tide-deep text-ink border-petrol/30 border-l-4 border-l-petrol hover:border-petrol",
+  dosen: "bg-tide text-ink border-petrol/20 border-l-4 border-l-petrol-light hover:border-petrol",
+  laboran: "bg-mist text-ink border-line border-l-4 border-l-tide-edge hover:border-petrol",
+  plain: "bg-white text-ink border-line hover:border-petrol",
   asisten: "bg-white text-ink border-line border-t-2 border-t-oxide hover:border-oxide hover:-translate-y-0.5",
 };
 
-// Warna teks sekunder (label jabatan & nomor identitas) per tone.
+// Warna teks sekunder (label jabatan & nomor identitas) per tone. Semua >= 5:1.
 const LABEL: Record<Tone, string> = {
-  kepala: "text-[#C9BFAE]",
-  dosen: "text-[#E7B9A5]",
+  kepala: "text-petrol",
+  dosen: "text-petrol",
   laboran: "text-muted",
   plain: "text-muted",
   asisten: "text-oxide-dark",
 };
 const IDENT: Record<Tone, string> = {
-  kepala: "text-[#B9B3A8]",
-  dosen: "text-[#D9BFB3]",
+  kepala: "text-petrol-dark",
+  dosen: "text-muted",
   laboran: "text-muted",
   plain: "text-muted",
   asisten: "text-muted",
