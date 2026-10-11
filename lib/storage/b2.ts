@@ -116,31 +116,104 @@ export function buildKey(folder: string, filename: string): string {
   return `${folder}/${Date.now()}-${random}-${safeName}.${ext}`;
 }
 
+// ============================================================
+// Validasi ISI berkas untuk bucket publik.
+//
+// Bucket publik disajikan dari domain situs ini (/api/files/...). Kalau
+// berkas HTML/SVG lolos dan disajikan dengan Content-Type aslinya, skripnya
+// berjalan di origin situs (stored XSS) — dan asisten boleh mengunggah
+// lampiran pengumuman. Karena itu tipe ditentukan dari ISI (magic bytes),
+// BUKAN dari file.type / nama file kiriman klien, dan hanya tipe di bawah
+// ini yang diterima.
+// ============================================================
+export class InvalidFileTypeError extends Error {}
+
+export type PublicUploadKind = "image" | "pdf" | "file";
+
+type Sniffed = { mime: string; ext: string };
+
+const MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+function startsWith(buf: Buffer, bytes: number[], offset = 0): boolean {
+  return buf.length >= offset + bytes.length && bytes.every((b, i) => buf[offset + i] === b);
+}
+
+/** Kenali tipe dari isi berkas. `filename` hanya dipakai untuk membedakan .doc/.docx. */
+export function sniffUploadType(buf: Buffer, filename = ""): Sniffed | null {
+  if (startsWith(buf, [0xff, 0xd8, 0xff])) return { mime: "image/jpeg", ext: "jpg" };
+  if (startsWith(buf, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return { mime: "image/png", ext: "png" };
+  if (startsWith(buf, [0x47, 0x49, 0x46, 0x38]) && (buf[4] === 0x37 || buf[4] === 0x39) && buf[5] === 0x61) {
+    return { mime: "image/gif", ext: "gif" };
+  }
+  if (buf.length >= 12 && buf.subarray(0, 4).toString("ascii") === "RIFF" && buf.subarray(8, 12).toString("ascii") === "WEBP") {
+    return { mime: "image/webp", ext: "webp" };
+  }
+  if (startsWith(buf, [0x25, 0x50, 0x44, 0x46, 0x2d])) return { mime: "application/pdf", ext: "pdf" }; // "%PDF-"
+  const lower = filename.toLowerCase();
+  if (startsWith(buf, [0x50, 0x4b, 0x03, 0x04]) && lower.endsWith(".docx")) return { mime: MIME_DOCX, ext: "docx" };
+  if (startsWith(buf, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]) && lower.endsWith(".doc")) {
+    return { mime: "application/msword", ext: "doc" };
+  }
+  return null;
+}
+
+const ALLOWED_BY_KIND: Record<PublicUploadKind, string[]> = {
+  image: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+  pdf: ["application/pdf"],
+  file: ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf", MIME_DOCX, "application/msword"],
+};
+
+const KIND_MESSAGE: Record<PublicUploadKind, string> = {
+  image: "Berkas harus berupa gambar JPG, PNG, WebP, atau GIF.",
+  pdf: "Berkas harus berupa PDF.",
+  file: "Berkas harus berupa gambar (JPG/PNG/WebP/GIF), PDF, atau dokumen Word (.doc/.docx).",
+};
+
+/** Ganti ekstensi key dengan ekstensi hasil deteksi (nama dari klien tidak dipercaya). */
+function withExt(key: string, ext: string): string {
+  const slash = key.lastIndexOf("/");
+  const dot = key.lastIndexOf(".");
+  const base = dot > slash ? key.slice(0, dot) : key;
+  return `${base}.${ext}`;
+}
+
 /**
  * Upload ke bucket "publik" (yang secara teknis tetap private di B2).
  * Mengembalikan URL PROXY di situs kita sendiri (/api/files/<key>) —
  * ini yang dipakai langsung di <img src="..."> atau <a href="...">.
  * Tidak pernah kedaluwarsa (beda dengan signed URL).
+ *
+ * Tipe berkas divalidasi dari ISI (lihat sniffUploadType) sesuai `kind`;
+ * Content-Type yang disimpan = hasil deteksi, parameter `contentType`
+ * kiriman pemanggil sengaja diabaikan. Melempar InvalidFileTypeError kalau
+ * tipe tidak diizinkan.
  */
 export async function uploadPublicFile(
   file: File | Buffer,
   key: string,
-  contentType?: string
+  _contentType?: string,
+  kind: PublicUploadKind = "file"
 ): Promise<string> {
   const client = storageClient();
   const body = file instanceof File ? Buffer.from(await file.arrayBuffer()) : file;
-  const type = contentType || (file instanceof File ? file.type : "application/octet-stream");
+  const filename = file instanceof File ? file.name : key;
+
+  const sniffed = sniffUploadType(body, filename);
+  if (!sniffed || !ALLOWED_BY_KIND[kind].includes(sniffed.mime)) {
+    throw new InvalidFileTypeError(KIND_MESSAGE[kind]);
+  }
+  const safeKey = withExt(key, sniffed.ext);
 
   await client.send(
     new PutObjectCommand({
       Bucket: B2_BUCKET_PUBLIC,
-      Key: key,
+      Key: safeKey,
       Body: body,
-      ContentType: type || "application/octet-stream",
+      ContentType: sniffed.mime,
     })
   );
 
-  return `/api/files/${key}`;
+  return `/api/files/${safeKey}`;
 }
 
 /**
