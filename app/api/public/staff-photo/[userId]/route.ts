@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
 
 const UUID = /^[0-9a-f-]{32,36}$/i;
 
-export async function GET(_req: NextRequest, { params }: { params: { userId: string } }) {
+export async function GET(_req: NextRequest, { params: paramsPromise }: { params: Promise<{ userId: string }> }) {
+  const params = await paramsPromise;
   const { userId } = params;
   if (!UUID.test(userId)) {
     return NextResponse.json({ error: "ID tidak valid." }, { status: 400 });
