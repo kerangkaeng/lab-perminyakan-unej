@@ -23,17 +23,32 @@ function DesktopEntry({ entry, pathname }: { entry: NavEntry; pathname: string |
 
   return (
     <div className="group relative">
-      <Link href={entry.href} className={triggerClass}>
-        {entry.label}
-        {hasItems && <ChevronDown size={14} className="transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />}
-        {!entry.highlight && (
-          <span
-            className={`absolute -bottom-[21px] left-0 right-0 h-[2px] bg-rig transition-transform origin-left ${
-              active ? "scale-x-100" : "scale-x-0"
-            }`}
-          />
-        )}
-      </Link>
+      {entry.href && !hasItems ? (
+        <Link href={entry.href} className={triggerClass}>
+          {entry.label}
+          {!entry.highlight && (
+            <span
+              className={`absolute -bottom-[21px] left-0 right-0 h-[2px] bg-rig transition-transform origin-left ${
+                active ? "scale-x-100" : "scale-x-0"
+              }`}
+            />
+          )}
+        </Link>
+      ) : (
+        // Grup dengan sub-menu: label hanya MEMBUKA menu (hover/fokus/ketuk),
+        // tidak berpindah halaman — supaya klik pada grup tidak membingungkan.
+        <button type="button" className={triggerClass} aria-haspopup="true">
+          {entry.label}
+          <ChevronDown size={14} className="transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
+          {!entry.highlight && (
+            <span
+              className={`absolute -bottom-[21px] left-0 right-0 h-[2px] bg-rig transition-transform origin-left ${
+                active ? "scale-x-100" : "scale-x-0"
+              }`}
+            />
+          )}
+        </button>
+      )}
 
       {hasItems && (
         // pt-3 = jembatan hover agar menu tidak menutup saat kursor turun.
@@ -72,7 +87,7 @@ export function Navbar({ session }: { session: NavSession }) {
           </Link>
           <nav className="hidden xl:flex items-center gap-5 2xl:gap-7">
             {mainNav.map((entry) => (
-              <DesktopEntry key={entry.href} entry={entry} pathname={pathname} />
+              <DesktopEntry key={entry.label} entry={entry} pathname={pathname} />
             ))}
             {session ? (
               <div className="flex shrink-0 items-center gap-3 border-l border-line pl-4">
