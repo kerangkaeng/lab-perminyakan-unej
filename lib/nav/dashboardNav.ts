@@ -79,8 +79,8 @@ export const guestSections: DashboardSection[] = [
     title: "Jadwal & Informasi",
     items: [
       { href: "/practicum/jadwal", label: "Jadwal Kegiatan Lab", roles: [] },
+      { href: "/news", label: "Berita", roles: [] },
       { href: "/practicum/announcements", label: "Pengumuman", roles: [] },
-      { href: "/practicum/modules", label: "Modul Praktikum", roles: [] },
     ],
   },
 ];
