@@ -17,7 +17,14 @@ export async function GET(req: NextRequest) {
   const serviceUrl = new URL("/api/auth/cas/callback", req.nextUrl.origin);
   serviceUrl.searchParams.set("redirect", redirectPath);
 
-  const casUser = await validateCasTicket(ticket, serviceUrl.toString());
+  let casUser: Awaited<ReturnType<typeof validateCasTicket>>;
+  try {
+    casUser = await validateCasTicket(ticket, serviceUrl.toString());
+  } catch (e) {
+    console.error("CAS callback - SSO tidak dapat dihubungi", e);
+    loginUrl.searchParams.set("error", "server_error");
+    return NextResponse.redirect(loginUrl);
+  }
   if (!casUser) {
     loginUrl.searchParams.set("error", "invalid_ticket");
     return NextResponse.redirect(loginUrl);
@@ -37,7 +44,10 @@ export async function GET(req: NextRequest) {
     try {
       const res = await fetch(
         `${supabaseUrl}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
-        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+        {
+          headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+          signal: AbortSignal.timeout(10_000),
+        }
       );
       if (!res.ok) return null;
       const body = await res.json();
