@@ -42,15 +42,14 @@ export const contentNavItems: DashboardNavItem[] = Object.entries(adminTables).m
 // Pengelompokan untuk sidebar & menu mobile. Tiga kelompok berjudul:
 //   - Kegiatan Saya : aktivitas pengguna sendiri (ajukan, status, jadwal)
 //   - Pengelolaan   : tugas admin/asisten (kelola pengajuan, rekap, jabatan)
-//   - Konten Situs  : berita + semua tabel konten (bisa dilipat)
+//   - Konten Situs  : berita + semua tabel konten
+// Di sidebar tiap kelompok tampil sebagai akordeon.
 // Hak akses tetap ditentukan oleh `roles` tiap item di atas.
 // ============================================================
 export type DashboardSection = {
   key: "kegiatan" | "pengelolaan" | "konten";
   title: string;
   items: DashboardNavItem[];
-  /** Daftar panjang -> ditampilkan sebagai grup yang bisa dilipat. */
-  collapsible?: boolean;
 };
 
 const KEGIATAN = new Set(["/practicum/ajukan", "/practicum/status", "/practicum/jadwal"]);
@@ -64,7 +63,7 @@ export function dashboardSectionsFor(role: DashboardNavItem["roles"][number]): D
   const sections: DashboardSection[] = [
     { key: "kegiatan", title: "Kegiatan Saya", items: primary.filter((i) => KEGIATAN.has(i.href)) },
     { key: "pengelolaan", title: "Pengelolaan", items: primary.filter((i) => PENGELOLAAN.has(i.href)) },
-    { key: "konten", title: "Konten Situs", items: [...news, ...visible(contentNavItems)], collapsible: true },
+    { key: "konten", title: "Konten Situs", items: [...news, ...visible(contentNavItems)] },
   ];
   return sections.filter((s) => s.items.length > 0);
 }
