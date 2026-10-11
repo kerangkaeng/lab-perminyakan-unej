@@ -111,24 +111,48 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
     return NextResponse.json({ error: "Gagal mengunggah berkas." }, { status: 500 });
   }
 
-  const updatedList = [...currentList, path];
+  // Tambah referensi SECARA ATOMIK di database (fungsi append_practicum_doc,
+  // migrasi 008): cek kuota + tambah dalam satu UPDATE, jadi dua unggahan
+  // bersamaan tidak saling menimpa daftar dan tidak melewati batas berkas.
+  // Kepemilikan sudah dicek di atas, jadi memakai service role.
+  const db = supabaseServer();
+  let updated: unknown = null;
+  let updateError: { code?: string; message?: string } | null = null;
 
-  // Kepemilikan sudah dicek di atas, jadi penyimpanan referensi memakai
-  // service role (tidak bergantung pada policy UPDATE RLS yang bisa saja
-  // hanya mengizinkan admin).
-  const { data: updated, error: updateError } = await supabaseServer()
-    .from("practicum_requests")
-    .update({ [category]: updatedList })
-    .eq("id", params.id)
-    .select()
-    .single();
+  const rpc = await db.rpc("append_practicum_doc", {
+    p_id: params.id,
+    p_category: category,
+    p_path: path,
+    p_max: MAX_DOC_FILES_PER_CATEGORY,
+  });
+
+  if (rpc.error && (rpc.error.code === "PGRST202" || rpc.error.code === "42883")) {
+    // Migrasi 008 belum dijalankan -> cara lama (tidak atomik).
+    const legacy = await db
+      .from("practicum_requests")
+      .update({ [category]: [...currentList, path] })
+      .eq("id", params.id)
+      .select()
+      .single();
+    updated = legacy.data;
+    updateError = legacy.error;
+  } else {
+    updated = rpc.data;
+    updateError = rpc.error;
+    if (!rpc.error && !rpc.data) {
+      // Kuota penuh / status berubah di antara pengecekan dan penulisan.
+      await deletePrivateFile(path).catch(() => {});
+      return NextResponse.json(
+        { error: `Maksimal ${MAX_DOC_FILES_PER_CATEGORY} berkas untuk kategori ini, atau pengajuan sudah tidak bisa diubah.` },
+        { status: 409 }
+      );
+    }
+  }
 
   if (updateError) {
     console.error("Update referensi dokumentasi error", updateError);
-    return NextResponse.json(
-      { error: "Berkas terunggah, tapi gagal menyimpan referensinya." },
-      { status: 500 }
-    );
+    await deletePrivateFile(path).catch(() => {});
+    return NextResponse.json({ error: "Gagal menyimpan berkas. Coba lagi." }, { status: 500 });
   }
 
   return NextResponse.json({ data: updated, path });
