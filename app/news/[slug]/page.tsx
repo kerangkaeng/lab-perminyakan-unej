@@ -8,7 +8,7 @@ export const revalidate = 0;
 export default async function NewsDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {
   const params = await paramsPromise;
   const supabase = supabasePublic();
-  const { data } = await supabase.from("news").select("*").eq("slug", params.slug).single();
+  const { data } = await supabase.from("news").select("*").eq("slug", params.slug).eq("status", "published").maybeSingle();
   if (!data) return notFound();
   const item = data as NewsRecord;
 
