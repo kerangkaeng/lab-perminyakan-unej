@@ -47,7 +47,7 @@ export const contentNavItems: DashboardNavItem[] = Object.entries(adminTables).m
 // Hak akses tetap ditentukan oleh `roles` tiap item di atas.
 // ============================================================
 export type DashboardSection = {
-  key: "kegiatan" | "pengelolaan" | "konten";
+  key: "kegiatan" | "pengelolaan" | "konten" | "publik";
   title: string;
   items: DashboardNavItem[];
 };
