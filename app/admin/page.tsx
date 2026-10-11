@@ -2,10 +2,12 @@ import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { adminTables } from "@/lib/admin/config";
 import { supabaseServer } from "@/lib/supabase/server";
+import { requireAdminSession } from "@/lib/auth/guards";
 
 export const revalidate = 0;
 
 export default async function AdminDashboardPage() {
+  await requireAdminSession("/admin");
   const supabase = supabaseServer();
   const entries = Object.entries(adminTables);
 
