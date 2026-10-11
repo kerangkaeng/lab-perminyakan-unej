@@ -23,9 +23,11 @@ const config: Config = {
         core: "#6E7B6D",      // muted olive-gray, "core sample" gray
         line: "#D7DCD8",      // hairline border
         mist: "#F6F7F5",      // card background, one step off paper
-        // Token kartu struktur organisasi (tidak memengaruhi bagian situs lain)
-        basalt: { DEFAULT: "#1E2326", light: "#2A3135" }, // batuan beku gelap — kepala lab
-        oxide: { DEFAULT: "#A04A32", dark: "#8A3C28", deep: "#5A2B22", deeper: "#6B352A" }, // besi oksida batu pasir — dosen MK & aksen asisten
+        // Token kartu struktur organisasi (tidak memengaruhi bagian situs lain).
+        // tide = turunan terang dari petrol, supaya hierarki kartu turun bertahap
+        // (root gelap -> kepala -> dosen -> laboran -> asisten) tanpa lompat warna.
+        tide: { DEFAULT: "#E1EBEF", deep: "#CFDDE3", edge: "#9FB6BF" },
+        oxide: { DEFAULT: "#A04A32", dark: "#8A3C28" }, // aksen kecil untuk asisten
         muted: "#525B52",     // teks kecil abu-hijau, kontras >= 6.5:1
       },
       fontFamily: {
