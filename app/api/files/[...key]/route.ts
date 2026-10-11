@@ -18,6 +18,14 @@ import { fetchPublicFileForProxy } from "@/lib/storage/b2";
 
 export const dynamic = "force-dynamic";
 
+const SAFE_INLINE = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+]);
+
 export async function GET(
   _req: NextRequest,
   { params: paramsPromise }: { params: Promise<{ key: string[] }> }
@@ -35,14 +43,28 @@ export async function GET(
     return NextResponse.json({ error: "Berkas tidak ditemukan." }, { status: 404 });
   }
 
+  // Jangan percaya Content-Type tersimpan begitu saja (berkas lama bisa saja
+  // HTML/SVG). Hanya tipe aman yang ditampilkan inline; selain itu dipaksa
+  // unduh sebagai biner sehingga skrip tidak pernah berjalan di origin situs.
+  const stored = (file.contentType || "").split(";")[0].trim().toLowerCase();
+  const safe = SAFE_INLINE.has(stored);
+  const headers: Record<string, string> = {
+    "Content-Type": safe ? stored : "application/octet-stream",
+    "X-Content-Type-Options": "nosniff",
+    // Aman di-cache lama di browser/CDN karena setiap key sudah unik
+    // (buildKey() menyisipkan timestamp + random string), jadi kalau
+    // filenya ganti, key/URL-nya juga otomatis beda.
+    "Cache-Control": "public, max-age=31536000, immutable",
+  };
+  if (!safe) {
+    headers["Content-Disposition"] = "attachment";
+  } else if (stored !== "application/pdf") {
+    // Gambar: matikan semua skrip/sumber jika dibuka langsung sebagai dokumen.
+    headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
+  }
+
   return new NextResponse(Buffer.from(file.body) as unknown as BodyInit, {
     status: 200,
-    headers: {
-      "Content-Type": file.contentType,
-      // Aman di-cache lama di browser/CDN karena setiap key sudah unik
-      // (buildKey() menyisipkan timestamp + random string), jadi kalau
-      // filenya ganti, key/URL-nya juga otomatis beda.
-      "Cache-Control": "public, max-age=31536000, immutable",
-    },
+    headers,
   });
 }
