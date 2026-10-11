@@ -10,6 +10,7 @@ export default async function NewsPage() {
   const { data } = await supabase
     .from("news")
     .select("*")
+    .eq("status", "published")
     .order("date", { ascending: false });
 
   const news = (data as NewsRecord[]) ?? [];
