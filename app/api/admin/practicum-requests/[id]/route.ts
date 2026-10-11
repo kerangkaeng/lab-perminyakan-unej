@@ -29,21 +29,52 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
 
   const supabase = supabaseAuthed(token);
 
+  // Ambil kondisi pengajuan saat ini (sesi admin bisa melihat semua lewat RLS)
+  // untuk menjaga konsistensi perpindahan status & bentrok jadwal.
+  const { data: target, error: targetError } = await supabase
+    .from("practicum_requests")
+    .select(
+      "id, status, completed, lokasi, tanggal, jam_mulai, jam_selesai, doc_pretest, doc_tes_alat, doc_praktikum, doc_kegiatan, insiden_dokumentasi"
+    )
+    .eq("id", params.id)
+    .single();
+
+  if (targetError || !target) {
+    return NextResponse.json({ error: "Pengajuan tidak ditemukan." }, { status: 404 });
+  }
+
+  if (target.status === status) {
+    return NextResponse.json(
+      { error: `Pengajuan ini sudah berstatus ${status === "approved" ? "disetujui" : "ditolak"}.` },
+      { status: 400 }
+    );
+  }
+
+  // Membatalkan persetujuan (approved -> rejected) hanya boleh selama pengaju
+  // belum memulai/menyelesaikan administrasi. Kalau sudah ada dokumentasi
+  // terunggah atau administrasi selesai, status "ditolak" membuat data
+  // pengaju menggantung dan tidak konsisten.
+  if (target.status === "approved" && status === "rejected") {
+    const t = target as unknown as Record<string, unknown>;
+    const hasDocs = ["doc_pretest", "doc_tes_alat", "doc_praktikum", "doc_kegiatan", "insiden_dokumentasi"].some(
+      (k) => Array.isArray(t[k]) && (t[k] as unknown[]).length > 0
+    );
+    if (target.completed || hasDocs) {
+      return NextResponse.json(
+        {
+          error:
+            "Persetujuan tidak bisa dibatalkan karena pengaju sudah mengunggah dokumentasi atau menyelesaikan administrasi.",
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   // Menyetujui = mengunci slot lab. Tolak kalau jadwalnya bentrok dengan
   // kegiatan lain yang SUDAH disetujui di lab & tanggal yang sama (kalau
   // tidak, dua kegiatan bisa sama-sama "Disetujui" di jam yang tumpang
-  // tindih). Sesi admin bisa melihat semua pengajuan lewat RLS.
+  // tindih).
   if (status === "approved") {
-    const { data: target, error: targetError } = await supabase
-      .from("practicum_requests")
-      .select("id, lokasi, tanggal, jam_mulai, jam_selesai")
-      .eq("id", params.id)
-      .single();
-
-    if (targetError || !target) {
-      return NextResponse.json({ error: "Pengajuan tidak ditemukan." }, { status: 404 });
-    }
-
     const jamMulai = toHHMM(target.jam_mulai);
     const jamSelesai = toHHMM(target.jam_selesai);
     if (target.lokasi && jamMulai && jamSelesai) {
