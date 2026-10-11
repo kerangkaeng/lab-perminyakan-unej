@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
-import { findApprovedConflicts, describeConflicts, toHHMM } from "@/lib/practicum/schedule";
 
 export async function PATCH(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
@@ -70,36 +69,6 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
     }
   }
 
-  // Menyetujui = mengunci slot lab. Tolak kalau jadwalnya bentrok dengan
-  // kegiatan lain yang SUDAH disetujui di lab & tanggal yang sama (kalau
-  // tidak, dua kegiatan bisa sama-sama "Disetujui" di jam yang tumpang
-  // tindih).
-  if (status === "approved") {
-    const jamMulai = toHHMM(target.jam_mulai);
-    const jamSelesai = toHHMM(target.jam_selesai);
-    if (target.lokasi && jamMulai && jamSelesai) {
-      const { data: conflicts, error: conflictError } = await findApprovedConflicts(supabase, {
-        lokasi: target.lokasi,
-        tanggal: target.tanggal,
-        jamMulai,
-        jamSelesai,
-        excludeId: params.id,
-      });
-      if (conflictError) {
-        console.error("Cek bentrok saat approve error", conflictError);
-        return NextResponse.json({ error: "Gagal memeriksa bentrok jadwal." }, { status: 500 });
-      }
-      if (conflicts.length > 0) {
-        return NextResponse.json(
-          {
-            error: `Tidak bisa disetujui: bentrok dengan kegiatan yang sudah disetujui di ${target.lokasi} (${describeConflicts(conflicts)}).`,
-          },
-          { status: 409 }
-        );
-      }
-    }
-  }
-
   const { data, error } = await supabase
     .from("practicum_requests")
     .update({
@@ -113,15 +82,6 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
     .single();
 
   if (error) {
-    // 23P01 = exclusion_violation: constraint database (migrasi 007) menangkap
-    // bentrok yang lolos dari pengecekan di atas saat dua persetujuan hampir
-    // bersamaan.
-    if (error.code === "23P01") {
-      return NextResponse.json(
-        { error: "Tidak bisa disetujui: jadwal baru saja bentrok dengan kegiatan lain yang disetujui di lab yang sama." },
-        { status: 409 }
-      );
-    }
     console.error("Update practicum_request error", error);
     return NextResponse.json({ error: "Gagal memperbarui status pengajuan." }, { status: 500 });
   }
