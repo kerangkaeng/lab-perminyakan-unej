@@ -113,6 +113,15 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
     .single();
 
   if (error) {
+    // 23P01 = exclusion_violation: constraint database (migrasi 007) menangkap
+    // bentrok yang lolos dari pengecekan di atas saat dua persetujuan hampir
+    // bersamaan.
+    if (error.code === "23P01") {
+      return NextResponse.json(
+        { error: "Tidak bisa disetujui: jadwal baru saja bentrok dengan kegiatan lain yang disetujui di lab yang sama." },
+        { status: 409 }
+      );
+    }
     console.error("Update practicum_request error", error);
     return NextResponse.json({ error: "Gagal memperbarui status pengajuan." }, { status: 500 });
   }
