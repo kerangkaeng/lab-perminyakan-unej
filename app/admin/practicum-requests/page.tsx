@@ -16,13 +16,10 @@ type SearchParams = {
   urutan?: string;
 };
 
-export default async function AdminPracticumRequestsPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function AdminPracticumRequestsPage({ searchParams: searchParamsPromise }: { searchParams: Promise<SearchParams> }) {
+  const searchParams = await searchParamsPromise;
   const session = await getSession();
-  const token = getSessionToken();
+  const token = await getSessionToken();
   const canManage = session ? canManagePracticumRequests(session.appRole) : false;
   const canRevise = session ? canRequestRevision(session.appRole) : false;
   // Tombol download rekap Excel sengaja admin-only (lihat catatan di
