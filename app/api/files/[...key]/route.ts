@@ -20,8 +20,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { key: string[] } }
+  { params: paramsPromise }: { params: Promise<{ key: string[] }> }
 ) {
+  const params = await paramsPromise;
   const key = params.key?.join("/");
 
   if (!key) {
