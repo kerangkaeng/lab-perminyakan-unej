@@ -2,8 +2,12 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AvatarEditor } from "@/components/profile/AvatarEditor";
 
-const MAX_BYTES = 1 * 1024 * 1024;
+// Batas file ASLI yang dipilih (foto kamera HP 2–5 MB wajar). Hasil crop 512x512
+// jauh lebih kecil dan itulah yang diunggah (server membatasi 1 MB).
+const MAX_PICK_BYTES = 15 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 1 * 1024 * 1024;
 const ACCEPT = "image/jpeg,image/png,image/webp";
 
 function initialsOf(name: string): string {
@@ -25,6 +29,7 @@ export function ProfilePhoto({ src, name }: { src: string | null; name: string }
   const [broken, setBroken] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<File | null>(null);
 
   const shown = preview ?? (broken ? null : src);
 
@@ -38,25 +43,37 @@ export function ProfilePhoto({ src, name }: { src: string | null; name: string }
       setError("Format foto harus JPG, PNG, atau WebP.");
       return;
     }
-    if (file.size > MAX_BYTES) {
-      setError(`Ukuran foto maks. 1 MB. Ukuran file kamu: ${(file.size / (1024 * 1024)).toFixed(2)} MB.`);
+    if (file.size > MAX_PICK_BYTES) {
+      setError(`Ukuran foto terlalu besar (maks. 15 MB). Ukuran file kamu: ${(file.size / (1024 * 1024)).toFixed(2)} MB.`);
       return;
     }
+    setEditing(file); // lanjut ke editor crop; unggah dilakukan di onSave
+  }
 
+  async function upload(blob: Blob) {
+    if (blob.size > MAX_UPLOAD_BYTES) {
+      setEditing(null);
+      setError("Hasil foto masih lebih dari 1 MB. Coba foto lain.");
+      return;
+    }
     setBusy(true);
     try {
+      const ext = blob.type === "image/webp" ? "webp" : "jpg";
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", new File([blob], `foto.${ext}`, { type: blob.type }));
       const res = await fetch("/api/profile/photo", { method: "POST", body: form });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
+        setEditing(null);
         setError(body.error ?? "Gagal mengunggah foto.");
         return;
       }
       setPreview(body.url);
       setBroken(false);
+      setEditing(null);
       router.refresh();
     } catch {
+      setEditing(null);
       setError("Gagal mengunggah foto. Periksa koneksi kamu.");
     } finally {
       setBusy(false);
@@ -122,8 +139,12 @@ export function ProfilePhoto({ src, name }: { src: string | null; name: string }
           </button>
         )}
       </div>
-      <p className="mt-2 text-xs text-core">JPG, PNG, atau WebP. Maks. 1 MB.</p>
+      <p className="mt-2 text-xs text-core">JPG, PNG, atau WebP. Foto otomatis dipotong persegi dan dikecilkan.</p>
       {error && <p className="mt-1 text-xs text-red-700">{error}</p>}
+
+      {editing && (
+        <AvatarEditor file={editing} busy={busy} onCancel={() => setEditing(null)} onSave={upload} />
+      )}
     </div>
   );
 }
