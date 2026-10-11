@@ -3,19 +3,20 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import type { NavSession } from "./Navbar";
-import { primaryNavItems, contentNavItems } from "@/lib/nav/dashboardNav";
+import { mainNav } from "@/lib/nav/mainNav";
+import { dashboardSectionsFor } from "@/lib/nav/dashboardNav";
 
-type Link_ = { href: string; label: string };
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return <p className="mt-6 mb-1 font-mono text-[11px] uppercase tracking-wider text-core">{children}</p>;
+}
 
 export function MobileMenu({
   open,
   onClose,
-  links,
   session,
 }: {
   open: boolean;
   onClose: () => void;
-  links: Link_[];
   session: NavSession;
 }) {
   useEffect(() => {
@@ -24,6 +25,8 @@ export function MobileMenu({
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  const sections = session ? dashboardSectionsFor(session.appRole) : [];
 
   return (
     <div
@@ -50,54 +53,60 @@ export function MobileMenu({
             <X size={22} />
           </button>
         </div>
-        <nav className="flex flex-1 flex-col overflow-y-auto px-5 py-6">
-          {links.map((l, i) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              onClick={onClose}
-              style={{ transitionDelay: open ? `${i * 30}ms` : "0ms" }}
-              className={`border-b border-line py-3.5 font-display text-lg text-ink transition-all duration-300 ${
-                open ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"
-              }`}
-            >
-              {l.label}
-            </Link>
+
+        <nav className="flex flex-1 flex-col overflow-y-auto px-5 py-4">
+          {/* Menu situs, dikelompokkan seperti navbar desktop */}
+          {mainNav.map((entry) => (
+            <div key={entry.href} className="border-b border-line py-3">
+              {entry.items?.length ? (
+                <>
+                  <p className={`font-display text-lg ${entry.highlight ? "text-petrol" : "text-ink"}`}>{entry.label}</p>
+                  <div className="mt-1 flex flex-col">
+                    {entry.items.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onClose}
+                        className="py-2 pl-3 text-base text-ink/80 transition-colors hover:text-rig"
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <Link href={entry.href} onClick={onClose} className="block font-display text-lg text-ink">
+                  {entry.label}
+                </Link>
+              )}
+            </div>
           ))}
+
           {session ? (
             <>
-              {primaryNavItems
-                .filter((item) => item.roles.includes(session.appRole))
-                .map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onClose}
-                    className="border-b border-line py-3.5 font-display text-lg text-ink"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              {contentNavItems
-                .filter((item) => item.roles.includes(session.appRole))
-                .map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onClose}
-                    className="border-b border-line py-3 pl-4 text-base text-ink/80"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              <Link
-                href="/profile"
-                onClick={onClose}
-                className="border-b border-line py-3.5 font-display text-lg text-rig"
-              >
+              {sections.map((section) => (
+                <div key={section.key}>
+                  <SectionHeading>{section.title}</SectionHeading>
+                  <div className="flex flex-col">
+                    {section.items.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onClose}
+                        className="border-b border-line py-2.5 text-base text-ink"
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <SectionHeading>Akun</SectionHeading>
+              <Link href="/profile" onClick={onClose} className="border-b border-line py-2.5 text-base text-rig">
                 Profil
               </Link>
-              <a href="/api/auth/logout" className="py-3.5 font-display text-lg text-core">
+              <a href="/api/auth/logout" className="py-2.5 text-base text-core">
                 Keluar
               </a>
             </>
@@ -105,7 +114,7 @@ export function MobileMenu({
             <Link
               href="/login"
               onClick={onClose}
-              className="mt-4 inline-flex justify-center bg-petrol py-3 font-display text-lg text-paper transition-colors hover:bg-petrol-light"
+              className="mt-6 inline-flex justify-center bg-petrol py-3 font-display text-lg text-paper transition-colors hover:bg-petrol-light"
             >
               Masuk
             </Link>
