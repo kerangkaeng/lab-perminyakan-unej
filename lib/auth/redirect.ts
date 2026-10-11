@@ -1,9 +1,11 @@
 /**
+ * Setelah login, pengguna default diarahkan ke beranda ("/") kecuali ada
+ * parameter `redirect` yang valid (mis. dari halaman terproteksi).
  * Hanya terima path internal ("/practicum/status"). Menolak URL absolut,
  * "//evil.com", "/\evil.com", dan karakter kontrol — supaya parameter
  * `redirect` di alur login tidak bisa dipakai sebagai open redirect.
  */
-export function safeRedirectPath(input: string | null | undefined, fallback = "/practicum/status"): string {
+export function safeRedirectPath(input: string | null | undefined, fallback = "/"): string {
   if (!input) return fallback;
   if (!input.startsWith("/")) return fallback;
   if (input.startsWith("//") || input.startsWith("/\\")) return fallback;
