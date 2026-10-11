@@ -13,30 +13,30 @@ export type OrgPerson = {
   photo: string | null;
 };
 
-type Tone = "kepala" | "laboran" | "plain" | "dosen" | "asisten";
+type Tone = "kepala" | "laboran" | "dosen" | "asisten" | "plain";
 
+// Semua kartu identitas punya struktur yang sama (garis atas oksida); yang
+// membedakan peran hanya tingkat kecerahan latar, makin ke bawah makin cerah:
+// kepala lab > laboran > dosen MK > asisten (putih). "plain" (dosen peneliti) = putih.
+const BASE =
+  "border border-line border-t-2 border-t-oxide hover:border-oxide hover:-translate-y-0.5";
 const TONE: Record<Tone, string> = {
-  kepala: "bg-tide-deep text-ink border-petrol/30 border-l-4 border-l-petrol hover:border-petrol",
-  dosen: "bg-tide text-ink border-petrol/20 border-l-4 border-l-petrol-light hover:border-petrol",
-  laboran: "bg-mist text-ink border-line border-l-4 border-l-tide-edge hover:border-petrol",
-  plain: "bg-white text-ink border-line hover:border-petrol",
-  asisten: "bg-white text-ink border-line border-t-2 border-t-oxide hover:border-oxide hover:-translate-y-0.5",
+  kepala: `${BASE} bg-tide-deep text-ink`,
+  laboran: `${BASE} bg-tide-mid text-ink`,
+  dosen: `${BASE} bg-tide text-ink`,
+  asisten: `${BASE} bg-white text-ink`,
+  plain: `${BASE} bg-white text-ink`,
 };
 
-// Warna teks sekunder (label jabatan & nomor identitas) per tone. Semua >= 5:1.
-const LABEL: Record<Tone, string> = {
-  kepala: "text-petrol",
-  dosen: "text-petrol",
-  laboran: "text-muted",
-  plain: "text-muted",
-  asisten: "text-oxide-dark",
-};
+// Teks sekunder: petrol untuk label (kontras >= 7:1 di semua latar);
+// nomor identitas pakai petrol-dark di latar gelap, muted di latar terang.
+const LABEL = "text-petrol";
 const IDENT: Record<Tone, string> = {
   kepala: "text-petrol-dark",
+  laboran: "text-petrol-dark",
   dosen: "text-muted",
-  laboran: "text-muted",
-  plain: "text-muted",
   asisten: "text-muted",
+  plain: "text-muted",
 };
 
 /** Foto persegi (sudut membulat) dengan sedikit jarak dari tepi kartu; kalau belum ada / gagal dimuat, tampil inisial. */
@@ -113,7 +113,7 @@ export function PersonCard({
 
       {index !== undefined && !open && (
         <span
-          className={`absolute right-3 top-3 font-mono text-[10px] ${LABEL[tone]}`}
+          className={`absolute right-3 top-3 font-mono text-[10px] ${LABEL}`}
           aria-hidden
         >
           {String(index).padStart(2, "0")}
@@ -122,7 +122,7 @@ export function PersonCard({
 
       <span className="block px-4 py-3">
         {label && (
-          <span className={`mb-1 block font-mono text-[11px] uppercase tracking-wider ${LABEL[tone]}`}>
+          <span className={`mb-1 block font-mono text-[11px] uppercase tracking-wider ${LABEL}`}>
             {label}
           </span>
         )}
