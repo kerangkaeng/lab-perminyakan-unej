@@ -2,21 +2,61 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Menu } from "lucide-react";
+import { ChevronDown, Menu } from "lucide-react";
 import { MobileMenu } from "./MobileMenu";
-
-const links = [
-  { href: "/about", label: "About" },
-  { href: "/facilities", label: "Facilities" },
-  { href: "/research", label: "Research" },
-  { href: "/publications", label: "Publications" },
-  { href: "/practicum", label: "Practicum" },
-  { href: "/news", label: "News" },
-  { href: "/gallery", label: "Gallery" },
-  { href: "/contact", label: "Contact" },
-];
+import { mainNav, activeLeaf, isEntryActive, type NavEntry } from "@/lib/nav/mainNav";
 
 export type NavSession = { nama: string; appRole: "mahasiswa" | "admin" | "asisten" | "dosen" } | null;
+
+function DesktopEntry({ entry, pathname }: { entry: NavEntry; pathname: string | null }) {
+  const active = isEntryActive(entry, pathname);
+  const leaf = activeLeaf(entry, pathname);
+  const hasItems = !!entry.items?.length;
+
+  const triggerClass = entry.highlight
+    ? `inline-flex items-center gap-1 border px-3 py-1.5 text-sm font-medium transition-colors ${
+        active ? "border-petrol bg-petrol text-paper" : "border-petrol text-petrol hover:bg-petrol hover:text-paper"
+      }`
+    : `relative inline-flex items-center gap-1 py-1 text-sm transition-colors ${
+        active ? "font-medium text-petrol" : "text-ink/80 hover:text-rig"
+      }`;
+
+  return (
+    <div className="group relative">
+      <Link href={entry.href} className={triggerClass}>
+        {entry.label}
+        {hasItems && <ChevronDown size={14} className="transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />}
+        {!entry.highlight && (
+          <span
+            className={`absolute -bottom-[21px] left-0 right-0 h-[2px] bg-rig transition-transform origin-left ${
+              active ? "scale-x-100" : "scale-x-0"
+            }`}
+          />
+        )}
+      </Link>
+
+      {hasItems && (
+        // pt-3 = jembatan hover agar menu tidak menutup saat kursor turun.
+        <div className="invisible absolute left-0 top-full z-50 min-w-[14rem] pt-3 opacity-0 transition-opacity duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+          <ul className="border border-line bg-paper py-1.5 shadow-card-hover">
+            {entry.items!.map((item) => (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className={`block px-4 py-2 text-sm transition-colors hover:bg-mist hover:text-rig ${
+                    leaf?.href === item.href ? "bg-mist font-medium text-petrol" : "text-ink/80"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Navbar({ session }: { session: NavSession }) {
   const [open, setOpen] = useState(false);
@@ -30,28 +70,12 @@ export function Navbar({ session }: { session: NavSession }) {
             <span className="font-display text-lg font-semibold text-ink">Lab Perminyakan</span>
             <span className="hidden sm:inline eyebrow">Petroleum Eng.</span>
           </Link>
-          <nav className="hidden xl:flex items-center gap-6">
-            {links.map((l) => {
-              const active = pathname === l.href || pathname?.startsWith(l.href + "/");
-              return (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  className={`relative py-1 text-sm transition-colors ${
-                    active ? "text-petrol font-medium" : "text-ink/80 hover:text-rig"
-                  }`}
-                >
-                  {l.label}
-                  <span
-                    className={`absolute -bottom-[21px] left-0 right-0 h-[2px] bg-rig transition-transform origin-left ${
-                      active ? "scale-x-100" : "scale-x-0"
-                    }`}
-                  />
-                </Link>
-              );
-            })}
+          <nav className="hidden xl:flex items-center gap-7">
+            {mainNav.map((entry) => (
+              <DesktopEntry key={entry.href} entry={entry} pathname={pathname} />
+            ))}
             {session ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 border-l border-line pl-5">
                 {(session.appRole === "admin" || session.appRole === "asisten") && (
                   <Link
                     href="/admin"
@@ -85,7 +109,7 @@ export function Navbar({ session }: { session: NavSession }) {
           </button>
         </div>
       </header>
-      <MobileMenu open={open} onClose={() => setOpen(false)} links={links} session={session} />
+      <MobileMenu open={open} onClose={() => setOpen(false)} session={session} />
     </>
   );
 }
