@@ -110,9 +110,11 @@ export function PersonCard({
           </span>
         )}
         <span className="block pr-6 text-sm font-semibold leading-snug">{person.nama}</span>
-        <span className={`mt-0.5 block font-mono text-xs ${dark ? "text-paper/70" : "text-core"}`}>
-          {person.ident ?? "—"}
-        </span>
+        {person.ident && (
+          <span className={`mt-0.5 block font-mono text-xs ${dark ? "text-paper/70" : "text-core"}`}>
+            {person.ident}
+          </span>
+        )}
       </span>
     </button>
   );
