@@ -4,7 +4,7 @@ import { uploadPublicFile, buildKey, assertFileSize, FileTooLargeError } from "@
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
-  const token = getSessionToken();
+  const token = await getSessionToken();
   if (!session || !token || session.appRole !== "admin") {
     return NextResponse.json({ error: "Kamu tidak berhak melakukan aksi ini." }, { status: 403 });
   }
