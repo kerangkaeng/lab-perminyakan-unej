@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { slugify } from "@/lib/utils";
-import { uploadPublicFile, buildKey, assertFileSize, FileTooLargeError } from "@/lib/storage/b2";
+import { uploadPublicFile, buildKey, assertFileSize, FileTooLargeError, InvalidFileTypeError } from "@/lib/storage/b2";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -52,8 +52,11 @@ export async function POST(req: NextRequest) {
     }
     const key = buildKey("news", file.name);
     try {
-      coverImageUrl = await uploadPublicFile(file, key, file.type || "image/jpeg");
+      coverImageUrl = await uploadPublicFile(file, key, undefined, "image");
     } catch (uploadError) {
+      if (uploadError instanceof InvalidFileTypeError) {
+        return NextResponse.json({ error: uploadError.message }, { status: 400 });
+      }
       console.error("Upload cover berita error", uploadError);
       return NextResponse.json({ error: "Gagal mengunggah gambar sampul." }, { status: 500 });
     }
