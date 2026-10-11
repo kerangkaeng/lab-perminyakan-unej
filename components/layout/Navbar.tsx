@@ -14,10 +14,10 @@ function DesktopEntry({ entry, pathname }: { entry: NavEntry; pathname: string |
   const hasItems = !!entry.items?.length;
 
   const triggerClass = entry.highlight
-    ? `inline-flex items-center gap-1 border px-3 py-1.5 text-sm font-medium transition-colors ${
+    ? `inline-flex items-center gap-1 whitespace-nowrap border px-3 py-1.5 text-sm font-medium transition-colors ${
         active ? "border-petrol bg-petrol text-paper" : "border-petrol text-petrol hover:bg-petrol hover:text-paper"
       }`
-    : `relative inline-flex items-center gap-1 py-1 text-sm transition-colors ${
+    : `relative inline-flex items-center gap-1 whitespace-nowrap py-1 text-sm transition-colors ${
         active ? "font-medium text-petrol" : "text-ink/80 hover:text-rig"
       }`;
 
@@ -66,16 +66,16 @@ export function Navbar({ session }: { session: NavSession }) {
     <>
       <header className="sticky top-0 z-40 bg-paper/90 backdrop-blur-md border-b border-line shadow-nav">
         <div className="container-lab flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-baseline gap-2 shrink-0">
+          <Link href="/" className="flex items-baseline gap-2 shrink-0 whitespace-nowrap">
             <span className="font-display text-lg font-semibold text-ink">Lab Perminyakan</span>
-            <span className="hidden sm:inline eyebrow">Petroleum Eng.</span>
+            <span className="hidden 2xl:inline eyebrow">Petroleum Eng.</span>
           </Link>
-          <nav className="hidden xl:flex items-center gap-7">
+          <nav className="hidden xl:flex items-center gap-5 2xl:gap-7">
             {mainNav.map((entry) => (
               <DesktopEntry key={entry.href} entry={entry} pathname={pathname} />
             ))}
             {session ? (
-              <div className="flex items-center gap-3 border-l border-line pl-5">
+              <div className="flex shrink-0 items-center gap-3 border-l border-line pl-4">
                 {(session.appRole === "admin" || session.appRole === "asisten") && (
                   <Link
                     href="/admin"
@@ -86,7 +86,7 @@ export function Navbar({ session }: { session: NavSession }) {
                 )}
                 <Link
                   href="/profile"
-                  className="text-sm font-medium text-paper bg-petrol hover:bg-petrol-light px-4 py-2 transition-colors"
+                  className="whitespace-nowrap text-sm font-medium text-paper bg-petrol hover:bg-petrol-light px-4 py-2 transition-colors"
                 >
                   {session.nama.split(" ")[0]}
                 </Link>
