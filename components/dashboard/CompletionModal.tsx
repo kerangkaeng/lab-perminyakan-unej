@@ -227,7 +227,7 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
     return last.replace(/^\d{10,}-/, "");
   }
 
-  function UploadedFiles({ category }: { category: string }) {
+  function renderUploadedFiles(category: string) {
     const files = uploaded[category] ?? [];
     if (files.length === 0) return null;
     return (
@@ -268,7 +268,11 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
     setList(list.filter((_, i) => i !== index));
   }
 
-  function PinjamRowsEditor({
+  // PENTING: ini fungsi render biasa (dipanggil langsung), BUKAN komponen React.
+  // Kalau dipakai sebagai <PinjamRowsEditor />, tiap ketikan membuat React
+  // menganggapnya komponen baru -> input di-unmount/mount ulang -> fokus
+  // hilang & keyboard HP (terutama iOS) menutup setelah 1 karakter.
+  function renderPinjamRows({
     list,
     setList,
     label,
@@ -314,12 +318,18 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
               ))}
             </select>
             <input
-              type="number"
-              inputMode="decimal"
-              step="any"
-              min="0"
+              type="text"
+              // Bahan boleh desimal (mis. 0,5 Liter); alat hanya bilangan bulat.
+              inputMode={label === "bahan" ? "decimal" : "numeric"}
+              pattern={label === "bahan" ? "[0-9]*[.,]?[0-9]*" : "[0-9]*"}
+              autoComplete="off"
               value={row.jumlah}
-              onChange={(e) => updateRow(list, setList, i, { jumlah: e.target.value })}
+              onChange={(e) => {
+                // Keyboard HP berlokalisasi Indonesia memberi koma -> jadikan titik.
+                const v = e.target.value.replace(",", ".");
+                const ok = label === "bahan" ? /^\d*\.?\d*$/.test(v) : /^\d*$/.test(v);
+                if (ok) updateRow(list, setList, i, { jumlah: v });
+              }}
               placeholder="0"
               className="w-20 border border-line bg-mist px-2 py-2 text-sm"
             />
@@ -529,7 +539,7 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
                         ? `${count}/${MAX_DOC_FILES_PER_CATEGORY} berkas terunggah`
                         : `Belum ada berkas — maks. ${MAX_DOC_FILES_PER_CATEGORY} berkas, masing-masing maks. 1 MB`}
                     </p>
-                    <UploadedFiles category={slot.key} />
+                    {renderUploadedFiles(slot.key)}
                   </div>
                 );
               })}
@@ -655,7 +665,7 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
                         ? `${uploaded["insiden_dokumentasi"].length}/${MAX_DOC_FILES_PER_CATEGORY} berkas terunggah`
                         : `Belum ada berkas — maks. ${MAX_DOC_FILES_PER_CATEGORY} berkas, masing-masing maks. 1 MB`}
                     </p>
-                    <UploadedFiles category="insiden_dokumentasi" />
+                    {renderUploadedFiles("insiden_dokumentasi")}
                   </div>
 
                   <div>
@@ -726,13 +736,7 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
                   {pinjamAlat === "ya" && (
                     <div>
                       <label className="mb-1.5 block text-sm text-ink">Daftar Alat yang Dipinjam</label>
-                      <PinjamRowsEditor
-                        list={alatList}
-                        setList={setAlatList}
-                        label="alat"
-                        options={alatOptions}
-                        satuanOptions={SATUAN_ALAT}
-                      />
+                      {renderPinjamRows({ list: alatList, setList: setAlatList, label: "alat", options: alatOptions, satuanOptions: SATUAN_ALAT })}
                     </div>
                   )}
 
@@ -763,13 +767,7 @@ export function CompletionModal({ requestId, jenisKegiatan, onClose, isRevision 
                   {pinjamBahan === "ya" && (
                     <div>
                       <label className="mb-1.5 block text-sm text-ink">Daftar Bahan yang Dipinjam</label>
-                      <PinjamRowsEditor
-                        list={bahanList}
-                        setList={setBahanList}
-                        label="bahan"
-                        options={bahanOptions}
-                        satuanOptions={SATUAN_BAHAN}
-                      />
+                      {renderPinjamRows({ list: bahanList, setList: setBahanList, label: "bahan", options: bahanOptions, satuanOptions: SATUAN_BAHAN })}
                     </div>
                   )}
                 </div>
