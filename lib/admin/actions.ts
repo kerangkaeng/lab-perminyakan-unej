@@ -51,6 +51,16 @@ export async function upsertRecord(tableName: string, id: string, formData: Form
   const isNew = id === "new";
   const record: Record<string, any> = {};
 
+  // Urutan operasi file vs database (penting supaya tidak ada record yang
+  // menunjuk ke file yang sudah hilang):
+  //   1. upload file baru            -> dicatat di `uploadedNow`
+  //   2. tulis record ke database
+  //   3a. sukses -> baru hapus file LAMA yang digantikan (`replacedOld`)
+  //   3b. gagal  -> hapus file BARU yang barusan diunggah (cegah orphan),
+  //                 file lama tetap utuh karena record belum berubah.
+  const uploadedNow: string[] = [];
+  const replacedOld: unknown[] = [];
+
   // Ambil row lama (kalau edit) supaya file lama bisa dihapus dari B2 saat
   // ada upload baru yang menggantikannya di field yang sama.
   let existingRow: Record<string, any> | null = null;
@@ -73,7 +83,8 @@ export async function upsertRecord(tableName: string, id: string, formData: Form
           field.name,
           field.type as "image" | "pdf" | "file"
         );
-        if (existingRow) await deleteOldFileIfAny(existingRow[field.name]);
+        uploadedNow.push(record[field.name]);
+        if (existingRow) replacedOld.push(existingRow[field.name]);
       } else {
         const existing = formData.get(`${field.name}__existing`);
         if (existing) record[field.name] = existing as string;
@@ -95,13 +106,16 @@ export async function upsertRecord(tableName: string, id: string, formData: Form
     }
   }
 
-  if (isNew) {
-    const { error } = await supabase.from(tableName).insert(record);
-    if (error) throw new Error(`Gagal menyimpan: ${error.message}`);
-  } else {
-    const { error } = await supabase.from(tableName).update(record).eq("id", id);
-    if (error) throw new Error(`Gagal menyimpan: ${error.message}`);
+  const { error: saveError } = isNew
+    ? await supabase.from(tableName).insert(record)
+    : await supabase.from(tableName).update(record).eq("id", id);
+
+  if (saveError) {
+    for (const url of uploadedNow) await deleteOldFileIfAny(url);
+    throw new Error(`Gagal menyimpan: ${saveError.message}`);
   }
+
+  for (const oldValue of replacedOld) await deleteOldFileIfAny(oldValue);
 
   revalidatePath(`/admin/${tableName}`);
   revalidatePath(`/admin/${tableName}/${encodeURIComponent(id)}`);
@@ -119,19 +133,24 @@ export async function deleteRecord(tableName: string, id: string) {
 
   const supabase = supabaseServer();
 
-  // Ambil dulu row-nya supaya file (image/pdf/file) yang menempel ikut
-  // dihapus dari B2 — bukan cuma baris database-nya.
+  // Ambil dulu row-nya supaya file (image/pdf/file) yang menempel bisa ikut
+  // dihapus dari B2 — tapi file BARU dihapus SETELAH baris database berhasil
+  // dihapus. Kalau penghapusan baris gagal (mis. masih direferensikan tabel
+  // lain), file dibiarkan utuh supaya record tidak menunjuk file yang hilang.
   const fileFields = config.fields.filter((f) => ["image", "pdf", "file"].includes(f.type));
+  let row: Record<string, any> | null = null;
   if (fileFields.length > 0) {
-    const { data: row } = await supabase.from(tableName).select("*").eq("id", id).single();
-    if (row) {
-      for (const field of fileFields) {
-        await deleteOldFileIfAny(row[field.name]);
-      }
-    }
+    const { data } = await supabase.from(tableName).select("*").eq("id", id).single();
+    row = data ?? null;
   }
 
   const { error } = await supabase.from(tableName).delete().eq("id", id);
   if (error) throw new Error(`Gagal menghapus: ${error.message}`);
+
+  if (row) {
+    for (const field of fileFields) {
+      await deleteOldFileIfAny(row[field.name]);
+    }
+  }
   revalidatePath(`/admin/${tableName}`);
 }
