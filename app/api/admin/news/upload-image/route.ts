@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
-import { uploadPublicFile, buildKey, assertFileSize, FileTooLargeError } from "@/lib/storage/b2";
+import { uploadPublicFile, buildKey, assertFileSize, FileTooLargeError, InvalidFileTypeError } from "@/lib/storage/b2";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -27,9 +27,12 @@ export async function POST(req: NextRequest) {
   const key = buildKey("news/inline", file.name);
 
   try {
-    const url = await uploadPublicFile(file, key, file.type || "image/jpeg");
+    const url = await uploadPublicFile(file, key, undefined, "image");
     return NextResponse.json({ url });
   } catch (uploadError) {
+    if (uploadError instanceof InvalidFileTypeError) {
+      return NextResponse.json({ error: uploadError.message }, { status: 400 });
+    }
     console.error("Upload gambar inline error", uploadError);
     return NextResponse.json({ error: "Gagal mengunggah gambar." }, { status: 500 });
   }
