@@ -33,10 +33,10 @@ function NavLink({ item }: { item: NavItem }) {
  * sedang aktif; selain itu tertutup. Meluas KE BAWAH di dalam sidebar
  * (bukan flyout ke samping) supaya tidak pernah melebihi lebar sidebar.
  */
-function AccordionSection({ section }: { section: NavSectionData }) {
+function AccordionSection({ section, defaultOpen = false }: { section: NavSectionData; defaultOpen?: boolean }) {
   const pathname = usePathname();
   const anyActive = section.items.some((i) => isActive(pathname, i.href));
-  const [open, setOpen] = useState(anyActive);
+  const [open, setOpen] = useState(anyActive || defaultOpen);
 
   return (
     <div className="w-full min-w-0">
@@ -71,11 +71,11 @@ function AccordionSection({ section }: { section: NavSectionData }) {
   );
 }
 
-export function DashboardNav({ sections }: { sections: NavSectionData[] }) {
+export function DashboardNav({ sections, defaultOpenAll = false }: { sections: NavSectionData[]; defaultOpenAll?: boolean }) {
   return (
     <nav aria-label="Menu dashboard" className="flex w-full min-w-0 flex-col gap-1">
       {sections.map((section) => (
-        <AccordionSection key={section.key} section={section} />
+        <AccordionSection key={section.key} section={section} defaultOpen={defaultOpenAll} />
       ))}
     </nav>
   );
