@@ -47,7 +47,7 @@ export const contentNavItems: DashboardNavItem[] = Object.entries(adminTables).m
 // Hak akses tetap ditentukan oleh `roles` tiap item di atas.
 // ============================================================
 export type DashboardSection = {
-  key: "kegiatan" | "pengelolaan" | "konten" | "publik";
+  key: "kegiatan" | "pengelolaan" | "konten";
   title: string;
   items: DashboardNavItem[];
 };
@@ -67,20 +67,3 @@ export function dashboardSectionsFor(role: DashboardNavItem["roles"][number]): D
   ];
   return sections.filter((s) => s.items.length > 0);
 }
-
-/**
- * Sidebar untuk pengunjung yang BELUM login: hanya informasi publik. Jadwal
- * kegiatan lab terbuka untuk umum (mahasiswa/dosen internal maupun pihak
- * eksternal), jadi tetap bisa dijangkau dari sidebar tanpa login.
- */
-export const guestSections: DashboardSection[] = [
-  {
-    key: "publik",
-    title: "Jadwal & Informasi",
-    items: [
-      { href: "/practicum/jadwal", label: "Jadwal Kegiatan Lab", roles: [] },
-      { href: "/news", label: "Berita", roles: [] },
-      { href: "/practicum/announcements", label: "Pengumuman", roles: [] },
-    ],
-  },
-];
