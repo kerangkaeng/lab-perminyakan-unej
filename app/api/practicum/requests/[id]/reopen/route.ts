@@ -14,9 +14,10 @@ import { supabaseAuthed } from "@/lib/supabase/authed";
 // `completed_at` juga sengaja tidak diubah, dipakai sebagai penanda
 // "request ini pernah completed sebelumnya" (revisi) vs "belum pernah
 // completed sama sekali" (pengisian pertama kali) di frontend.
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const session = await getSession();
-  const token = getSessionToken();
+  const token = await getSessionToken();
 
   if (!session || !token) {
     return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
