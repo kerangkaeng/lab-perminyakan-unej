@@ -6,7 +6,7 @@ import { isProfilePhotoKey } from "@/lib/storage/b2";
 
 export const revalidate = 0;
 
-type UserRow = { id: string; nama: string; nip: string | null; nim: string | null; foto: string | null };
+type UserRow = { id: string; nama: string; nip: string | null; nim: string | null; identifier: string | null; foto: string | null };
 type Row = {
   role_type: string;
   bidang: string | null;
@@ -33,7 +33,9 @@ function toPerson(u: NonNullable<Row["users"]>, roleType: string): OrgPerson {
         ? null
         : roleType === "asisten"
           ? angkatanLabel(user.nim)
-          : user.nip ?? null,
+          // Dosen: NIP. Fallback ke nim/identifier karena akun dosen yang
+          // status SISTER-nya tak terbaca tersimpan di kolom nim.
+          : user.nip ?? user.identifier ?? user.nim ?? null,
     photo: hasPhoto
       ? `/api/public/staff-photo/${user.id}?v=${encodeURIComponent(user.foto!.split("/").pop() ?? "")}`
       : null,
@@ -67,7 +69,7 @@ export default async function StrukturOrganisasiPage() {
 
   const rolesPromise = db
     .from("lab_roles")
-    .select("role_type, bidang, module_id, users!lab_roles_user_id_fkey(id, nama, nip, nim, foto)")
+    .select("role_type, bidang, module_id, users!lab_roles_user_id_fkey(id, nama, nip, nim, identifier, foto)")
     .neq("role_type", "admin")
     .order("created_at", { ascending: true });
 
