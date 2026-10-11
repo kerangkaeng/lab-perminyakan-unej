@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { NewsListActions } from "@/components/admin/NewsListActions";
 import { getSessionToken } from "@/lib/auth/session";
+import { requireAdminSession } from "@/lib/auth/guards";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { NewsRecord } from "@/types";
 import { formatDate } from "@/lib/utils";
@@ -25,6 +26,7 @@ function NewsStatusBadge({ status }: { status: NewsRecord["status"] }) {
 }
 
 export default async function AdminNewsPage() {
+  await requireAdminSession("/admin/news");
   const token = await getSessionToken();
   let items: NewsRecord[] = [];
   let loadError: string | null = null;
