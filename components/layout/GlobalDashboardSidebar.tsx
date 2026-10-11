@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth/session";
-import { dashboardSectionsFor } from "@/lib/nav/dashboardNav";
+import { dashboardSectionsFor, guestSections } from "@/lib/nav/dashboardNav";
 import { DashboardNav } from "@/components/dashboard/DashboardNav";
 import { SidebarShell } from "@/components/layout/SidebarShell";
 import { Avatar } from "@/components/profile/Avatar";
@@ -8,7 +8,24 @@ import { isProfilePhotoKey, profilePhotoUrl } from "@/lib/storage/b2";
 
 export async function GlobalDashboardSidebar() {
   const session = await getSession();
-  if (!session) return null;
+
+  // Belum login: sidebar tetap ada, isinya informasi publik (jadwal, dst).
+  if (!session) {
+    return (
+      <SidebarShell>
+        <DashboardNav sections={guestSections} defaultOpenAll />
+        <div className="mt-6 border-t border-line pt-5">
+          <a
+            href="/login"
+            className="inline-flex bg-petrol px-4 py-2 text-sm font-medium text-paper transition-colors hover:bg-petrol-light"
+          >
+            Masuk
+          </a>
+          <p className="mt-2 text-xs text-core">Masuk dengan SSO UNEJ untuk mengajukan kegiatan.</p>
+        </div>
+      </SidebarShell>
+    );
+  }
 
   const sections = dashboardSectionsFor(session.appRole);
 
