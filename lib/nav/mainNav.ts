@@ -36,7 +36,7 @@ export const mainNav: NavEntry[] = [
     label: "Riset dan Penelitian",
     href: "/research",
     items: [
-      { href: "/research", label: "Riset dan Penelitian" },
+      { href: "/research", label: "Daftar Riset" },
       { href: "/publications", label: "Publikasi" },
     ],
   },
