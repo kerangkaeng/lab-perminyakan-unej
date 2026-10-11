@@ -26,7 +26,7 @@ export const mainNav: NavEntry[] = [
   },
   { label: "Fasilitas", href: "/facilities" },
   {
-    label: "Riset & Publikasi",
+    label: "Riset",
     href: "/research",
     items: [
       { href: "/research", label: "Riset" },
@@ -42,15 +42,18 @@ export const mainNav: NavEntry[] = [
       { href: "/practicum/announcements", label: "Pengumuman" },
     ],
   },
+  // Jadwal kegiatan lab (praktikum maupun non-praktikum) adalah fitur utama
+  // untuk mahasiswa/dosen internal MAUPUN pihak eksternal, jadi berdiri
+  // sendiri di menu atas dan terbuka untuk umum.
+  { label: "Jadwal", href: "/practicum/jadwal" },
   {
-    label: "Praktikum",
+    label: "Layanan Lab",
     href: "/practicum",
     highlight: true,
     items: [
-      { href: "/practicum/modules", label: "Modul Praktikum" },
-      { href: "/practicum/jadwal", label: "Jadwal Praktikum" },
       { href: "/practicum/ajukan", label: "Ajukan Kegiatan" },
       { href: "/practicum/status", label: "Status Pengajuan" },
+      { href: "/practicum/modules", label: "Modul Praktikum" },
     ],
   },
   { label: "Kontak", href: "/contact" },
