@@ -4,8 +4,6 @@ import { supabaseAuthed } from "@/lib/supabase/authed";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
   validateSchedule,
-  findApprovedConflicts,
-  describeConflicts,
   wibDateTime,
 } from "@/lib/practicum/schedule";
 
@@ -77,26 +75,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Laboratorium tidak dikenal." }, { status: 400 });
   }
 
-  // Tolak kalau bentrok dengan kegiatan yang SUDAH DISETUJUI di lab yang sama.
-  // Bentrok dengan yang masih pending tetap diizinkan (admin yang memutuskan).
-  const { data: conflicts, error: conflictError } = await findApprovedConflicts(admin, {
-    lokasi,
-    tanggal: schedule.ok.tanggal,
-    jamMulai,
-    jamSelesai,
-  });
-  if (conflictError) {
-    console.error("Cek bentrok jadwal error", conflictError);
-    return NextResponse.json({ error: "Gagal memeriksa bentrok jadwal." }, { status: 500 });
-  }
-  if (conflicts.length > 0) {
-    return NextResponse.json(
-      {
-        error: `Jadwal bentrok dengan kegiatan yang sudah disetujui di ${lokasi} (${describeConflicts(conflicts)}). Pilih jam atau laboratorium lain.`,
-      },
-      { status: 409 }
-    );
-  }
+  // Bentrok jadwal dengan kegiatan lain di lab yang sama SENGAJA tidak
+  // memblokir: beberapa kegiatan boleh berlangsung bersamaan. Pengaju hanya
+  // diberi peringatan di form (lihat /api/practicum/conflicts).
 
   const insertPayload: Record<string, unknown> = {
     requester_id: session.usersId,
