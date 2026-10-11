@@ -26,8 +26,8 @@ const config: Config = {
         // Token kartu struktur organisasi (tidak memengaruhi bagian situs lain).
         // Satu keluarga warna (turunan petrol) yang makin cerah ke bawah:
         // kalab (deep) -> laboran (mid) -> dosen MK (DEFAULT) -> asisten (putih).
-        tide: { deep: "#B4C9D2", mid: "#CDDCE2", DEFAULT: "#E2EBEF" },
-        oxide: { DEFAULT: "#A04A32", dark: "#8A3C28" }, // garis atas semua kartu identitas
+        tide: { deep: "#B4C9D2", mid: "#CDDCE2", DEFAULT: "#E2EBEF", edge: "#5E8394", top: "#6B90A0" },
+        oxide: { DEFAULT: "#A04A32", dark: "#8A3C28" }, // garis atas dosen MK & asisten (satu grup praktikum)
         muted: "#525B52",     // teks kecil abu-hijau, kontras >= 6.5:1
       },
       fontFamily: {
