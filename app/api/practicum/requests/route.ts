@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
+import { supabaseServer } from "@/lib/supabase/server";
+import {
+  validateSchedule,
+  findApprovedConflicts,
+  describeConflicts,
+  wibDateTime,
+} from "@/lib/practicum/schedule";
 
 const NON_PRAKTIKUM_VALUES = [
   "penelitian_riset",
@@ -40,12 +47,63 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Jenis kegiatan tidak valid." }, { status: 400 });
   }
 
+  // Validasi jadwal di server (browser hanya memberi peringatan, dan bisa
+  // dilewati): format, jam selesai > jam mulai, tanggal tidak boleh lewat.
+  const schedule = validateSchedule(tanggal, jam_mulai, jam_selesai);
+  if ("error" in schedule) {
+    return NextResponse.json({ error: schedule.error }, { status: 400 });
+  }
+  const { jamMulai, jamSelesai } = schedule.ok;
+
+  if (typeof lokasi !== "string" || !lokasi.trim()) {
+    return NextResponse.json({ error: "Laboratorium tidak valid." }, { status: 400 });
+  }
+
+  // Pakai service role: klien mahasiswa tidak bisa melihat pengajuan orang
+  // lain (RLS), jadi pengecekan lokasi & bentrok harus dari sisi server.
+  const admin = supabaseServer();
+
+  const { data: facility, error: facilityError } = await admin
+    .from("facilities")
+    .select("name")
+    .eq("name", lokasi)
+    .limit(1)
+    .maybeSingle();
+  if (facilityError) {
+    console.error("Cek laboratorium error", facilityError);
+    return NextResponse.json({ error: "Gagal memvalidasi laboratorium." }, { status: 500 });
+  }
+  if (!facility) {
+    return NextResponse.json({ error: "Laboratorium tidak dikenal." }, { status: 400 });
+  }
+
+  // Tolak kalau bentrok dengan kegiatan yang SUDAH DISETUJUI di lab yang sama.
+  // Bentrok dengan yang masih pending tetap diizinkan (admin yang memutuskan).
+  const { data: conflicts, error: conflictError } = await findApprovedConflicts(admin, {
+    lokasi,
+    tanggal: schedule.ok.tanggal,
+    jamMulai,
+    jamSelesai,
+  });
+  if (conflictError) {
+    console.error("Cek bentrok jadwal error", conflictError);
+    return NextResponse.json({ error: "Gagal memeriksa bentrok jadwal." }, { status: 500 });
+  }
+  if (conflicts.length > 0) {
+    return NextResponse.json(
+      {
+        error: `Jadwal bentrok dengan kegiatan yang sudah disetujui di ${lokasi} (${describeConflicts(conflicts)}). Pilih jam atau laboratorium lain.`,
+      },
+      { status: 409 }
+    );
+  }
+
   const insertPayload: Record<string, unknown> = {
     requester_id: session.usersId,
     jenis_kegiatan,
-    tanggal,
-    jam_mulai,
-    jam_selesai,
+    tanggal: schedule.ok.tanggal,
+    jam_mulai: jamMulai,
+    jam_selesai: jamSelesai,
     lokasi,
   };
 
@@ -88,7 +146,11 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   const hasOverdueAdmin = (pendingAdmin ?? []).some((r) => {
     // Kegiatan disimpan dalam waktu lokal WIB (UTC+7), Jember/UNEJ.
-    const activityEnd = new Date(`${r.tanggal}T${r.jam_selesai}:00+07:00`);
+    // jam_selesai dari kolom `time` Postgres berformat "HH:MM:SS" — wibDateTime
+    // menormalkannya ke HH:MM (menempel ":00" langsung menghasilkan Invalid
+    // Date sehingga blokir ini tidak pernah aktif).
+    const activityEnd = wibDateTime(r.tanggal, r.jam_selesai);
+    if (!activityEnd) return false;
     return activityEnd.getTime() < now.getTime();
   });
 
