@@ -27,9 +27,10 @@ const VALID_FOR_JENIS: Record<string, Category[]> = {
   non_praktikum: ["doc_kegiatan", "insiden_dokumentasi"],
 };
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const session = await getSession();
-  const token = getSessionToken();
+  const token = await getSessionToken();
   if (!session || !token) {
     return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
   }
@@ -139,9 +140,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 // sebelumnya sudah diisi (lihat `requestData` di response) — makanya
 // route ini sengaja select("*") dan meneruskan field mentahnya, bukan
 // cuma signed URL berkas.
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const session = await getSession();
-  const token = getSessionToken();
+  const token = await getSessionToken();
   if (!session || !token) {
     return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
   }
@@ -232,9 +234,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 // Hapus satu berkas dokumentasi (hanya pengaju, selama administrasi belum
 // selesai). Dipakai untuk mengganti berkas yang salah / membersihkan sisa
 // unggahan lama supaya kuota per kategori tidak terkunci.
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const session = await getSession();
-  const token = getSessionToken();
+  const token = await getSessionToken();
   if (!session || !token) {
     return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
   }
