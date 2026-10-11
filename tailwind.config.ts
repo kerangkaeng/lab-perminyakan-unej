@@ -24,10 +24,10 @@ const config: Config = {
         line: "#D7DCD8",      // hairline border
         mist: "#F6F7F5",      // card background, one step off paper
         // Token kartu struktur organisasi (tidak memengaruhi bagian situs lain).
-        // tide = turunan terang dari petrol, supaya hierarki kartu turun bertahap
-        // (root gelap -> kepala -> dosen -> laboran -> asisten) tanpa lompat warna.
-        tide: { DEFAULT: "#E1EBEF", deep: "#CFDDE3", edge: "#9FB6BF" },
-        oxide: { DEFAULT: "#A04A32", dark: "#8A3C28" }, // aksen kecil untuk asisten
+        // Satu keluarga warna (turunan petrol) yang makin cerah ke bawah:
+        // kalab (deep) -> laboran (mid) -> dosen MK (DEFAULT) -> asisten (putih).
+        tide: { deep: "#B4C9D2", mid: "#CDDCE2", DEFAULT: "#E2EBEF" },
+        oxide: { DEFAULT: "#A04A32", dark: "#8A3C28" }, // garis atas semua kartu identitas
         muted: "#525B52",     // teks kecil abu-hijau, kontras >= 6.5:1
       },
       fontFamily: {
