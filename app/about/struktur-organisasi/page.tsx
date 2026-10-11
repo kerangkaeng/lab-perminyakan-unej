@@ -6,7 +6,7 @@ import { isProfilePhotoKey } from "@/lib/storage/b2";
 
 export const revalidate = 0;
 
-type UserRow = { id: string; nama: string; nip: string | null; foto: string | null };
+type UserRow = { id: string; nama: string; nip: string | null; nim: string | null; foto: string | null };
 type Row = {
   role_type: string;
   bidang: string | null;
@@ -14,15 +14,26 @@ type Row = {
   users: UserRow | UserRow[] | null;
 };
 
-function toPerson(u: NonNullable<Row["users"]>): OrgPerson {
+/** "221910801047" -> "Petroleum Engineering 2022" (2 angka pertama NIM = tahun masuk). */
+function angkatanLabel(nim: string | null): string | null {
+  const m = nim?.trim().match(/^(\d{2})/);
+  return m ? `Petroleum Engineering 20${m[1]}` : null;
+}
+
+function toPerson(u: NonNullable<Row["users"]>, roleType: string): OrgPerson {
   const user = Array.isArray(u) ? u[0] : u;
   const hasPhoto = isProfilePhotoKey(user.foto, user.id);
   return {
     id: user.id,
     nama: user.nama,
-    // NIM mahasiswa (asisten) sengaja TIDAK ditampilkan di halaman publik —
-    // hanya NIP dosen.
-    ident: user.nip ?? null,
+    // Dosen: NIP. Laboran: disembunyikan (nomornya masih NIK). Asisten: NIM
+    // TIDAK ditampilkan, diganti label prodi + tahun masuk.
+    ident:
+      roleType === "laboran"
+        ? null
+        : roleType === "asisten"
+          ? angkatanLabel(user.nim)
+          : user.nip ?? null,
     photo: hasPhoto
       ? `/api/public/staff-photo/${user.id}?v=${encodeURIComponent(user.foto!.split("/").pop() ?? "")}`
       : null,
@@ -56,7 +67,7 @@ export default async function StrukturOrganisasiPage() {
 
   const rolesPromise = db
     .from("lab_roles")
-    .select("role_type, bidang, module_id, users!lab_roles_user_id_fkey(id, nama, nip, foto)")
+    .select("role_type, bidang, module_id, users!lab_roles_user_id_fkey(id, nama, nip, nim, foto)")
     .neq("role_type", "admin")
     .order("created_at", { ascending: true });
 
@@ -76,7 +87,7 @@ export default async function StrukturOrganisasiPage() {
 
   const holder = (type: string, bidang: Bidang): OrgPerson | null => {
     const r = rows.find((x) => x.role_type === type && x.bidang === bidang);
-    return r ? toPerson(r.users!) : null;
+    return r ? toPerson(r.users!, type) : null;
   };
 
   const bidangOfFacility = new Map<string, Bidang>();
@@ -98,8 +109,8 @@ export default async function StrukturOrganisasiPage() {
   const toPraktikum = (m: ModuleRow): PraktikumUnit => ({
     id: m.id,
     title: m.title,
-    dosen: rows.filter((r) => r.role_type === "dosen_mk" && r.module_id === m.id).map((r) => toPerson(r.users!)),
-    asisten: rows.filter((r) => r.role_type === "asisten" && r.module_id === m.id).map((r) => toPerson(r.users!)),
+    dosen: rows.filter((r) => r.role_type === "dosen_mk" && r.module_id === m.id).map((r) => toPerson(r.users!, r.role_type)),
+    asisten: rows.filter((r) => r.role_type === "asisten" && r.module_id === m.id).map((r) => toPerson(r.users!, r.role_type)),
   });
 
   const labs: LabUnit[] = BIDANG_VALUES.map((b) => {
@@ -115,7 +126,7 @@ export default async function StrukturOrganisasiPage() {
     return { key: b, name: BIDANG_LABEL[b], kepala: holder("kepala_lab", b), laboran: holder("laboran", b), praktikum };
   });
 
-  const peneliti = rows.filter((r) => r.role_type === "dosen_peneliti").map((r) => toPerson(r.users!));
+  const peneliti = rows.filter((r) => r.role_type === "dosen_peneliti").map((r) => toPerson(r.users!, r.role_type));
 
   return (
     <div className="py-16">
