@@ -90,6 +90,7 @@ export default async function StatusPengajuanPage() {
                       status={r.status}
                       completed={r.completed}
                       completedAt={r.completed_at}
+                      revisiDiajukanAt={r.revisi_diajukan_at}
                     />
                   </td>
                   <td className="p-4 text-core">{r.catatan_admin || "-"}</td>
