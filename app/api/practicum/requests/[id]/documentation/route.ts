@@ -51,9 +51,7 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
 
   const { data: reqRow, error: fetchError } = await supabase
     .from("practicum_requests")
-    .select(
-      "id, requester_id, jenis_kegiatan, status, completed, doc_pretest, doc_tes_alat, doc_praktikum, doc_kegiatan, insiden_dokumentasi"
-    )
+    .select("*")
     .eq("id", params.id)
     .single();
 
@@ -77,6 +75,12 @@ export async function POST(req: NextRequest, { params: paramsPromise }: { params
   }
   if (reqRow.completed) {
     return NextResponse.json({ error: "Administrasi kegiatan ini sudah ditandai selesai." }, { status: 400 });
+  }
+  if ((reqRow as any).revisi_diajukan_at) {
+    return NextResponse.json(
+      { error: "Revisi sudah dikirim dan sedang menunggu verifikasi admin/asisten." },
+      { status: 409 }
+    );
   }
   if (!VALID_FOR_JENIS[reqRow.jenis_kegiatan]?.includes(category as Category)) {
     return NextResponse.json({ error: "Kategori dokumentasi tidak sesuai jenis kegiatan." }, { status: 400 });
@@ -294,6 +298,12 @@ export async function DELETE(req: NextRequest, { params: paramsPromise }: { para
   }
   if (reqRow.completed) {
     return NextResponse.json({ error: "Administrasi kegiatan ini sudah ditandai selesai." }, { status: 400 });
+  }
+  if ((reqRow as any).revisi_diajukan_at) {
+    return NextResponse.json(
+      { error: "Revisi sudah dikirim dan sedang menunggu verifikasi admin/asisten." },
+      { status: 409 }
+    );
   }
 
   const currentList: string[] = (reqRow as any)[category] ?? [];
