@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
+import { approvalLockReason } from "@/lib/admin/rejectRules";
 
 export async function PATCH(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = await paramsPromise;
@@ -50,22 +51,12 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
   }
 
   // Membatalkan persetujuan (approved -> rejected) hanya boleh selama pengaju
-  // belum memulai/menyelesaikan administrasi. Kalau sudah ada dokumentasi
-  // terunggah atau administrasi selesai, status "ditolak" membuat data
-  // pengaju menggantung dan tidak konsisten.
+  // belum mengunggah dokumentasi / menyelesaikan administrasi. Aturannya satu
+  // sumber di lib/admin/rejectRules.ts (tombol Tolak di UI memakai yang sama).
   if (target.status === "approved" && status === "rejected") {
-    const t = target as unknown as Record<string, unknown>;
-    const hasDocs = ["doc_pretest", "doc_tes_alat", "doc_praktikum", "doc_kegiatan", "insiden_dokumentasi"].some(
-      (k) => Array.isArray(t[k]) && (t[k] as unknown[]).length > 0
-    );
-    if (target.completed || hasDocs) {
-      return NextResponse.json(
-        {
-          error:
-            "Persetujuan tidak bisa dibatalkan karena pengaju sudah mengunggah dokumentasi atau menyelesaikan administrasi.",
-        },
-        { status: 409 }
-      );
+    const lockReason = approvalLockReason(target);
+    if (lockReason) {
+      return NextResponse.json({ error: lockReason }, { status: 409 });
     }
   }
 
