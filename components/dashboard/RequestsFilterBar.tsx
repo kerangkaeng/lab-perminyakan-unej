@@ -15,6 +15,7 @@ const STATUS_OPTIONS = [
   { value: "acted", label: "Sudah Diaksi (Disetujui/Ditolak)" },
   { value: "admin_done", label: "Selesai Administrasi" },
   { value: "activity_pending", label: "Kegiatan Selesai, Administrasi Belum" },
+  { value: "revision_pending", label: "Revisi Menunggu Verifikasi" },
 ];
 
 const SORT_OPTIONS = [
