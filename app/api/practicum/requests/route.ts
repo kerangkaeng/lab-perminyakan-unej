@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, getSessionToken } from "@/lib/auth/session";
 import { supabaseAuthed } from "@/lib/supabase/authed";
 import { supabaseServer } from "@/lib/supabase/server";
-import {
-  validateSchedule,
-  wibDateTime,
-} from "@/lib/practicum/schedule";
+import { validateSchedule } from "@/lib/practicum/schedule";
+import { getSubmissionBlock } from "@/lib/practicum/submissionBlock";
 
 const NON_PRAKTIKUM_VALUES = [
   "penelitian_riset",
@@ -113,36 +111,14 @@ export async function POST(req: NextRequest) {
 
   const supabase = supabaseAuthed(token);
 
-  // Blokir pengajuan baru kalau masih ada kegiatan DISETUJUI yang sudah
-  // LEWAT TANGGAL/JAMNYA tapi administrasinya belum diselesaikan (upload
-  // dokumentasi + lapor insiden). Berlaku lintas jenis kegiatan (praktikum
-  // maupun non-praktikum dihitung bersama).
-  const { data: pendingAdmin } = await supabase
-    .from("practicum_requests")
-    .select("id, tanggal, jam_selesai")
-    .eq("requester_id", session.usersId)
-    .eq("status", "approved")
-    .eq("completed", false);
-
-  const now = new Date();
-  const hasOverdueAdmin = (pendingAdmin ?? []).some((r) => {
-    // Kegiatan disimpan dalam waktu lokal WIB (UTC+7), Jember/UNEJ.
-    // jam_selesai dari kolom `time` Postgres berformat "HH:MM:SS" — wibDateTime
-    // menormalkannya ke HH:MM (menempel ":00" langsung menghasilkan Invalid
-    // Date sehingga blokir ini tidak pernah aktif).
-    const activityEnd = wibDateTime(r.tanggal, r.jam_selesai);
-    if (!activityEnd) return false;
-    return activityEnd.getTime() < now.getTime();
-  });
-
-  if (hasOverdueAdmin) {
-    return NextResponse.json(
-      {
-        error:
-          "Kamu masih punya kegiatan yang sudah selesai tapi administrasinya belum dilengkapi. Mohon selesaikan dulu lewat menu Status Pengajuan sebelum mengajukan kegiatan baru.",
-      },
-      { status: 400 }
-    );
+  // Blokir pengajuan baru kalau pengaju masih punya administrasi yang belum
+  // beres: (1) revisi sudah dikirim tapi belum di-ACC admin/asisten, (2) revisi
+  // diminta tapi belum dikirim, atau (3) kegiatan sudah lewat tapi administrasi
+  // belum dilengkapi. Logic-nya satu sumber di lib/practicum/submissionBlock.ts
+  // (dipakai juga halaman Ajukan Kegiatan untuk peringatan di depan).
+  const block = await getSubmissionBlock(supabase, session.usersId);
+  if (block) {
+    return NextResponse.json({ error: block.message, reason: block.reason }, { status: 400 });
   }
 
   // requester_id dikirim sebagai users.id milik sesi ini; RLS tetap
