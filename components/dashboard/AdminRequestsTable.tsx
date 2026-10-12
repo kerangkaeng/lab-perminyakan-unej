@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { adminPhase } from "@/lib/admin/requestFilters";
 import { PracticumRequest } from "@/types";
 import { StatusBadge } from "./StatusBadge";
 import { DocumentationViewer } from "./DocumentationViewer";
@@ -103,6 +104,37 @@ export function AdminRequestsTable({
     router.refresh();
   }
 
+  async function verifyRevision(id: string, action: "acc" | "revisi_lagi") {
+    setError(null);
+
+    let catatan: string | undefined;
+    if (action === "acc") {
+      const ok = window.confirm("ACC revisi ini? Administrasi akan ditandai Selesai dan pengaju bisa mengajukan kegiatan baru.");
+      if (!ok) return;
+    } else {
+      const input = window.prompt("Bagian mana yang masih perlu diperbaiki? (wajib, akan terlihat oleh pengaju)");
+      // null = Cancel -> batalkan; kosong -> server menolak dengan pesan jelas.
+      if (input === null) return;
+      catatan = input;
+    }
+
+    setLoadingId(id);
+    const res = await fetch(`/api/admin/practicum-requests/${id}/verify-revision`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, catatan }),
+    });
+    setLoadingId(null);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error || "Gagal menyimpan hasil verifikasi.");
+      return;
+    }
+
+    router.refresh();
+  }
+
   if (requests.length === 0) {
     return <p className="text-core text-sm">Belum ada pengajuan masuk.</p>;
   }
@@ -168,17 +200,22 @@ export function AdminRequestsTable({
                     <span className="text-xs text-core">-</span>
                   ) : (
                     <div className="space-y-1.5">
-                      <p
-                        className={`font-mono text-[11px] uppercase tracking-wide ${
-                          r.completed ? "text-petrol" : "text-core"
-                        }`}
-                      >
-                        {r.completed
-                          ? "Selesai"
-                          : r.completed_at
-                          ? "Sedang direvisi"
-                          : "Belum selesai"}
-                      </p>
+                      {(() => {
+                        const phase = adminPhase(r);
+                        const label =
+                          phase === "selesai"
+                            ? "Selesai"
+                            : phase === "menunggu_verifikasi"
+                            ? "Menunggu verifikasi revisi"
+                            : phase === "sedang_direvisi"
+                            ? "Sedang direvisi"
+                            : "Belum selesai";
+                        const color =
+                          phase === "selesai" ? "text-petrol" : phase === "menunggu_verifikasi" ? "text-rig" : "text-core";
+                        return (
+                          <p className={`font-mono text-[11px] uppercase tracking-wide ${color}`}>{label}</p>
+                        );
+                      })()}
                       {r.completed && r.ada_insiden && (
                         <p className="font-mono text-[11px] uppercase tracking-wide text-red-700">
                           Ada Insiden
@@ -191,6 +228,24 @@ export function AdminRequestsTable({
                         >
                           Lihat Dokumentasi
                         </button>
+                      )}
+                      {adminPhase(r) === "menunggu_verifikasi" && allowRevision && (
+                        <div className="flex gap-2 pt-0.5">
+                          <button
+                            disabled={loadingId === r.id}
+                            onClick={() => verifyRevision(r.id, "acc")}
+                            className="text-xs border border-petrol text-petrol px-2.5 py-1 hover:bg-petrol hover:text-paper transition-colors disabled:opacity-50"
+                          >
+                            ACC Revisi
+                          </button>
+                          <button
+                            disabled={loadingId === r.id}
+                            onClick={() => verifyRevision(r.id, "revisi_lagi")}
+                            className="text-xs border border-rig text-rig px-2.5 py-1 hover:bg-rig hover:text-paper transition-colors disabled:opacity-50"
+                          >
+                            Revisi Lagi
+                          </button>
+                        </div>
                       )}
                       {r.completed && allowRevision && (
                         <button
