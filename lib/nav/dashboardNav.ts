@@ -15,6 +15,7 @@ export const primaryNavItems: DashboardNavItem[] = [
   { href: "/practicum/ajukan", label: "Ajukan Kegiatan", roles: ["mahasiswa", "admin", "asisten"] },
   { href: "/practicum/status", label: "Status Pengajuan", roles: ["mahasiswa", "admin", "asisten"] },
   { href: "/practicum/jadwal", label: "Jadwal", roles: ["mahasiswa", "admin", "asisten"] },
+  { href: "/peminjaman", label: "Peminjaman Alat", roles: ["mahasiswa", "admin", "asisten", "dosen"] },
   // asisten ikut ditambahkan di sini — halaman & tombol aksinya sendiri
   // yang menentukan dia cuma bisa lihat, bukan approve/reject (lihat
   // AdminRequestsTable.tsx + canManagePracticumRequests()).
@@ -52,7 +53,7 @@ export type DashboardSection = {
   items: DashboardNavItem[];
 };
 
-const KEGIATAN = new Set(["/practicum/ajukan", "/practicum/status", "/practicum/jadwal"]);
+const KEGIATAN = new Set(["/practicum/ajukan", "/practicum/status", "/practicum/jadwal", "/peminjaman"]);
 const PENGELOLAAN = new Set(["/admin/practicum-requests", "/admin/rekap", "/admin/lab-roles"]);
 
 export function dashboardSectionsFor(role: DashboardNavItem["roles"][number]): DashboardSection[] {
