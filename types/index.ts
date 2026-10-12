@@ -122,6 +122,10 @@ export type PracticumRequest = {
   // ---- Administrasi penyelesaian kegiatan ----
   completed: boolean;
   completed_at: string | null;
+  /** Terisi saat pengaju mengirim revisi & menunggu verifikasi admin/asisten; null di luar itu. */
+  revisi_diajukan_at?: string | null;
+  revisi_diverifikasi_at?: string | null;
+  revisi_diverifikasi_by?: string | null;
   doc_pretest: string[] | null;
   doc_tes_alat: string[] | null;
   doc_praktikum: string[] | null;
