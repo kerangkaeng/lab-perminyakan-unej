@@ -3,7 +3,8 @@ import { supabaseAuthed } from "@/lib/supabase/authed";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ProfilePhoto } from "@/components/profile/ProfilePhoto";
 import type { AppRole } from "@/lib/auth/session";
-import { isProfilePhotoKey, profilePhotoUrl } from "@/lib/storage/b2";
+import { isProfilePhotoKey, profilePhotoUrl, isSignatureKey, signatureUrl } from "@/lib/storage/b2";
+import { SignatureUploader } from "@/components/profile/SignatureUploader";
 import { supabaseServer } from "@/lib/supabase/server";
 import { describeLabRole, type LabRoleType } from "@/lib/lab-roles";
 
@@ -20,6 +21,7 @@ interface UserRow {
   email: string | null;
   fakultas: string | null;
   foto: string | null;
+  ttd?: string | null;
   cas_attributes: Record<string, string[]> | null;
 }
 
@@ -72,7 +74,22 @@ export default async function ProfilePage() {
   // /api/profile/photo. Nilai lama dari SSO diabaikan.
   const fotoUrl =
     session && isProfilePhotoKey(user?.foto, session.usersId) ? profilePhotoUrl(user!.foto!) : null;
-
+    // Tanda tangan (migrasi 010). Best-effort: kalau kolom belum ada, bagian ini disembunyikan.
+  let ttdUrl: string | null = null;
+  let ttdAvailable = false;
+  if (session) {
+    const { data: ttdRow, error: ttdError } = await supabaseServer()
+      .from("users")
+      .select("ttd")
+      .eq("id", session.usersId)
+      .single();
+    if (!ttdError) {
+      ttdAvailable = true;
+      const key = (ttdRow?.ttd as string | null) ?? null;
+      ttdUrl = isSignatureKey(key, session.usersId) ? signatureUrl(key) : null;
+    }
+  }
+  
   // Jabatan Lab yang dipegang user ini (ditetapkan admin).
   let jabatan: string[] = [];
   if (session) {
@@ -119,6 +136,7 @@ export default async function ProfilePage() {
               <p className="mt-1 text-ink">—</p>
             )}
           </div>
+          {ttdAvailable && <SignatureUploader src={ttdUrl} />}
           <ProfileField label="Identifier CAS" value={user?.identifier} />
 
           {session.appRole === "admin" && (
