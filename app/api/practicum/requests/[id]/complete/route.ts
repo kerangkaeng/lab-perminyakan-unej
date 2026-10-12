@@ -112,6 +112,17 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
   if (reqRow.completed) {
     return NextResponse.json({ error: "Administrasi kegiatan ini sudah selesai." }, { status: 400 });
   }
+  // Revisi yang sudah dikirim tidak boleh diubah lagi selagi dicek admin/asisten.
+  if ((reqRow as any).revisi_diajukan_at) {
+    return NextResponse.json(
+      { error: "Revisi sudah dikirim dan sedang menunggu verifikasi admin/asisten." },
+      { status: 409 }
+    );
+  }
+  // completed=false + completed_at terisi = administrasi pernah selesai lalu
+  // dibuka kembali untuk revisi. Revisi TIDAK langsung "Selesai": harus
+  // diverifikasi (ACC) admin/asisten dulu.
+  const isRevision = !!reqRow.completed_at;
 
   // Administrasi baru boleh diselesaikan setelah kegiatannya selesai (WIB);
   // kalau tidak, pengaju bisa menandai selesai sebelum kegiatan terjadi.
@@ -138,11 +149,17 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
     }
   }
 
-  const updatePayload: Record<string, unknown> = {
-    completed: true,
-    completed_at: new Date().toISOString(),
-    ada_insiden: !!ada_insiden,
-  };
+  const updatePayload: Record<string, unknown> = isRevision
+    ? {
+        // completed tetap false; completed_at tetap (penanda "pernah selesai").
+        revisi_diajukan_at: new Date().toISOString(),
+        ada_insiden: !!ada_insiden,
+      }
+    : {
+        completed: true,
+        completed_at: new Date().toISOString(),
+        ada_insiden: !!ada_insiden,
+      };
 
   if (ada_insiden) {
     if (!insiden_jenis || !INSIDEN_VALUES.includes(insiden_jenis)) {
@@ -219,10 +236,16 @@ export async function PATCH(req: NextRequest, { params: paramsPromise }: { param
     updatePayload.peminjaman_bahan = null;
   }
 
-  const { data, error } = await supabase
+  // Jalur revisi menulis kolom baru (revisi_diajukan_at) lewat service role
+  // setelah kepemilikan & status diverifikasi di atas — supaya tidak
+  // bergantung pada policy/trigger kolom untuk pengaju. Pengisian pertama
+  // kali tetap lewat sesi pengaju seperti semula.
+  const writer = isRevision ? supabaseServer() : supabase;
+  const { data, error } = await writer
     .from("practicum_requests")
     .update(updatePayload)
     .eq("id", params.id)
+    .eq("completed", false)
     .select()
     .single();
 
