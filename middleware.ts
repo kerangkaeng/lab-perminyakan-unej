@@ -31,8 +31,10 @@ export async function middleware(req: NextRequest) {
   const isProtectedPracticumRoute =
     pathname.startsWith("/practicum/ajukan") || pathname.startsWith("/practicum/status");
   const isProtectedProfileRoute = pathname.startsWith("/profile");
+  // Peminjaman alat/bahan wajib login SSO (tanda tangan & identitas pemohon ikut ke dokumen).
+  const isProtectedLoanRoute = pathname.startsWith("/peminjaman");
 
-  if (!isAdminRoute && !isProtectedPracticumRoute && !isProtectedProfileRoute) {
+  if (!isAdminRoute && !isProtectedPracticumRoute && !isProtectedProfileRoute && !isProtectedLoanRoute) {
     return NextResponse.next();
   }
 
@@ -67,5 +69,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/practicum/ajukan/:path*", "/practicum/status/:path*", "/profile/:path*"],
+    matcher: ["/admin/:path*", "/practicum/ajukan/:path*", "/practicum/status/:path*", "/profile/:path*", "/peminjaman/:path*"],
 };
