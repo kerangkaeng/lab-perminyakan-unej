@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { adminPhase } from "@/lib/admin/requestFilters";
+import { approvalLockReason } from "@/lib/admin/rejectRules";
 import { PracticumRequest } from "@/types";
 import { StatusBadge } from "./StatusBadge";
 import { DocumentationViewer } from "./DocumentationViewer";
@@ -271,9 +272,10 @@ export function AdminRequestsTable({
                           Setujui
                         </button>
                         <button
-                          disabled={loadingId === r.id || r.status === "rejected"}
+                          disabled={loadingId === r.id || r.status === "rejected" || !!approvalLockReason(r)}
+                          title={approvalLockReason(r) ?? undefined}
                           onClick={() => updateStatus(r.id, "rejected")}
-                          className="text-xs border border-red-400 text-red-700 px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          className="text-xs border border-red-400 text-red-700 px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Tolak
                         </button>
@@ -285,6 +287,11 @@ export function AdminRequestsTable({
                           Hapus
                         </button>
                       </div>
+                      {approvalLockReason(r) && (
+                        <p className="text-[11px] text-core mb-1">
+                          Tidak bisa ditolak: pengaju sudah mengunggah dokumentasi / menyelesaikan administrasi.
+                        </p>
+                      )}
                       {r.catatan_admin && <p className="text-xs text-core">{r.catatan_admin}</p>}
                     </>
                   ) : (
