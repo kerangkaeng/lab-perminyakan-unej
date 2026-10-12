@@ -1,7 +1,13 @@
 import { PracticumRequest } from "@/types";
 import { todayWIB } from "@/lib/practicum/schedule";
 
-export type StatusFilterValue = "all" | "pending" | "acted" | "admin_done" | "activity_pending";
+export type StatusFilterValue =
+  | "all"
+  | "pending"
+  | "acted"
+  | "admin_done"
+  | "activity_pending"
+  | "revision_pending";
 export type SortDirection = "asc" | "desc";
 
 export const STATUS_FILTER_LABELS: Record<StatusFilterValue, string> = {
@@ -10,7 +16,27 @@ export const STATUS_FILTER_LABELS: Record<StatusFilterValue, string> = {
   acted: "Sudah Diaksi (Disetujui/Ditolak)",
   admin_done: "Selesai Administrasi",
   activity_pending: "Kegiatan Selesai, Administrasi Belum",
+  revision_pending: "Revisi Menunggu Verifikasi",
 };
+
+/**
+ * Fase administrasi sebuah pengajuan yang DISETUJUI, turunan dari kolom mentah
+ * (satu sumber kebenaran untuk UI admin, UI pengaju, filter, dan Excel):
+ *  - "selesai"              completed = true
+ *  - "menunggu_verifikasi"  revisi sudah dikirim pengaju, belum di-ACC
+ *  - "sedang_direvisi"      revisi diminta, pengaju belum mengirim
+ *  - "belum_selesai"        belum pernah diselesaikan
+ */
+export type AdminPhase = "selesai" | "menunggu_verifikasi" | "sedang_direvisi" | "belum_selesai";
+
+export function adminPhase(
+  r: Pick<PracticumRequest, "completed" | "completed_at" | "revisi_diajukan_at">
+): AdminPhase {
+  if (r.completed) return "selesai";
+  if (r.completed_at && r.revisi_diajukan_at) return "menunggu_verifikasi";
+  if (r.completed_at) return "sedang_direvisi";
+  return "belum_selesai";
+}
 
 /**
  * Dipakai bersama oleh halaman Kelola Pengajuan (app/admin/practicum-requests/page.tsx)
@@ -29,6 +55,10 @@ export function matchesStatusFilter(r: PracticumRequest, filter: string): boolea
   if (filter === "pending") return r.status === "pending";
   if (filter === "acted") return r.status === "approved" || r.status === "rejected";
   if (filter === "admin_done") return r.status === "approved" && r.completed === true;
+
+  if (filter === "revision_pending") {
+    return r.status === "approved" && adminPhase(r) === "menunggu_verifikasi";
+  }
 
   if (filter === "activity_pending") {
     if (r.status !== "approved" || r.completed) return false;
@@ -82,7 +112,9 @@ export function rawStatusLabel(status: PracticumRequest["status"]): string {
 /** Label status administrasi, dipakai sebagai salah satu kolom Excel. */
 export function adminStatusLabel(r: PracticumRequest): string {
   if (r.status !== "approved") return "-";
-  if (r.completed) return "Selesai";
-  if (r.completed_at) return "Sedang Direvisi";
+  const phase = adminPhase(r);
+  if (phase === "selesai") return "Selesai";
+  if (phase === "menunggu_verifikasi") return "Menunggu Verifikasi Revisi";
+  if (phase === "sedang_direvisi") return "Sedang Direvisi";
   return r.tanggal < todayWIB() ? "Belum Selesai (Kegiatan Sudah Lewat)" : "Belum Selesai";
 }
