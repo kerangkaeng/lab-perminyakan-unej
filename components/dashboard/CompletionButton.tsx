@@ -10,6 +10,7 @@ export function CompletionButton({
   status,
   completed,
   completedAt,
+  revisiDiajukanAt,
 }: {
   requestId: string;
   jenisKegiatan: JenisKegiatan;
@@ -23,6 +24,9 @@ export function CompletionButton({
   // tetap compile — cuma efeknya, tombol akan selalu dianggap "pengisian
   // pertama kali" (bukan revisi) sampai propnya dikirim.
   completedAt?: string | null;
+  // Terisi kalau revisi sudah dikirim & menunggu verifikasi admin/asisten.
+  // Selama itu pengaju tidak bisa mengubah apa pun.
+  revisiDiajukanAt?: string | null;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -33,6 +37,18 @@ export function CompletionButton({
   }
 
   const isRevision = !!completedAt;
+
+  if (isRevision && revisiDiajukanAt) {
+    return (
+      <div className="space-y-1">
+        <p className="font-mono text-[11px] uppercase tracking-wide text-rig">Menunggu Verifikasi</p>
+        <p className="text-xs text-core max-w-[14rem]">
+          Revisi sudah dikirim. Admin/asisten akan memeriksanya. Sebelum disetujui, kamu belum bisa mengajukan
+          kegiatan baru.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <>
