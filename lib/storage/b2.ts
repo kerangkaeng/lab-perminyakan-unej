@@ -369,3 +369,27 @@ export function isProfilePhotoKey(value: string | null | undefined, usersId: str
 export function profilePhotoUrl(key: string): string {
   return `/api/profile/photo?v=${encodeURIComponent(key.split("/").pop() ?? "")}`;
 }
+
+
+// ============================================================
+// Tanda tangan digital — gambar milik tiap user, diunggah sendiri di
+// halaman Profil. Bucket PRIVAT (key `signature/<usersId>/...`); tidak
+// pernah dilayani publik, hanya ditempel ke PDF dokumen peminjaman oleh
+// server atau dilihat pemiliknya sendiri.
+// ============================================================
+export const SIGNATURE_PREFIX = "signature/";
+export const MAX_SIGNATURE_BYTES = 1 * 1024 * 1024; // 1 MB
+
+/** Hanya PNG/JPG (PDF generator tidak bisa menyematkan WebP). */
+export const SIGNATURE_TYPES: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+};
+
+export function isSignatureKey(value: string | null | undefined, usersId: string): value is string {
+  return !!value && value.startsWith(`${SIGNATURE_PREFIX}${usersId}/`);
+}
+
+export function signatureUrl(key: string): string {
+  return `/api/profile/signature?v=${encodeURIComponent(key.split("/").pop() ?? "")}`;
+}
