@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { LoanStatusBadge, ApprovalBadge } from "@/components/loans/LoanStatusBadge";
 import { LoanReviewActions } from "@/components/loans/LoanReviewActions";
+import { DeleteLoanButton } from "@/components/loans/DeleteLoanButton";
 import { getSession } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { loadApprovals } from "@/lib/loans/approvers";
@@ -46,14 +47,15 @@ export default async function KelolaPeminjamanPage() {
   const { data, error } = await db
     .from("equipment_loans")
     .select("*")
-    .in("status", ["menunggu_acc", "ditolak", "disetujui"])
+    .in("status", ["menunggu_upload", "menunggu_acc", "ditolak", "disetujui"])
     .order("created_at", { ascending: false })
     .limit(200);
 
   // Admin melihat semua; Kepala Lab/Laboran hanya yang melibatkan bidangnya.
   const mySlotBidang = new Set(reviewer.slots.map((s) => s.bidang));
   const loans = ((data ?? []) as LoanRecord[])
-    .filter((l) => reviewer.isAdmin || l.bidang.some((b) => mySlotBidang.has(b)))
+    // "menunggu_upload" (belum ada dokumen) hanya ditampilkan ke admin, supaya bisa dihapus kalau salah isi.
+    .filter((l) => (reviewer.isAdmin && l.status === "menunggu_upload") || (l.status !== "menunggu_upload" && (reviewer.isAdmin || l.bidang.some((b) => mySlotBidang.has(b)))))
     .sort((a, b) => ORDER[a.status] - ORDER[b.status]);
 
   const approvals = await loadApprovals(db, loans.map((l) => l.id)).catch(() => new Map());
@@ -70,14 +72,14 @@ export default async function KelolaPeminjamanPage() {
       <p className="mb-8 max-w-2xl text-core">
         Tinjau dokumen peminjaman yang sudah ditandatangani pengaju.
         {viewOnly
-          ? " Sebagai admin Anda hanya dapat melihat; persetujuan atau penolakan dilakukan oleh Kepala Lab dan Laboran."
+          ? " Sebagai admin Anda hanya dapat melihat; persetujuan atau penolakan dilakukan oleh Kepala Lab dan Laboran. Pengajuan yang belum mengunggah dokumen dapat dihapus."
           : " Setujui atau tolak peminjaman yang menunggu keputusan Anda."}
       </p>
 
       {error ? (
         <p className="max-w-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">Gagal memuat data peminjaman.</p>
       ) : loans.length === 0 ? (
-        <p className="text-sm text-core">Belum ada dokumen peminjaman yang diunggah.</p>
+        <p className="text-sm text-core">Belum ada pengajuan peminjaman.</p>
       ) : (
         <ul className="max-w-3xl divide-y divide-line border border-line">
           {loans.map((loan) => {
@@ -143,6 +145,12 @@ export default async function KelolaPeminjamanPage() {
                   )}
                 </div>
 
+                {loan.status === "menunggu_upload" && (
+                  <p className="text-xs text-core">Pengaju belum mengunggah dokumen bertanda tangan.</p>
+                )}
+                {reviewer.isAdmin && loan.status === "menunggu_upload" && !loan.signed_doc_key && (
+                  <DeleteLoanButton loanId={loan.id} />
+                )}
                 {canDecide && <LoanReviewActions loanId={loan.id} />}
               </li>
             );
