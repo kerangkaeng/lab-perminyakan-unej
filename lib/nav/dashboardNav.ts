@@ -16,6 +16,10 @@ export const primaryNavItems: DashboardNavItem[] = [
   { href: "/practicum/status", label: "Status Pengajuan", roles: ["mahasiswa", "admin", "asisten"] },
   { href: "/practicum/jadwal", label: "Jadwal", roles: ["mahasiswa", "admin", "asisten"] },
   { href: "/peminjaman", label: "Peminjaman Alat", roles: ["mahasiswa", "admin", "asisten", "dosen"] },
+  { href: "/peminjaman/status", label: "Status Peminjaman", roles: ["mahasiswa", "admin", "asisten", "dosen"] },
+  // Admin: hanya meninjau. Kepala Lab/Laboran masuk lewat tombol "Kelola Peminjaman" di
+  // Status Peminjaman (hak akses dicek di halamannya, dari lab_roles).
+  { href: "/peminjaman/kelola", label: "Kelola Peminjaman", roles: ["admin"] },
   // asisten ikut ditambahkan di sini — halaman & tombol aksinya sendiri
   // yang menentukan dia cuma bisa lihat, bukan approve/reject (lihat
   // AdminRequestsTable.tsx + canManagePracticumRequests()).
@@ -53,8 +57,8 @@ export type DashboardSection = {
   items: DashboardNavItem[];
 };
 
-const KEGIATAN = new Set(["/practicum/ajukan", "/practicum/status", "/practicum/jadwal", "/peminjaman"]);
-const PENGELOLAAN = new Set(["/admin/practicum-requests", "/admin/rekap", "/admin/lab-roles"]);
+const KEGIATAN = new Set(["/practicum/ajukan", "/practicum/status", "/practicum/jadwal", "/peminjaman", "/peminjaman/status"]);
+const PENGELOLAAN = new Set(["/admin/practicum-requests", "/peminjaman/kelola", "/admin/rekap", "/admin/lab-roles"]);
 
 export function dashboardSectionsFor(role: DashboardNavItem["roles"][number]): DashboardSection[] {
   const visible = (items: DashboardNavItem[]) => items.filter((i) => i.roles.includes(role));
