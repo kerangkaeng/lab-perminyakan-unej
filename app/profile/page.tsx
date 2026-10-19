@@ -92,11 +92,14 @@ export default async function ProfilePage() {
   
   // Jabatan Lab yang dipegang user ini (ditetapkan admin).
   let jabatan: string[] = [];
+  // Hanya Kepala Lab & Laboran yang perlu tanda tangan elektronik (dipakai di surat persetujuan).
+  let isSigner = false;
   if (session) {
     const { data: rows } = await supabaseServer()
       .from("lab_roles")
       .select("role_type, bidang, practicum_modules(title)")
       .eq("user_id", session.usersId);
+    isSigner = ((rows ?? []) as any[]).some((r) => r.role_type === "kepala_lab" || r.role_type === "laboran");
     jabatan = ((rows ?? []) as any[]).map((r) =>
       describeLabRole(r.role_type as LabRoleType, r.bidang, r.practicum_modules?.title ?? null)
     );
@@ -136,7 +139,7 @@ export default async function ProfilePage() {
               <p className="mt-1 text-ink">—</p>
             )}
           </div>
-          {ttdAvailable && <SignatureUploader src={ttdUrl} />}
+          {ttdAvailable && isSigner && <SignatureUploader src={ttdUrl} />}
           <ProfileField label="Identifier CAS" value={user?.identifier} />
 
           {session.appRole === "admin" && (
