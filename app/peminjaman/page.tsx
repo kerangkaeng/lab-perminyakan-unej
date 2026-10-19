@@ -4,7 +4,6 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { LoanForm, type LoanEquipmentOption } from "@/components/loans/LoanForm";
 import { getSession } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase/server";
-import { isSignatureKey } from "@/lib/storage/b2";
 import { DEFAULT_BIDANG_ALAT_UMUM, LAB_TITLE, formatTanggalId, sortBidang, type LoanRecord } from "@/lib/loans/config";
 import { BIDANG_VALUES, type Bidang } from "@/lib/lab-roles";
 
@@ -53,7 +52,6 @@ export default async function PeminjamanPage() {
     };
   });
 
-  const hasSignature = !meErr && isSignatureKey((me?.ttd as string | null) ?? null, session.usersId);
   const loans = (loanRows ?? []) as LoanRecord[];
   const migrationMissing = !!meErr;
 
@@ -74,7 +72,7 @@ export default async function PeminjamanPage() {
           Fitur peminjaman belum aktif di database (migrasi 010 belum dijalankan).
         </p>
       ) : (
-        <LoanForm options={options} hasSignature={hasSignature} />
+        <LoanForm options={options} />
       )}
 
       <section className="mt-14 max-w-3xl">
