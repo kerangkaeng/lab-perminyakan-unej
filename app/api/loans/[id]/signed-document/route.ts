@@ -4,12 +4,13 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { deletePrivateFile, fetchPrivateFileForProxy, sniffUploadType, uploadPrivateFile } from "@/lib/storage/b2";
 import { MAX_LOAN_SCAN_BYTES, type LoanRecord } from "@/lib/loans/config";
 import { resetApprovalSlots } from "@/lib/loans/approvers";
+import { canViewLoan, loadLoanReviewer } from "@/lib/loans/access";
 
 // Dokumen peminjaman yang SUDAH ditandatangani basah (scan/foto), diunggah
 // pengaju di /peminjaman/status. Disimpan di bucket privat.
 //   POST : pengaju mengunggah (status menunggu_upload atau ditolak -> menunggu_acc;
 //          semua persetujuan di-reset ke "pending").
-//   GET  : melihat berkas — pengaju sendiri atau admin (Kepala Lab/Laboran).
+//   GET  : melihat berkas — pengaju sendiri, admin, atau Kepala Lab/Laboran bidang terkait.
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -121,8 +122,16 @@ export async function GET(_req: NextRequest, { params: paramsPromise }: { params
     console.error("Ambil equipment_loans error", error);
     return NextResponse.json({ error: "Gagal memuat data peminjaman." }, { status: 500 });
   }
-  if (!loan || (loan.requester_id !== session.usersId && session.appRole !== "admin")) {
-    return NextResponse.json({ error: "Dokumen tidak ditemukan." }, { status: 404 });
+  if (!loan) return NextResponse.json({ error: "Dokumen tidak ditemukan." }, { status: 404 });
+  if (loan.requester_id !== session.usersId) {
+    let allowed = false;
+    try {
+      const reviewer = await loadLoanReviewer(supabaseServer(), session);
+      allowed = canViewLoan(reviewer, session, loan);
+    } catch (e) {
+      console.error("loadLoanReviewer error", e);
+    }
+    if (!allowed) return NextResponse.json({ error: "Dokumen tidak ditemukan." }, { status: 404 });
   }
   if (!loan.signed_doc_key || !loan.signed_doc_mime || !ALLOWED_MIME.includes(loan.signed_doc_mime)) {
     return NextResponse.json({ error: "Belum ada dokumen yang diunggah." }, { status: 404 });
