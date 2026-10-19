@@ -1,4 +1,8 @@
-// Generator PDF "Formulir Peminjaman Alat dan Bahan".
+// Generator PDF peminjaman alat/bahan. Dua jenis dokumen (LoanPdfData.mode):
+//   - "form"     : template formulir yang diunduh pengaju. Blok tanda tangan
+//                  KOSONG (ttd basah): Dosen Pembimbing di kiri, Pemohon di kanan.
+//   - "approval" : surat persetujuan setelah ACC; memuat tanda tangan
+//                  elektronik Kepala Lab dan Laboran.
 //
 // Header (kop surat) TIDAK digambar ulang di kode: halaman template
 // (lib/loans/templates/header-*.pdf, hasil konversi dari template .docx)
@@ -29,6 +33,12 @@ export type PdfSigner = {
 };
 
 export type LoanPdfData = {
+  /** "form" = template ttd basah; "approval" = surat persetujuan ber-ttd elektronik. */
+  mode: "form" | "approval";
+  /** Dosen pembimbing (mahasiswa saja); null untuk dosen/tendik. */
+  dospem: { nama: string; nip: string | null } | null;
+  /** Tanggal ACC terakhir (hanya mode "approval"). */
+  approvedAt?: Date | null;
   requester: {
     nama: string;
     idNumber: string | null;
@@ -313,7 +323,11 @@ async function drawSigners(ctx: Ctx, signers: PdfSigner[]) {
 
 export async function buildLoanPdf(data: LoanPdfData, headerPdf: Uint8Array): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  doc.setTitle("Formulir Peminjaman Alat dan Bahan Laboratorium");
+  doc.setTitle(
+    data.mode === "approval"
+      ? "Surat Persetujuan Peminjaman Alat dan Bahan Laboratorium"
+      : "Formulir Peminjaman Alat dan Bahan Laboratorium"
+  );
   doc.setProducer("Laboratorium Teknik Perminyakan UNEJ");
   doc.setCreator("Laboratorium Teknik Perminyakan UNEJ");
 
@@ -327,7 +341,10 @@ export async function buildLoanPdf(data: LoanPdfData, headerPdf: Uint8Array): Pr
   newPage(ctx);
 
   // ---- judul ----
-  const title = "FORMULIR PEMINJAMAN ALAT DAN BAHAN LABORATORIUM";
+  const title =
+    data.mode === "approval"
+      ? "SURAT PERSETUJUAN PEMINJAMAN ALAT DAN BAHAN LABORATORIUM"
+      : "FORMULIR PEMINJAMAN ALAT DAN BAHAN LABORATORIUM";
   const titleSize = 12.5;
   const tw = bold.widthOfTextAtSize(title, titleSize);
   ctx.y -= titleSize;
@@ -341,7 +358,7 @@ export async function buildLoanPdf(data: LoanPdfData, headerPdf: Uint8Array): Pr
   ctx.y -= 22;
 
   // ---- identitas pemohon ----
-  paragraph(ctx, "Yang bertanda tangan di bawah ini:", { gapAfter: 4 });
+  paragraph(ctx, data.mode === "approval" ? "Pemohon peminjaman:" : "Yang bertanda tangan di bawah ini:", { gapAfter: 4 });
   const r = data.requester;
   const idRows: [string, string][] = [
     ["Nama", r.nama],
@@ -351,6 +368,10 @@ export async function buildLoanPdf(data: LoanPdfData, headerPdf: Uint8Array): Pr
   if (r.fakultas) idRows.push(["Fakultas", r.fakultas]);
   if (r.status) idRows.push(["Status", r.status.charAt(0).toUpperCase() + r.status.slice(1)]);
   idRows.push(["Nomor Kontak", r.kontak]);
+  if (data.dospem) {
+    idRows.push(["Dosen Pembimbing", data.dospem.nama]);
+    if (data.dospem.nip) idRows.push(["NIP Dosen Pembimbing", data.dospem.nip]);
+  }
 
   const LABEL_W = 138;
   const INDENT = 18;
@@ -375,13 +396,25 @@ export async function buildLoanPdf(data: LoanPdfData, headerPdf: Uint8Array): Pr
   const periode = sameDay
     ? `pada tanggal ${formatTanggalId(data.tanggalPinjam)}`
     : `mulai tanggal ${formatTanggalId(data.tanggalPinjam)} sampai dengan ${formatTanggalId(data.tanggalKembali)}`;
-  paragraph(
-    ctx,
-    `Dengan ini mengajukan permohonan peminjaman alat dan/atau bahan di ${labs}, Program Studi Teknik Perminyakan, ` +
-      `Fakultas Teknik Universitas Jember, untuk keperluan ${data.keperluan.trim().replace(/[.\s]+$/, "")}. ` +
-      `Peminjaman direncanakan ${periode}, dengan rincian sebagai berikut:`,
-    { gapAfter: 8 }
-  );
+  const keperluanClean = data.keperluan.trim().replace(/[.\s]+$/, "");
+  if (data.mode === "approval") {
+    const tgl = data.approvedAt ? ` pada tanggal ${formatTanggalId(data.approvedAt)}` : "";
+    paragraph(
+      ctx,
+      `Permohonan peminjaman alat dan/atau bahan di ${labs}, Program Studi Teknik Perminyakan, ` +
+        `Fakultas Teknik Universitas Jember, untuk keperluan ${keperluanClean}, yang direncanakan ${periode}, ` +
+        `telah diperiksa dan DISETUJUI oleh Kepala Laboratorium dan Teknisi Laboratorium${tgl}, dengan rincian sebagai berikut:`,
+      { gapAfter: 8 }
+    );
+  } else {
+    paragraph(
+      ctx,
+      `Dengan ini mengajukan permohonan peminjaman alat dan/atau bahan di ${labs}, Program Studi Teknik Perminyakan, ` +
+        `Fakultas Teknik Universitas Jember, untuk keperluan ${keperluanClean}. ` +
+        `Peminjaman direncanakan ${periode}, dengan rincian sebagai berikut:`,
+      { gapAfter: 8 }
+    );
+  }
 
   // ---- tabel ----
   drawTable(ctx, data.items);
@@ -389,9 +422,13 @@ export async function buildLoanPdf(data: LoanPdfData, headerPdf: Uint8Array): Pr
 
   // ---- penutup ----
   const closing =
-    "Demikian permohonan ini kami sampaikan. Peminjam bersedia menggunakan alat dan bahan sesuai prosedur " +
-    "(SOP) laboratorium, menjaga kebersihan dan keutuhannya, serta mengembalikannya tepat waktu dalam kondisi baik. " +
-    "Apabila terjadi kerusakan atau kehilangan, peminjam bersedia bertanggung jawab sesuai ketentuan yang berlaku di laboratorium.";
+    data.mode === "approval"
+      ? "Peminjam wajib menggunakan alat dan bahan sesuai prosedur (SOP) laboratorium, menjaga kebersihan dan keutuhannya, " +
+        "serta mengembalikannya tepat waktu dalam kondisi baik. Apabila terjadi kerusakan atau kehilangan, peminjam bertanggung " +
+        "jawab sesuai ketentuan yang berlaku di laboratorium. Surat ini dapat ditunjukkan sebagai bukti persetujuan peminjaman."
+      : "Demikian permohonan ini kami sampaikan. Peminjam bersedia menggunakan alat dan bahan sesuai prosedur " +
+        "(SOP) laboratorium, menjaga kebersihan dan keutuhannya, serta mengembalikannya tepat waktu dalam kondisi baik. " +
+        "Apabila terjadi kerusakan atau kehilangan, peminjam bersedia bertanggung jawab sesuai ketentuan yang berlaku di laboratorium.";
   // Paragraf penutup selalu satu halaman dengan tanda tangan: kalau keduanya tidak muat
   // di sisa halaman, pindah bersama-sama (tidak ada halaman yang isinya cuma tanda tangan).
   const closingH = wrap(regular, closing, BODY_SIZE, CONTENT_W).length * lineHeight(BODY_SIZE);
