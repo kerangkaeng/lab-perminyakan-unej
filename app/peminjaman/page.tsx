@@ -76,7 +76,12 @@ export default async function PeminjamanPage() {
       )}
 
       <section className="mt-14 max-w-3xl">
-        <h2 className="mb-3 font-display text-lg font-semibold">Riwayat peminjaman</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-display text-lg font-semibold">Riwayat peminjaman</h2>
+          <Link href="/peminjaman/status" className="text-sm text-petrol underline">
+            Unggah dokumen bertanda tangan / cek status
+          </Link>
+        </div>
         {loans.length === 0 ? (
           <p className="text-sm text-core">Belum ada dokumen peminjaman.</p>
         ) : (
