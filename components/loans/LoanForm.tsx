@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { SATUAN_ALAT, SATUAN_BAHAN } from "@/lib/constants/kegiatan";
@@ -28,11 +27,9 @@ function todayLocal(): string {
 
 export function LoanForm({
   options,
-  hasSignature,
   defaultKontak = "",
 }: {
   options: LoanEquipmentOption[];
-  hasSignature: boolean;
   defaultKontak?: string;
 }) {
   const router = useRouter();
@@ -96,8 +93,6 @@ export function LoanForm({
     setError(null);
     setCreatedId(null);
 
-    if (!hasSignature) return setError("Unggah tanda tangan kamu dulu di halaman Profil.");
-
     const filled = rows.filter((r) => r.equipmentId || r.jumlah || r.satuan);
     if (filled.length === 0) return setError("Mohon pilih minimal satu alat/bahan.");
     for (const r of filled) {
@@ -160,16 +155,6 @@ export function LoanForm({
 
   return (
     <div className="max-w-3xl space-y-8">
-      {!hasSignature && (
-        <div className="border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Kamu belum mengunggah tanda tangan. Dokumen peminjaman memakai tanda tangan dari Profil kamu.{" "}
-          <Link href="/profile" className="font-medium underline">
-            Unggah di Profil
-          </Link>
-          .
-        </div>
-      )}
-
       <section>
         <h2 className="mb-3 font-display text-lg font-semibold">1. Alat &amp; bahan yang dipinjam</h2>
         <div className="space-y-2">
