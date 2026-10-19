@@ -351,7 +351,11 @@ export function LoanForm({
           <a href={`/api/loans/${createdId}/pdf`} target="_blank" rel="noopener noreferrer" className="font-medium underline">
             buka PDF di sini
           </a>
-          . Dokumen juga tersimpan di Riwayat di bawah.
+          . Setelah ditandatangani basah, unggah hasil scan/foto di{" "}
+          <a href="/peminjaman/status" className="font-medium underline">
+            Status Peminjaman
+          </a>
+          .
         </p>
       )}
 
