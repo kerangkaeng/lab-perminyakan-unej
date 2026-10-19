@@ -72,7 +72,7 @@ export default async function PeminjamanPage() {
           Fitur peminjaman belum aktif di database (migrasi 010 belum dijalankan).
         </p>
       ) : (
-        <LoanForm options={options} />
+        <LoanForm options={options} needsDospem={!!session.nim} />
       )}
 
       <section className="mt-14 max-w-3xl">
