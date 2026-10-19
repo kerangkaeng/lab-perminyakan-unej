@@ -53,6 +53,55 @@ export function primaryBidang(items: Pick<LoanItem, "bidang">[]): Bidang {
   return tied.includes("reservoir") ? "reservoir" : tied[0];
 }
 
+// ---------- Alur peminjaman (status & persetujuan) ----------
+//
+//  menunggu_upload : form terkirim; pengaju mengunduh template, menandatangani
+//                    basah (dospem kiri, pengaju kanan), lalu mengunggah hasil scan/foto.
+//  menunggu_acc    : dokumen bertanda tangan sudah diunggah; menunggu ACC
+//                    Kepala Lab + Laboran (tiap bidang yang alatnya dipinjam).
+//  ditolak         : salah satu penyetujui menolak (ada catatan). Pengaju boleh
+//                    mengunggah ulang dokumen -> kembali ke menunggu_acc.
+//  disetujui       : semua penyetujui ACC -> surat persetujuan (ttd elektronik) tersedia.
+//  legacy          : data dari alur lama (dokumen dibuat sendiri tanpa persetujuan).
+export const LOAN_STATUSES = ["menunggu_upload", "menunggu_acc", "ditolak", "disetujui", "legacy"] as const;
+export type LoanStatus = (typeof LOAN_STATUSES)[number];
+
+export const LOAN_STATUS_LABEL: Record<LoanStatus, string> = {
+  menunggu_upload: "Menunggu Upload Dokumen",
+  menunggu_acc: "Menunggu Persetujuan",
+  ditolak: "Ditolak",
+  disetujui: "Disetujui",
+  legacy: "Format Lama",
+};
+
+/** Batas ukuran scan/foto dokumen bertanda tangan basah (di bawah batas body 4,5 MB platform serverless). */
+export const MAX_LOAN_SCAN_BYTES = 4 * 1024 * 1024;
+export const MAX_DOSPEM_NAMA = 150;
+
+/** Mahasiswa (punya NIM) wajib mengisi dosen pembimbing; dosen/tendik tidak. */
+export function requiresDospem(nim: string | null | undefined): boolean {
+  return !!nim;
+}
+
+export type ApprovalRole = "kepala_lab" | "laboran";
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
+export type LoanApproval = {
+  id: string;
+  loan_id: string;
+  role_type: ApprovalRole;
+  bidang: Bidang;
+  status: ApprovalStatus;
+  approver_id: string | null;
+  decided_at: string | null;
+  catatan: string | null;
+};
+
+/** Mis. "Kepala Lab Reservoir" / "Laboran Pemboran dan Produksi". */
+export function approvalTitle(role: ApprovalRole, bidang: Bidang): string {
+  return `${role === "kepala_lab" ? "Kepala Lab" : "Laboran"} ${LAB_TITLE[bidang]}`;
+}
+
 export type LoanRecord = {
   id: string;
   requester_id: string;
@@ -62,8 +111,16 @@ export type LoanRecord = {
   tanggal_kembali: string;
   items: LoanItem[];
   bidang: Bidang[];
-  status: string;
+  status: LoanStatus;
   created_at: string;
+  dospem_nama: string | null;
+  dospem_nip: string | null;
+  signed_doc_key: string | null;
+  signed_doc_mime: string | null;
+  signed_uploaded_at: string | null;
+  approved_at: string | null;
+  rejected_at: string | null;
+  catatan_penolakan: string | null;
 };
 
 const BULAN = [
