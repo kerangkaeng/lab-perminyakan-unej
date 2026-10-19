@@ -17,10 +17,7 @@ import {
 import { buildLoanPdf, type PdfSigner } from "@/lib/loans/pdf";
 import type { Bidang } from "@/lib/lab-roles";
 
-const HEADER_FILE: Record<Bidang, string> = {
-  reservoir: "header-reservoir.pdf",
-  pemboran_produksi: "header-pemboran-produksi.pdf",
-};
+const LOGO_FILE = "logo-unej.png";
 
 type UserLite = {
   id: string;
@@ -39,8 +36,8 @@ async function loadSignature(user: UserLite | null): Promise<Uint8Array | null> 
   return file ? file.body : null;
 }
 
-async function loadHeader(bidang: Bidang): Promise<Uint8Array> {
-  const file = path.join(process.cwd(), "lib", "loans", "templates", HEADER_FILE[bidang]);
+async function loadLogo(): Promise<Uint8Array> {
+  const file = path.join(process.cwd(), "lib", "loans", "templates", LOGO_FILE);
   return new Uint8Array(await readFile(file));
 }
 
@@ -59,6 +56,7 @@ async function loadRequester(loan: LoanRecord): Promise<RequesterRow> {
 function baseData(loan: LoanRecord, requester: RequesterRow, bidang: Bidang[]) {
   const isMhs = !!requester.nim;
   return {
+    headerBidang: primaryBidang(loan.items),
     dospem: loan.dospem_nama ? { nama: loan.dospem_nama, nip: loan.dospem_nip } : null,
     requester: {
       nama: requester.nama,
@@ -109,8 +107,8 @@ export async function generateLoanTemplatePdf(loan: LoanRecord): Promise<Uint8Ar
     },
   ];
 
-  const header = await loadHeader(primaryBidang(loan.items));
-  return buildLoanPdf({ ...baseData(loan, requester, bidang), mode: "form", signers }, header);
+  const logoPng = await loadLogo();
+  return buildLoanPdf({ ...baseData(loan, requester, bidang), mode: "form", signers }, logoPng);
 }
 
 /**
@@ -183,6 +181,6 @@ export async function generateLoanApprovalPdf(loan: LoanRecord): Promise<Uint8Ar
     });
   }
 
-  const header = await loadHeader(primaryBidang(loan.items));
-  return buildLoanPdf({ ...baseData(loan, requester, bidang), mode: "approval", approvedAt, signers }, header);
+  const logoPng = await loadLogo();
+  return buildLoanPdf({ ...baseData(loan, requester, bidang), mode: "approval", approvedAt, signers }, logoPng);
 }
