@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase/server";
-import { isSignatureKey } from "@/lib/storage/b2";
+import { findMissingStaff, resetApprovalSlots } from "@/lib/loans/approvers";
 import {
   DEFAULT_BIDANG_ALAT_UMUM,
+  MAX_DOSPEM_NAMA,
   MAX_KEPERLUAN,
   MAX_LOAN_DAYS,
   MAX_LOAN_ITEMS,
   MAX_LOAN_JUMLAH,
+  requiresDospem,
   satuanFor,
   sortBidang,
   type LoanItem,
@@ -15,14 +17,17 @@ import {
 } from "@/lib/loans/config";
 import { BIDANG_VALUES, type Bidang } from "@/lib/lab-roles";
 
-// Pengajuan peminjaman alat/bahan. Semua penulisan lewat service role setelah
-// sesi, item, dan tanda tangan pemohon divalidasi di sini — nama alat & lab
-// diambil dari database, BUKAN dari kiriman client.
+// Pengajuan peminjaman alat/bahan (langkah 1 alur baru). Semua penulisan lewat
+// service role setelah sesi & item divalidasi di sini — nama alat & lab diambil
+// dari database, BUKAN dari kiriman client. Pengaju TIDAK perlu tanda tangan
+// elektronik: status awal "menunggu_upload", pengaju mengunduh template, ttd
+// basah, lalu mengunggahnya di /peminjaman/status.
 
 export const dynamic = "force-dynamic";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const PHONE_RE = /^[0-9+\-\s()]{8,20}$/;
+const NIP_RE = /^[0-9\s]{8,25}$/;
 
 function isValidDate(s: unknown): s is string {
   if (typeof s !== "string" || !DATE_RE.test(s)) return false;
@@ -64,6 +69,19 @@ export async function POST(req: NextRequest) {
     return bad(`Lama peminjaman maksimal ${MAX_LOAN_DAYS} hari.`);
   }
 
+  // Dosen pembimbing: wajib untuk mahasiswa (punya NIM), diabaikan untuk dosen/tendik.
+  let dospemNama: string | null = null;
+  let dospemNip: string | null = null;
+  if (requiresDospem(session.nim)) {
+    const nama: string = typeof body.dospem_nama === "string" ? body.dospem_nama.replace(/\s+/g, " ").trim() : "";
+    const nipRaw: string = typeof body.dospem_nip === "string" ? body.dospem_nip.trim() : "";
+    if (nama.length < 3) return bad("Nama lengkap dosen pembimbing (beserta gelar) wajib diisi.");
+    if (nama.length > MAX_DOSPEM_NAMA) return bad(`Nama dosen pembimbing maksimal ${MAX_DOSPEM_NAMA} karakter.`);
+    if (!NIP_RE.test(nipRaw)) return bad("NIP dosen pembimbing tidak valid (hanya angka, 8–25 digit).");
+    dospemNama = nama;
+    dospemNip = nipRaw.replace(/\s+/g, "");
+  }
+
   const rawItems: unknown = body.items;
   if (!Array.isArray(rawItems) || rawItems.length === 0) return bad("Mohon pilih minimal satu alat/bahan.");
   if (rawItems.length > MAX_LOAN_ITEMS) return bad(`Maksimal ${MAX_LOAN_ITEMS} item dalam satu peminjaman.`);
@@ -82,16 +100,6 @@ export async function POST(req: NextRequest) {
   if (new Set(ids).size !== ids.length) return bad("Ada alat/bahan yang dipilih lebih dari sekali. Gabungkan jumlahnya dalam satu baris.");
 
   const db = supabaseServer();
-
-  // Pemohon wajib sudah punya tanda tangan (ditempel otomatis ke dokumen).
-  const { data: me, error: meErr } = await db.from("users").select("id, ttd").eq("id", session.usersId).single();
-  if (meErr || !me) {
-    console.error("Cek pemohon peminjaman error (sudah jalankan migrasi 010?)", meErr);
-    return NextResponse.json({ error: "Gagal memeriksa data pemohon." }, { status: 500 });
-  }
-  if (!isSignatureKey(me.ttd as string | null, session.usersId)) {
-    return bad("Unggah tanda tangan kamu dulu di halaman Profil sebelum membuat dokumen peminjaman.");
-  }
 
   // Alat/bahan: nama, jenis, dan lab pemilik diambil dari database.
   const { data: eqRows, error: eqErr } = await db
@@ -137,6 +145,21 @@ export async function POST(req: NextRequest) {
 
   const bidangList = sortBidang(Array.from(new Set(items.map((i) => i.bidang))));
 
+  // Jangan terima pengajuan yang tidak mungkin disetujui: tiap bidang yang
+  // terlibat harus punya Kepala Lab DAN Laboran yang sudah ditetapkan.
+  try {
+    const missing = await findMissingStaff(db, bidangList);
+    if (missing.length > 0) {
+      return NextResponse.json(
+        { error: `Pengajuan belum bisa diproses karena jabatan berikut belum ditetapkan: ${missing.join(", ")}. Hubungi admin laboratorium.` },
+        { status: 409 }
+      );
+    }
+  } catch (e) {
+    console.error("Cek jabatan Kepala Lab/Laboran error", e);
+    return NextResponse.json({ error: "Gagal memeriksa penyetujui. Silakan coba lagi." }, { status: 500 });
+  }
+
   const { data: inserted, error: insErr } = await db
     .from("equipment_loans")
     .insert({
@@ -147,12 +170,23 @@ export async function POST(req: NextRequest) {
       tanggal_kembali: tanggalKembali,
       items,
       bidang: bidangList,
+      status: "menunggu_upload",
+      dospem_nama: dospemNama,
+      dospem_nip: dospemNip,
     })
     .select("id")
     .single();
 
   if (insErr || !inserted) {
-    console.error("Simpan equipment_loans error (sudah jalankan migrasi 010?)", insErr);
+    console.error("Simpan equipment_loans error (sudah jalankan migrasi 010 & 011?)", insErr);
+    return NextResponse.json({ error: "Gagal menyimpan peminjaman." }, { status: 500 });
+  }
+
+  try {
+    await resetApprovalSlots(db, inserted.id as string, bidangList);
+  } catch (e) {
+    console.error("Buat slot persetujuan error (sudah jalankan migrasi 011?)", e);
+    await db.from("equipment_loans").delete().eq("id", inserted.id); // jangan tinggalkan pengajuan tanpa slot
     return NextResponse.json({ error: "Gagal menyimpan peminjaman." }, { status: 500 });
   }
 
