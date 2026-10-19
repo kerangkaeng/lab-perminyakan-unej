@@ -161,10 +161,10 @@ function drawKop(ctx: Ctx): number {
   const textW = PAGE_W - MARGIN_X - textX;
 
   let y = logoTopY;
-  const l1 = wrap(ctx.regular, "KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI", KOP_LINE1_SIZE, textW);
+  const l1 = wrap(ctx.bold, "KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI", KOP_LINE1_SIZE, textW);
   for (const line of l1) {
     y -= KOP_LINE1_SIZE;
-    drawCenteredLine(ctx, line, y, { size: KOP_LINE1_SIZE, x: textX, width: textW });
+    drawCenteredLine(ctx, line, y, { size: KOP_LINE1_SIZE, bold: true, x: textX, width: textW });
     y -= lineHeight(KOP_LINE1_SIZE, KOP_LINE_GAP) - KOP_LINE1_SIZE;
   }
   y -= 1;
@@ -501,7 +501,7 @@ export async function buildLoanPdf(data: LoanPdfData, logoPng: Uint8Array): Prom
   ctx.y -= 22;
 
   // ---- identitas pemohon ----
-  paragraph(ctx, data.mode === "approval" ? "Pemohon peminjaman:" : "Yang bertanda tangan di bawah ini:", { gapAfter: 4 });
+  paragraph(ctx, data.mode === "approval" ? "Pemohon peminjaman:" : "Bersama ini kami sampaikan bahwa pemohon tersebut di bawah ini:", { gapAfter: 4 });
   const r = data.requester;
   const idRows: [string, string][] = [
     ["Nama", r.nama],
@@ -509,13 +509,6 @@ export async function buildLoanPdf(data: LoanPdfData, logoPng: Uint8Array): Prom
     ["Program Studi/Unit Kerja", r.prodi ?? "-"],
   ];
   if (r.fakultas) idRows.push(["Fakultas", r.fakultas]);
-  if (r.status) idRows.push(["Status", r.status.charAt(0).toUpperCase() + r.status.slice(1)]);
-  idRows.push(["Nomor Kontak", r.kontak]);
-  if (data.dospem) {
-    idRows.push(["Dosen Pembimbing", data.dospem.nama]);
-    if (data.dospem.nip) idRows.push(["NIP Dosen Pembimbing", data.dospem.nip]);
-  }
-
   const LABEL_W = 138;
   const INDENT = 18;
   for (const [label, value] of idRows) {
@@ -536,42 +529,32 @@ export async function buildLoanPdf(data: LoanPdfData, logoPng: Uint8Array): Prom
   // ---- narasi permohonan (rata kiri-kanan) ----
   const labs = data.bidang.map((b) => `Laboratorium ${LAB_TITLE[b]}`).join(" dan ");
   const sameDay = data.tanggalPinjam === data.tanggalKembali;
-  const periode = sameDay
-    ? `pada tanggal ${formatTanggalId(data.tanggalPinjam)}`
-    : `mulai tanggal ${formatTanggalId(data.tanggalPinjam)} sampai dengan ${formatTanggalId(data.tanggalKembali)}`;
   const keperluanClean = data.keperluan.trim().replace(/[.\s]+$/, "");
-  if (data.mode === "approval") {
-    const tgl = data.approvedAt ? ` pada tanggal ${formatTanggalId(data.approvedAt)}` : "";
-    paragraphJustify(
-      ctx,
-      `Permohonan peminjaman alat dan/atau bahan di ${labs}, Program Studi Teknik Perminyakan, ` +
-        `Fakultas Teknik Universitas Jember, untuk keperluan ${keperluanClean}, yang direncanakan ${periode}, ` +
-        `telah diperiksa dan DISETUJUI oleh Kepala Laboratorium dan Teknisi Laboratorium${tgl}, dengan rincian sebagai berikut:`,
-      { gapAfter: 8 }
-    );
-  } else {
-    paragraphJustify(
-      ctx,
-      `Dengan ini mengajukan permohonan peminjaman alat dan/atau bahan di ${labs}, Program Studi Teknik Perminyakan, ` +
-        `Fakultas Teknik Universitas Jember, untuk keperluan ${keperluanClean}. ` +
-        `Peminjaman direncanakan ${periode}, dengan rincian sebagai berikut:`,
-      { gapAfter: 8 }
-    );
-  }
+  paragraphJustify(
+    ctx,
+    data.mode === "approval"
+      ? `Permohonan peminjaman alat dan/atau bahan di ${labs}, Program Studi Teknik Perminyakan, Fakultas Teknik Universitas Jember, berupa:`
+      : `Mohon dapatnya untuk menggunakan fasilitas ${labs}, Program Studi Teknik Perminyakan, Fakultas Teknik Universitas Jember, berupa alat dan/atau bahan:`,
+    { gapAfter: 6 }
+  );
 
   // ---- tabel ----
   drawTable(ctx, data.items);
   ctx.y -= 12;
 
-  // ---- penutup (rata kiri-kanan) ----
+  // ---- penutup singkat (mengikuti contoh surat resmi fakultas) ----
+  const tglSetuju = data.approvedAt ? ` pada tanggal ${formatTanggalId(data.approvedAt)}` : "";
+  const pada = sameDay
+    ? `pada tanggal ${formatTanggalId(data.tanggalPinjam)}`
+    : `pada tanggal ${formatTanggalId(data.tanggalPinjam)} sampai dengan ${formatTanggalId(data.tanggalKembali)}`;
   const closing =
     data.mode === "approval"
-      ? "Peminjam wajib menggunakan alat dan bahan sesuai prosedur (SOP) laboratorium, menjaga kebersihan dan keutuhannya, " +
-        "serta mengembalikannya tepat waktu dalam kondisi baik. Apabila terjadi kerusakan atau kehilangan, peminjam bertanggung " +
-        "jawab sesuai ketentuan yang berlaku di laboratorium. Surat ini dapat ditunjukkan sebagai bukti persetujuan peminjaman."
-      : "Demikian permohonan ini kami sampaikan. Peminjam bersedia menggunakan alat dan bahan sesuai prosedur " +
-        "(SOP) laboratorium, menjaga kebersihan dan keutuhannya, serta mengembalikannya tepat waktu dalam kondisi baik. " +
-        "Apabila terjadi kerusakan atau kehilangan, peminjam bersedia bertanggung jawab sesuai ketentuan yang berlaku di laboratorium.";
+      ? `Peminjaman direncanakan ${pada} untuk ${keperluanClean}, dan telah disetujui oleh Kepala Laboratorium dan Laboran${tglSetuju}. ` +
+        "Peminjam wajib menggunakan alat dan bahan sesuai prosedur (SOP) laboratorium, menjaga keutuhannya, serta mengembalikannya tepat waktu dalam kondisi baik. " +
+        "Demikian, atas bantuan dan kerjasamanya disampaikan terima kasih."
+      : `Peminjaman direncanakan ${pada} untuk ${keperluanClean}. ` +
+        "Peminjam bersedia menggunakan alat dan bahan sesuai prosedur (SOP) laboratorium, menjaga keutuhannya, serta mengembalikannya tepat waktu dalam kondisi baik. " +
+        "Demikian, atas bantuan dan kerjasamanya disampaikan terima kasih.";
   // Paragraf penutup selalu satu halaman dengan tanda tangan: kalau keduanya tidak muat
   // di sisa halaman, pindah bersama-sama (tidak ada halaman yang isinya cuma tanda tangan).
   const closingH = wrap(regular, closing, BODY_SIZE, CONTENT_W).length * lineHeight(BODY_SIZE);
