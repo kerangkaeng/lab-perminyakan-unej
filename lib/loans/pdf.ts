@@ -516,7 +516,7 @@ export async function buildLoanPdf(data: LoanPdfData, logoPng: Uint8Array): Prom
   const idRows: [string, string][] = [
     ["Nama", r.nama],
     [r.idLabel, r.idNumber ?? "-"],
-    ["Program Studi/Unit Kerja", r.prodi ?? "-"],
+    ["Program Studi", r.prodi ?? "-"],
   ];
   if (r.fakultas) idRows.push(["Fakultas", r.fakultas]);
   const LABEL_W = 138;
