@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { generateLoanApprovalPdf, generateLoanTemplatePdf } from "@/lib/loans/server";
 import type { LoanRecord } from "@/lib/loans/config";
+import { canViewLoan, loadLoanReviewer } from "@/lib/loans/access";
 
 // Dua dokumen, dibuat ulang setiap diminta (tidak disimpan):
 //   GET /api/loans/<id>/pdf?jenis=template     -> template formulir untuk ttd basah
@@ -30,8 +31,16 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
   }
   const loan = data as LoanRecord | null;
   // 404 (bukan 403) untuk milik orang lain, supaya keberadaan ID tidak bisa ditebak.
-  if (!loan || (loan.requester_id !== session.usersId && session.appRole !== "admin")) {
-    return NextResponse.json({ error: "Peminjaman tidak ditemukan." }, { status: 404 });
+  if (!loan) return NextResponse.json({ error: "Peminjaman tidak ditemukan." }, { status: 404 });
+  if (loan.requester_id !== session.usersId) {
+    let allowed = false;
+    try {
+      const reviewer = await loadLoanReviewer(supabaseServer(), session);
+      allowed = canViewLoan(reviewer, session, loan);
+    } catch (e) {
+      console.error("loadLoanReviewer error", e);
+    }
+    if (!allowed) return NextResponse.json({ error: "Peminjaman tidak ditemukan." }, { status: 404 });
   }
 
   if (loan.status === "legacy") {
