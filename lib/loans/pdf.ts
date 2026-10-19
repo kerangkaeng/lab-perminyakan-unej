@@ -4,15 +4,17 @@
 //   - "approval" : surat persetujuan setelah ACC; memuat tanda tangan
 //                  elektronik Kepala Lab dan Laboran.
 //
-// Header (kop surat) TIDAK digambar ulang di kode: halaman template
-// (lib/loans/templates/header-*.pdf, hasil konversi dari template .docx)
-// dipakai apa adanya sebagai latar tiap halaman, jadi formatnya persis sama
-// dengan template. Kode ini hanya menggambar isi dokumen dan blok tanda
-// tangan di atasnya.
+// Header (kop surat) DIGAMBAR LANGSUNG DI SINI (bukan dari halaman PDF statis
+// lagi) memakai logo asli UNEJ (lib/loans/templates/logo-unej.png). Sebelumnya
+// kop diambil dari lib/loans/templates/header-*.pdf (hasil konversi .docx),
+// tapi baris nama lab yang panjang ("LABORATORIUM PEMBORAN DAN PRODUKSI")
+// tidak ke-tengah dengan benar di file statis itu (lebar teksnya tidak dihitung
+// ulang), jadi kelihatan berantakan/nabrak logo. Dengan digambar ulang di sini,
+// centering selalu dihitung dari lebar teks asli, untuk nama lab apa pun.
 //
 // Fungsi ini murni (data masuk -> bytes PDF keluar), tanpa akses database
 // atau storage, supaya mudah diuji. Pengambilan data ada di lib/loans/server.ts.
-import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, PDFFont, PDFImage, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import type { LoanItem } from "@/lib/loans/config";
 import { LAB_TITLE, formatTanggalId } from "@/lib/loans/config";
 import type { Bidang } from "@/lib/lab-roles";
@@ -35,6 +37,8 @@ export type PdfSigner = {
 export type LoanPdfData = {
   /** "form" = template ttd basah; "approval" = surat persetujuan ber-ttd elektronik. */
   mode: "form" | "approval";
+  /** Bidang "tuan rumah" kop surat (dipakai untuk baris "LABORATORIUM ..."). */
+  headerBidang: Bidang;
   /** Dosen pembimbing (mahasiswa saja); null untuk dosen/tendik. */
   dospem: { nama: string; nip: string | null } | null;
   /** Tanggal ACC terakhir (hanya mode "approval"). */
@@ -60,17 +64,25 @@ export type LoanPdfData = {
 };
 
 // ---------- ukuran halaman & tata letak (pt) ----------
-const PAGE_W = 612; // Letter, sama dengan template
+const PAGE_W = 612; // Letter
 const PAGE_H = 792;
-const MARGIN_X = 72; // margin kiri/kanan template = 1 inci
+const MARGIN_X = 72; // margin kiri/kanan = 1 inci
 const CONTENT_W = PAGE_W - MARGIN_X * 2; // 468
-const CONTENT_TOP = PAGE_H - 160; // di bawah garis kop surat (garis kop ~137pt dari atas)
 const BOTTOM_MARGIN = 72;
-const SIGN_BOTTOM = 80; // dasar blok tanda tangan (mirip posisi tabel di template)
+const SIGN_BOTTOM = 80; // dasar blok tanda tangan
 
 const BODY_SIZE = 11;
 const TABLE_SIZE = 10;
 const LINE_GAP = 1.25;
+
+// ---------- kop surat ----------
+const KOP_TOP_PAD = 24; // jarak dari tepi atas halaman ke logo
+const LOGO_SIZE = 60; // logo persegi (sumber 223x220px, hampir persegi)
+const KOP_GAP = 16; // jarak logo <-> blok teks
+const KOP_LINE1_SIZE = 11.5; // "KEMENTERIAN ..."
+const KOP_LINE2_SIZE = 13; // "UNIVERSITAS JEMBER" / "FAKULTAS TEKNIK" / "LABORATORIUM ..."
+const KOP_ADDR_SIZE = 9.5;
+const KOP_LINE_GAP = 1.3;
 
 function formatJumlah(n: number): string {
   return String(n).replace(".", ",");
@@ -80,16 +92,12 @@ type Ctx = {
   doc: PDFDocument;
   regular: PDFFont;
   bold: PDFFont;
-  headerPage: Awaited<ReturnType<PDFDocument["embedPage"]>>;
+  logo: PDFImage;
+  headerBidang: Bidang;
   page: PDFPage;
   y: number; // posisi menulis saat ini (pt dari bawah)
+  contentTop: number; // y awal konten tiap halaman, di bawah kop
 };
-
-function newPage(ctx: Ctx) {
-  ctx.page = ctx.doc.addPage([PAGE_W, PAGE_H]);
-  ctx.page.drawPage(ctx.headerPage, { x: 0, y: 0 });
-  ctx.y = CONTENT_TOP;
-}
 
 /** Ganti karakter yang tidak ada di font standar (WinAnsi) supaya tidak melempar error. */
 function safe(font: PDFFont, text: string): string {
@@ -106,42 +114,100 @@ function safe(font: PDFFont, text: string): string {
   return out;
 }
 
-function wrap(font: PDFFont, text: string, size: number, maxWidth: number): string[] {
+function wrapWords(font: PDFFont, text: string, size: number, maxWidth: number): string[][] {
   const words = safe(font, text).split(" ").filter(Boolean);
-  if (words.length === 0) return [""];
-  const lines: string[] = [];
-  let line = "";
-  const pushLong = (word: string) => {
-    // kata lebih lebar dari kolom: potong per karakter
-    let chunk = "";
-    for (const ch of word) {
-      if (font.widthOfTextAtSize(chunk + ch, size) > maxWidth && chunk) {
-        lines.push(chunk);
-        chunk = ch;
-      } else chunk += ch;
-    }
-    return chunk;
-  };
+  if (words.length === 0) return [[]];
+  const lines: string[][] = [];
+  let line: string[] = [];
   for (const word of words) {
-    const trial = line ? `${line} ${word}` : word;
-    if (font.widthOfTextAtSize(trial, size) <= maxWidth) {
-      line = trial;
-    } else if (!line) {
-      line = pushLong(word);
+    const trial = line.length ? `${line.join(" ")} ${word}` : word;
+    if (font.widthOfTextAtSize(trial, size) <= maxWidth || line.length === 0) {
+      line.push(word);
     } else {
       lines.push(line);
-      line = font.widthOfTextAtSize(word, size) <= maxWidth ? word : pushLong(word);
+      line = [word];
     }
   }
-  if (line) lines.push(line);
+  if (line.length) lines.push(line);
   return lines;
 }
 
-function lineHeight(size: number) {
-  return size * LINE_GAP;
+function wrap(font: PDFFont, text: string, size: number, maxWidth: number): string[] {
+  return wrapWords(font, text, size, maxWidth).map((words) => words.join(" "));
 }
 
-/** Tulis paragraf (rata kiri, wrap otomatis, lanjut ke halaman berikutnya bila perlu). */
+function lineHeight(size: number, gap: number = LINE_GAP) {
+  return size * gap;
+}
+
+/** Satu baris kop, di-tengah-kan terhadap [x, x+width] — selalu dihitung ulang dari lebar teks asli. */
+function drawCenteredLine(ctx: Ctx, text: string, y: number, opts: { size: number; bold?: boolean; x: number; width: number }) {
+  const font = opts.bold ? ctx.bold : ctx.regular;
+  const clean = safe(font, text);
+  const tw = font.widthOfTextAtSize(clean, opts.size);
+  const tx = opts.x + Math.max(0, (opts.width - tw) / 2);
+  ctx.page.drawText(clean, { x: tx, y, size: opts.size, font, color: rgb(0, 0, 0) });
+}
+
+/** Gambar kop surat (logo + identitas institusi + garis ganda) di halaman aktif. Mengembalikan y setelah kop. */
+function drawKop(ctx: Ctx): number {
+  const black = rgb(0, 0, 0);
+  const logoX = MARGIN_X;
+  const logoTopY = PAGE_H - KOP_TOP_PAD;
+  const logoBottomY = logoTopY - LOGO_SIZE;
+  ctx.page.drawImage(ctx.logo, { x: logoX, y: logoBottomY, width: LOGO_SIZE, height: LOGO_SIZE });
+
+  const textX = logoX + LOGO_SIZE + KOP_GAP;
+  const textW = PAGE_W - MARGIN_X - textX;
+
+  let y = logoTopY;
+  const l1 = wrap(ctx.regular, "KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI", KOP_LINE1_SIZE, textW);
+  for (const line of l1) {
+    y -= KOP_LINE1_SIZE;
+    drawCenteredLine(ctx, line, y, { size: KOP_LINE1_SIZE, x: textX, width: textW });
+    y -= lineHeight(KOP_LINE1_SIZE, KOP_LINE_GAP) - KOP_LINE1_SIZE;
+  }
+  y -= 1;
+
+  const headings = ["UNIVERSITAS JEMBER", "FAKULTAS TEKNIK", `LABORATORIUM ${LAB_TITLE[ctx.headerBidang].toUpperCase()}`];
+  for (const heading of headings) {
+    for (const line of wrap(ctx.bold, heading, KOP_LINE2_SIZE, textW)) {
+      y -= KOP_LINE2_SIZE;
+      drawCenteredLine(ctx, line, y, { size: KOP_LINE2_SIZE, bold: true, x: textX, width: textW });
+      y -= lineHeight(KOP_LINE2_SIZE, KOP_LINE_GAP) - KOP_LINE2_SIZE;
+    }
+  }
+
+  // Alamat: di bawah blok teks (atau di bawah logo kalau blok teksnya pendek), rata tengah ke seluruh lebar konten.
+  const addrY = Math.min(y, logoBottomY) - 6;
+  let yy = addrY;
+  const addrLines = wrap(
+    ctx.regular,
+    "Jalan Kalimantan 37 Kampus Bumi Tegal Boto Kotak Pos 159 Jember 68121 • Telepon (0331) 484977 Faksimile (0331) 484977 • Laman: teknik.unej.ac.id",
+    KOP_ADDR_SIZE,
+    CONTENT_W
+  );
+  for (const line of addrLines) {
+    yy -= KOP_ADDR_SIZE;
+    drawCenteredLine(ctx, line, yy, { size: KOP_ADDR_SIZE, x: MARGIN_X, width: CONTENT_W });
+    yy -= lineHeight(KOP_ADDR_SIZE, KOP_LINE_GAP) - KOP_ADDR_SIZE;
+  }
+
+  // Garis ganda khas surat resmi instansi pemerintah: garis tebal lalu garis tipis.
+  const ruleY = yy - 5;
+  ctx.page.drawLine({ start: { x: MARGIN_X, y: ruleY }, end: { x: PAGE_W - MARGIN_X, y: ruleY }, thickness: 1.6, color: black });
+  ctx.page.drawLine({ start: { x: MARGIN_X, y: ruleY - 3 }, end: { x: PAGE_W - MARGIN_X, y: ruleY - 3 }, thickness: 0.7, color: black });
+
+  return ruleY - 3 - 20; // jarak ke konten pertama
+}
+
+function newPage(ctx: Ctx) {
+  ctx.page = ctx.doc.addPage([PAGE_W, PAGE_H]);
+  ctx.contentTop = drawKop(ctx);
+  ctx.y = ctx.contentTop;
+}
+
+/** Tulis paragraf rata kiri (dipakai untuk baris pendek / label — bukan narasi panjang). */
 function paragraph(ctx: Ctx, text: string, opts: { size?: number; bold?: boolean; x?: number; width?: number; gapAfter?: number } = {}) {
   const size = opts.size ?? BODY_SIZE;
   const font = opts.bold ? ctx.bold : ctx.regular;
@@ -153,6 +219,42 @@ function paragraph(ctx: Ctx, text: string, opts: { size?: number; bold?: boolean
     ctx.page.drawText(line, { x, y: ctx.y, size, font, color: rgb(0, 0, 0) });
     ctx.y -= lineHeight(size) - size;
   }
+  ctx.y -= opts.gapAfter ?? 0;
+}
+
+/**
+ * Tulis paragraf narasi rata kiri-kanan (justify): spasi antar kata di tiap
+ * baris (kecuali baris terakhir paragraf) direnggangkan supaya tepi kanan
+ * rata, seperti pada surat resmi cetak.
+ */
+function paragraphJustify(ctx: Ctx, text: string, opts: { size?: number; x?: number; width?: number; gapAfter?: number } = {}) {
+  const size = opts.size ?? BODY_SIZE;
+  const font = ctx.regular;
+  const x = opts.x ?? MARGIN_X;
+  const width = opts.width ?? CONTENT_W;
+  const black = rgb(0, 0, 0);
+  const lines = wrapWords(font, text, size, width);
+  const spaceWidth = font.widthOfTextAtSize(" ", size);
+
+  lines.forEach((words, idx) => {
+    if (ctx.y - size < BOTTOM_MARGIN) newPage(ctx);
+    ctx.y -= size;
+    const isLastLine = idx === lines.length - 1;
+    if (isLastLine || words.length <= 1) {
+      ctx.page.drawText(words.join(" "), { x, y: ctx.y, size, font, color: black });
+    } else {
+      const wordsWidth = words.reduce((sum, w) => sum + font.widthOfTextAtSize(w, size), 0);
+      const gaps = words.length - 1;
+      const extra = Math.max(0, width - wordsWidth - spaceWidth * gaps);
+      const gapWidth = spaceWidth + extra / gaps;
+      let cx = x;
+      words.forEach((w) => {
+        ctx.page.drawText(w, { x: cx, y: ctx.y, size, font, color: black });
+        cx += font.widthOfTextAtSize(w, size) + gapWidth;
+      });
+    }
+    ctx.y -= lineHeight(size) - size;
+  });
   ctx.y -= opts.gapAfter ?? 0;
 }
 
@@ -321,7 +423,7 @@ async function drawSigners(ctx: Ctx, signers: PdfSigner[]) {
   }
 }
 
-export async function buildLoanPdf(data: LoanPdfData, headerPdf: Uint8Array): Promise<Uint8Array> {
+export async function buildLoanPdf(data: LoanPdfData, logoPng: Uint8Array): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.setTitle(
     data.mode === "approval"
@@ -333,12 +435,53 @@ export async function buildLoanPdf(data: LoanPdfData, headerPdf: Uint8Array): Pr
 
   const regular = await doc.embedFont(StandardFonts.TimesRoman);
   const bold = await doc.embedFont(StandardFonts.TimesRomanBold);
+  const logo = await doc.embedPng(logoPng);
 
-  const tpl = await PDFDocument.load(headerPdf);
-  const headerPage = await doc.embedPage(tpl.getPage(0));
-
-  const ctx: Ctx = { doc, regular, bold, headerPage, page: undefined as unknown as PDFPage, y: CONTENT_TOP };
+  const ctx: Ctx = {
+    doc,
+    regular,
+    bold,
+    logo,
+    headerBidang: data.headerBidang,
+    page: undefined as unknown as PDFPage,
+    y: 0,
+    contentTop: 0,
+  };
   newPage(ctx);
+
+  // ---- Lampiran & Hal (tanpa Nomor untuk sementara — belum ada sistem penomoran surat) ----
+  const hal =
+    data.mode === "approval"
+      ? "Persetujuan Peminjaman Alat dan Bahan Laboratorium"
+      : "Permohonan Peminjaman Alat dan Bahan Laboratorium";
+  const dateLabel = `Jember, ${formatTanggalId(data.mode === "approval" ? (data.approvedAt ?? data.createdAt) : data.createdAt)}`;
+  const dateW = regular.widthOfTextAtSize(safe(regular, dateLabel), BODY_SIZE);
+  ctx.page.drawText(safe(regular, dateLabel), {
+    x: PAGE_W - MARGIN_X - dateW,
+    y: ctx.y,
+    size: BODY_SIZE,
+    font: regular,
+    color: rgb(0, 0, 0),
+  });
+  const META_LABEL_W = 62;
+  const metaRows: [string, string][] = [
+    ["Lampiran", "-"],
+    ["Hal", hal],
+  ];
+  for (const [label, value] of metaRows) {
+    const valueLines = wrap(regular, value, BODY_SIZE, CONTENT_W - META_LABEL_W - 300);
+    valueLines.forEach((line, i) => {
+      if (ctx.y - BODY_SIZE < BOTTOM_MARGIN) newPage(ctx);
+      ctx.y -= BODY_SIZE;
+      if (i === 0) {
+        ctx.page.drawText(safe(regular, label), { x: MARGIN_X, y: ctx.y, size: BODY_SIZE, font: regular });
+        ctx.page.drawText(":", { x: MARGIN_X + META_LABEL_W, y: ctx.y, size: BODY_SIZE, font: regular });
+      }
+      ctx.page.drawText(line, { x: MARGIN_X + META_LABEL_W + 10, y: ctx.y, size: BODY_SIZE, font: bold });
+      ctx.y -= lineHeight(BODY_SIZE) - BODY_SIZE;
+    });
+  }
+  ctx.y -= 14;
 
   // ---- judul ----
   const title =
@@ -390,7 +533,7 @@ export async function buildLoanPdf(data: LoanPdfData, headerPdf: Uint8Array): Pr
   }
   ctx.y -= 8;
 
-  // ---- narasi permohonan ----
+  // ---- narasi permohonan (rata kiri-kanan) ----
   const labs = data.bidang.map((b) => `Laboratorium ${LAB_TITLE[b]}`).join(" dan ");
   const sameDay = data.tanggalPinjam === data.tanggalKembali;
   const periode = sameDay
@@ -399,7 +542,7 @@ export async function buildLoanPdf(data: LoanPdfData, headerPdf: Uint8Array): Pr
   const keperluanClean = data.keperluan.trim().replace(/[.\s]+$/, "");
   if (data.mode === "approval") {
     const tgl = data.approvedAt ? ` pada tanggal ${formatTanggalId(data.approvedAt)}` : "";
-    paragraph(
+    paragraphJustify(
       ctx,
       `Permohonan peminjaman alat dan/atau bahan di ${labs}, Program Studi Teknik Perminyakan, ` +
         `Fakultas Teknik Universitas Jember, untuk keperluan ${keperluanClean}, yang direncanakan ${periode}, ` +
@@ -407,7 +550,7 @@ export async function buildLoanPdf(data: LoanPdfData, headerPdf: Uint8Array): Pr
       { gapAfter: 8 }
     );
   } else {
-    paragraph(
+    paragraphJustify(
       ctx,
       `Dengan ini mengajukan permohonan peminjaman alat dan/atau bahan di ${labs}, Program Studi Teknik Perminyakan, ` +
         `Fakultas Teknik Universitas Jember, untuk keperluan ${keperluanClean}. ` +
@@ -420,7 +563,7 @@ export async function buildLoanPdf(data: LoanPdfData, headerPdf: Uint8Array): Pr
   drawTable(ctx, data.items);
   ctx.y -= 12;
 
-  // ---- penutup ----
+  // ---- penutup (rata kiri-kanan) ----
   const closing =
     data.mode === "approval"
       ? "Peminjam wajib menggunakan alat dan bahan sesuai prosedur (SOP) laboratorium, menjaga kebersihan dan keutuhannya, " +
@@ -434,7 +577,7 @@ export async function buildLoanPdf(data: LoanPdfData, headerPdf: Uint8Array): Pr
   const closingH = wrap(regular, closing, BODY_SIZE, CONTENT_W).length * lineHeight(BODY_SIZE);
   const signH = layoutSigners(ctx, data.signers).height;
   if (ctx.y - closingH - 16 < SIGN_BOTTOM + signH) newPage(ctx);
-  paragraph(ctx, closing);
+  paragraphJustify(ctx, closing);
 
   // ---- tanda tangan ----
   await drawSigners(ctx, data.signers);
