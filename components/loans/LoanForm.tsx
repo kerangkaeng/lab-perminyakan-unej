@@ -28,14 +28,19 @@ function todayLocal(): string {
 export function LoanForm({
   options,
   defaultKontak = "",
+  needsDospem = false,
 }: {
   options: LoanEquipmentOption[];
   defaultKontak?: string;
+  /** true untuk mahasiswa (punya NIM): dosen pembimbing wajib diisi. */
+  needsDospem?: boolean;
 }) {
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>([{ ...EMPTY_ROW }]);
   const [keperluan, setKeperluan] = useState("");
   const [kontak, setKontak] = useState(defaultKontak);
+  const [dospemNama, setDospemNama] = useState("");
+  const [dospemNip, setDospemNip] = useState("");
   const [tanggalPinjam, setTanggalPinjam] = useState("");
   const [tanggalKembali, setTanggalKembali] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +107,10 @@ export function LoanForm({
     }
     if (keperluan.trim().length < 5) return setError("Mohon jelaskan keperluan peminjaman.");
     if (!kontak.trim()) return setError("Mohon isi nomor kontak yang bisa dihubungi.");
+    if (needsDospem) {
+      if (dospemNama.trim().length < 3) return setError("Mohon isi nama lengkap dosen pembimbing (beserta gelar).");
+      if (!/^\d{8,25}$/.test(dospemNip.replace(/\s+/g, ""))) return setError("NIP dosen pembimbing harus berupa angka (8–25 digit).");
+    }
     if (!tanggalPinjam || !tanggalKembali) return setError("Mohon isi tanggal pinjam dan tanggal kembali.");
     if (tanggalKembali < tanggalPinjam) return setError("Tanggal kembali tidak boleh sebelum tanggal pinjam.");
 
@@ -113,6 +122,7 @@ export function LoanForm({
         body: JSON.stringify({
           keperluan,
           kontak,
+          ...(needsDospem ? { dospem_nama: dospemNama, dospem_nip: dospemNip } : {}),
           tanggal_pinjam: tanggalPinjam,
           tanggal_kembali: tanggalKembali,
           items: filled.map((r) => ({
@@ -132,6 +142,8 @@ export function LoanForm({
       window.open(`/api/loans/${body.id}/pdf`, "_blank");
       setRows([{ ...EMPTY_ROW }]);
       setKeperluan("");
+      setDospemNama("");
+      setDospemNip("");
       setTanggalPinjam("");
       setTanggalKembali("");
       router.refresh();
@@ -301,6 +313,33 @@ export function LoanForm({
               className={inputCls}
             />
           </div>
+          {needsDospem && (
+            <>
+              <div>
+                <label className={labelCls} htmlFor="dospem_nama">Dosen pembimbing (nama + gelar)</label>
+                <input
+                  id="dospem_nama"
+                  value={dospemNama}
+                  onChange={(e) => setDospemNama(e.target.value)}
+                  maxLength={150}
+                  placeholder="Contoh: Dr. Ir. Nama Dosen, S.T., M.T."
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className={labelCls} htmlFor="dospem_nip">NIP dosen pembimbing</label>
+                <input
+                  id="dospem_nip"
+                  inputMode="numeric"
+                  value={dospemNip}
+                  onChange={(e) => setDospemNip(e.target.value)}
+                  maxLength={30}
+                  placeholder="Angka saja"
+                  className={inputCls}
+                />
+              </div>
+            </>
+          )}
         </div>
       </section>
 
