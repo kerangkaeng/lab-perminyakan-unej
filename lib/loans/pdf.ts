@@ -376,7 +376,17 @@ async function drawSigners(ctx: Ctx, signers: PdfSigner[]) {
 
   for (let i = 0; i < L.n; i++) {
     const s = signers[i];
-    const x = MARGIN_X + i * L.colW;
+    let x = MARGIN_X + i * L.colW;
+    // Kolom paling kanan digeser ke kanan: tepi kanan teks terpanjang rata dengan margin kanan
+    // (seperti surat contoh), bukan menempel di awal kolomnya.
+    if (i === L.n - 1) {
+      const idW = s.idNumber ? ctx.regular.widthOfTextAtSize(safe(ctx.regular, `${s.idLabel}${s.idNumber}`), L.size) : 0;
+      const blockW = Math.max(
+        idW,
+        ...[...L.pre[i], ...L.titles[i], ...L.names[i]].map((t) => ctx.regular.widthOfTextAtSize(t, L.size))
+      );
+      x = Math.max(x, PAGE_W - MARGIN_X - blockW);
+    }
     let cy = y;
 
     // baris pra-label (rata atas), lalu jabatan
@@ -400,7 +410,7 @@ async function drawSigners(ctx: Ctx, signers: PdfSigner[]) {
         const kind = sniffImage(s.signature);
         if (kind) {
           const img = kind === "png" ? await ctx.doc.embedPng(s.signature) : await ctx.doc.embedJpg(s.signature);
-          const maxW = L.colW - 16;
+          const maxW = Math.min(L.colW - 16, PAGE_W - MARGIN_X - x);
           const scale = Math.min(maxW / img.width, (L.sigH - 4) / img.height, 4);
           const w = img.width * scale;
           const h = img.height * scale;
