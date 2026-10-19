@@ -1,22 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase/server";
-import { generateLoanPdf } from "@/lib/loans/server";
+import { generateLoanApprovalPdf, generateLoanTemplatePdf } from "@/lib/loans/server";
 import type { LoanRecord } from "@/lib/loans/config";
 
-// Dokumen dibuat ulang setiap diminta (bukan disimpan), supaya selalu
-// memakai tanda tangan & pemegang jabatan Kepala Lab/Laboran terbaru.
+// Dua dokumen, dibuat ulang setiap diminta (tidak disimpan):
+//   GET /api/loans/<id>/pdf?jenis=template     -> template formulir untuk ttd basah
+//                                                 (default; tersedia sejak pengajuan dibuat)
+//   GET /api/loans/<id>/pdf?jenis=persetujuan  -> surat persetujuan ber-ttd elektronik
+//                                                 Kepala Lab & Laboran (hanya status "disetujui")
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const UUID = /^[0-9a-f-]{32,36}$/i;
 
-export async function GET(_req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const { id } = await paramsPromise;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Kamu belum login." }, { status: 401 });
   if (!UUID.test(id)) return NextResponse.json({ error: "ID tidak valid." }, { status: 400 });
+
+  const jenis = req.nextUrl.searchParams.get("jenis") === "persetujuan" ? "persetujuan" : "template";
 
   const { data, error } = await supabaseServer().from("equipment_loans").select("*").eq("id", id).maybeSingle();
   if (error) {
@@ -29,13 +34,21 @@ export async function GET(_req: NextRequest, { params: paramsPromise }: { params
     return NextResponse.json({ error: "Peminjaman tidak ditemukan." }, { status: 404 });
   }
 
+  if (loan.status === "legacy") {
+    return NextResponse.json({ error: "Dokumen ini dibuat dengan alur lama dan tidak tersedia lagi." }, { status: 410 });
+  }
+  if (jenis === "persetujuan" && loan.status !== "disetujui") {
+    return NextResponse.json({ error: "Surat persetujuan baru tersedia setelah disetujui Kepala Lab dan Laboran." }, { status: 409 });
+  }
+
   try {
-    const pdf = await generateLoanPdf(loan);
+    const pdf = jenis === "persetujuan" ? await generateLoanApprovalPdf(loan) : await generateLoanTemplatePdf(loan);
+    const prefix = jenis === "persetujuan" ? "Surat-Persetujuan-Peminjaman" : "Template-Peminjaman-Alat";
     return new NextResponse(Buffer.from(pdf) as unknown as BodyInit, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="Peminjaman-Alat-${loan.id.slice(0, 8)}.pdf"`,
+        "Content-Disposition": `inline; filename="${prefix}-${loan.id.slice(0, 8)}.pdf"`,
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
       },
