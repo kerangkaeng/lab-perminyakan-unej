@@ -108,11 +108,18 @@ export default async function StatusPeminjamanPage() {
                         Lihat Dokumen Terunggah
                       </a>
                     )}
-                    {loan.status === "disetujui" && (
-                      <a href={`/api/loans/${loan.id}/pdf?jenis=persetujuan`} target="_blank" rel="noopener noreferrer" className={linkCls}>
-                        Unduh Surat Persetujuan
-                      </a>
-                    )}
+                    {loan.status === "disetujui" &&
+                      (sortBidang(loan.bidang).length > 1 ? sortBidang(loan.bidang) : [undefined]).map((b) => (
+                        <a
+                          key={b ?? "all"}
+                          href={`/api/loans/${loan.id}/pdf?jenis=persetujuan${b ? `&bidang=${b}` : ""}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={linkCls}
+                        >
+                          Unduh Surat Persetujuan{b ? ` ${LAB_TITLE[b]}` : ""}
+                        </a>
+                      ))}
                   </div>
                 )}
 
