@@ -3,10 +3,11 @@ import { BIDANG_LABEL, BIDANG_VALUES, type Bidang } from "@/lib/lab-roles";
 import { OrgChart, type LabUnit, type PraktikumUnit } from "@/components/about/OrgChart";
 import type { OrgPerson } from "@/components/about/PersonCard";
 import { isProfilePhotoKey } from "@/lib/storage/b2";
+import { displayName, gelarCol, withGelarFallback } from "@/lib/users/display";
 
 export const revalidate = 0;
 
-type UserRow = { id: string; nama: string; nip: string | null; nim: string | null; identifier: string | null; foto: string | null };
+type UserRow = { id: string; nama: string; nama_gelar?: string | null; nip: string | null; nim: string | null; identifier: string | null; foto: string | null };
 type Row = {
   role_type: string;
   bidang: string | null;
@@ -25,7 +26,7 @@ function toPerson(u: NonNullable<Row["users"]>, roleType: string): OrgPerson {
   const hasPhoto = isProfilePhotoKey(user.foto, user.id);
   return {
     id: user.id,
-    nama: user.nama,
+    nama: displayName(user),
     // Dosen: NIP. Laboran: disembunyikan (nomornya masih NIK). Asisten: NIM
     // TIDAK ditampilkan, diganti label prodi + tahun masuk.
     ident:
@@ -67,11 +68,14 @@ function legacyBidang(title: string): Bidang | null {
 export default async function StrukturOrganisasiPage() {
   const db = supabaseServer();
 
-  const rolesPromise = db
-    .from("lab_roles")
-    .select("role_type, bidang, module_id, users!lab_roles_user_id_fkey(id, nama, nip, nim, identifier, foto)")
-    .neq("role_type", "admin")
-    .order("created_at", { ascending: true });
+  // Nama + gelar (users.nama_gelar); otomatis jatuh ke nama SSO bila kolom belum ada.
+  const rolesPromise = withGelarFallback((g) =>
+    db
+      .from("lab_roles")
+      .select(`role_type, bidang, module_id, users!lab_roles_user_id_fkey(id, nama${gelarCol(g)}, nip, nim, identifier, foto)`)
+      .neq("role_type", "admin")
+      .order("created_at", { ascending: true })
+  );
 
   // Coba kolom baru (migrasi 006). Kalau belum ada, ulangi dengan kolom lama.
   let [modulesRes, facilitiesRes] = await Promise.all([
