@@ -22,7 +22,7 @@ import type { Bidang } from "@/lib/lab-roles";
 export type PdfSigner = {
   /** Baris di atas jabatan, mis. "Mengetahui," atau "Jember, 12 Oktober 2026". Boleh kosong. */
   preLabel?: string;
-  /** Jabatan, mis. "Kepala Laboratorium Teknik Perminyakan Reservoir". */
+  /** Jabatan, mis. "Kepala Laboratorium Reservoir". */
   title: string;
   /** Kosong -> dicetak "(belum ditetapkan)". */
   nama: string | null;
@@ -491,7 +491,27 @@ export async function buildLoanPdf(data: LoanPdfData, logoPng: Uint8Array): Prom
       ctx.y -= lineHeight(BODY_SIZE) - BODY_SIZE;
     });
   }
-  ctx.y -= 14;
+  ctx.y -= 12;
+
+  // ---- alamat surat (Yth.) ----
+  // Formulir  -> Kepala Laboratorium; Surat persetujuan -> Teknisi/Asisten Laboratorium.
+  const ythTarget = data.mode === "approval" ? "Teknisi/Asisten" : "Kepala";
+  const ythLines = [
+    `${ythTarget} Laboratorium ${data.bidang.map((b) => LAB_TITLE[b]).join(" serta ")}`,
+    "Program Studi Teknik Perminyakan, Jurusan Teknik Mesin",
+    "Fakultas Teknik Universitas Jember",
+  ];
+  const YTH_W = 28;
+  ythLines.forEach((text, idx) => {
+    wrap(regular, text, BODY_SIZE, CONTENT_W - YTH_W).forEach((line, j) => {
+      if (ctx.y - BODY_SIZE < BOTTOM_MARGIN) newPage(ctx);
+      ctx.y -= BODY_SIZE;
+      if (idx === 0 && j === 0) ctx.page.drawText("Yth.", { x: MARGIN_X, y: ctx.y, size: BODY_SIZE, font: regular });
+      ctx.page.drawText(line, { x: MARGIN_X + YTH_W, y: ctx.y, size: BODY_SIZE, font: regular });
+      ctx.y -= lineHeight(BODY_SIZE) - BODY_SIZE;
+    });
+  });
+  ctx.y -= 12;
 
   // ---- judul ----
   const title =
@@ -511,7 +531,8 @@ export async function buildLoanPdf(data: LoanPdfData, logoPng: Uint8Array): Prom
   ctx.y -= 22;
 
   // ---- identitas pemohon ----
-  paragraph(ctx, data.mode === "approval" ? "Pemohon peminjaman:" : "Bersama ini kami sampaikan bahwa pemohon tersebut di bawah ini:", { gapAfter: 4 });
+  const sebutan = data.requester.status === "mahasiswa" ? "mahasiswa" : "pemohon";
+  paragraph(ctx, data.mode === "approval" ? `Sehubungan dengan surat permohonan ${sebutan} tersebut di bawah ini:` : "Bersama ini kami sampaikan bahwa pemohon tersebut di bawah ini:", { gapAfter: 4 });
   const r = data.requester;
   const idRows: [string, string][] = [
     ["Nama", r.nama],
@@ -536,15 +557,18 @@ export async function buildLoanPdf(data: LoanPdfData, logoPng: Uint8Array): Prom
   }
   ctx.y -= 8;
 
-  // ---- narasi permohonan (rata kiri-kanan) ----
-  const labs = data.bidang.map((b) => `Laboratorium ${LAB_TITLE[b]}`).join(" dan ");
+  // ---- narasi (rata kiri-kanan) ----
+  const labs = data.bidang.map((b) => `Laboratorium ${LAB_TITLE[b]}`).join(" serta ");
   const sameDay = data.tanggalPinjam === data.tanggalKembali;
   const keperluanClean = data.keperluan.trim().replace(/[.\s]+$/, "");
+  const pada = sameDay
+    ? `pada tanggal ${formatTanggalId(data.tanggalPinjam)}`
+    : `pada tanggal ${formatTanggalId(data.tanggalPinjam)} sampai dengan ${formatTanggalId(data.tanggalKembali)}`;
   paragraphJustify(
     ctx,
     data.mode === "approval"
-      ? `Permohonan peminjaman alat dan/atau bahan di ${labs}, Program Studi Teknik Perminyakan, Fakultas Teknik Universitas Jember, berupa:`
-      : `Mohon dapatnya untuk menggunakan fasilitas ${labs}, Program Studi Teknik Perminyakan, Fakultas Teknik Universitas Jember, berupa alat dan/atau bahan:`,
+      ? `Mengenai penggunaan fasilitas ${labs}, Program Studi Teknik Perminyakan, Jurusan Teknik Mesin, Fakultas Teknik Universitas Jember ${pada}, mohon diberikan kemudahan dan izin penggunaan alat dan/atau bahan berikut kepada ${sebutan} tersebut di atas untuk ${keperluanClean}:`
+      : `Mohon dapatnya untuk menggunakan fasilitas ${labs}, Program Studi Teknik Perminyakan, Jurusan Teknik Mesin, Fakultas Teknik Universitas Jember, berupa alat dan/atau bahan:`,
     { gapAfter: 6 }
   );
 
@@ -552,16 +576,10 @@ export async function buildLoanPdf(data: LoanPdfData, logoPng: Uint8Array): Prom
   drawTable(ctx, data.items);
   ctx.y -= 12;
 
-  // ---- penutup singkat (mengikuti contoh surat resmi fakultas) ----
-  const tglSetuju = data.approvedAt ? ` pada tanggal ${formatTanggalId(data.approvedAt)}` : "";
-  const pada = sameDay
-    ? `pada tanggal ${formatTanggalId(data.tanggalPinjam)}`
-    : `pada tanggal ${formatTanggalId(data.tanggalPinjam)} sampai dengan ${formatTanggalId(data.tanggalKembali)}`;
+  // ---- penutup (mengikuti contoh surat resmi fakultas) ----
   const closing =
     data.mode === "approval"
-      ? `Peminjaman direncanakan ${pada} untuk ${keperluanClean}, dan telah disetujui oleh Kepala Laboratorium dan Laboran${tglSetuju}. ` +
-        "Peminjam wajib menggunakan alat dan bahan sesuai prosedur (SOP) laboratorium, menjaga keutuhannya, serta mengembalikannya tepat waktu dalam kondisi baik. " +
-        "Demikian, atas bantuan dan kerjasamanya disampaikan terima kasih."
+      ? "Demikian, atas bantuan dan kerjasamanya disampaikan terima kasih."
       : `Peminjaman direncanakan ${pada} untuk ${keperluanClean}. ` +
         "Peminjam bersedia menggunakan alat dan bahan sesuai prosedur (SOP) laboratorium, menjaga keutuhannya, serta mengembalikannya tepat waktu dalam kondisi baik. " +
         "Demikian, atas bantuan dan kerjasamanya disampaikan terima kasih.";
