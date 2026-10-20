@@ -3,13 +3,16 @@ import { getSession } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { generateLoanApprovalPdf, generateLoanTemplatePdf } from "@/lib/loans/server";
 import type { LoanRecord } from "@/lib/loans/config";
+import type { Bidang } from "@/lib/lab-roles";
 import { canViewLoan, loadLoanReviewer } from "@/lib/loans/access";
 
 // Dua dokumen, dibuat ulang setiap diminta (tidak disimpan):
 //   GET /api/loans/<id>/pdf?jenis=template     -> template formulir untuk ttd basah
 //                                                 (default; tersedia sejak pengajuan dibuat)
 //   GET /api/loans/<id>/pdf?jenis=persetujuan  -> surat persetujuan ber-ttd elektronik
-//                                                 Kepala Lab & Laboran (hanya status "disetujui")
+//                                                 Kepala Lab (hanya status "disetujui"). Peminjaman dua lab:
+//                                                 &bidang=reservoir|pemboran_produksi -> surat satu lab;
+//                                                 tanpa &bidang -> kedua surat digabung.
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -50,14 +53,20 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
     return NextResponse.json({ error: "Surat persetujuan baru tersedia setelah disetujui Kepala Lab dan Laboran." }, { status: 409 });
   }
 
+  const bidangParam = req.nextUrl.searchParams.get("bidang");
+  const bidang = (loan.bidang as string[]).includes(bidangParam ?? "") ? (bidangParam as Bidang) : undefined;
+  if (jenis === "persetujuan" && bidangParam && !bidang) {
+    return NextResponse.json({ error: "Laboratorium tidak termasuk dalam peminjaman ini." }, { status: 400 });
+  }
+
   try {
-    const pdf = jenis === "persetujuan" ? await generateLoanApprovalPdf(loan) : await generateLoanTemplatePdf(loan);
+    const pdf = jenis === "persetujuan" ? await generateLoanApprovalPdf(loan, bidang) : await generateLoanTemplatePdf(loan);
     const prefix = jenis === "persetujuan" ? "Surat-Persetujuan-Peminjaman" : "Template-Peminjaman-Alat";
     return new NextResponse(Buffer.from(pdf) as unknown as BodyInit, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="${prefix}-${loan.id.slice(0, 8)}.pdf"`,
+        "Content-Disposition": `inline; filename="${prefix}${jenis === "persetujuan" && bidang ? `-${bidang}` : ""}-${loan.id.slice(0, 8)}.pdf"`,
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
       },
