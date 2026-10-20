@@ -1,3 +1,4 @@
+import { applyGelar, gelarCol, withGelarFallback } from "@/lib/users/display";
 import { NextRequest, NextResponse } from "next/server";
 import { todayWIB } from "@/lib/practicum/schedule";
 import { getSession, getSessionToken } from "@/lib/auth/session";
@@ -5,6 +6,11 @@ import { supabaseAuthed } from "@/lib/supabase/authed";
 import { PracticumRequest } from "@/types";
 import { filterAndSortRequests, STATUS_FILTER_LABELS, type SortDirection } from "@/lib/admin/requestFilters";
 import { buildRecapWorkbook } from "@/lib/admin/recapExcel";
+
+// Pemohon yang dosen tampil dengan nama + gelar (users.nama_gelar).
+function withGelarNames<T extends { requester?: { nama: string; nama_gelar?: string | null } | null }>(rows: T[]): T[] {
+  return rows.map((r) => (r.requester ? { ...r, requester: applyGelar(r.requester) } : r));
+}
 
 // GET /api/admin/practicum-requests/recap?jenis=...&lab=...&status=...&urutan=...
 // &dari=YYYY-MM-DD&sampai=YYYY-MM-DD
@@ -35,16 +41,18 @@ export async function GET(req: NextRequest) {
   const sampaiTanggal = searchParams.get("sampai") || undefined;
 
   const supabase = supabaseAuthed(token);
-  const { data, error } = await supabase
-    .from("practicum_requests")
-    .select("*, requester:users!requester_id(nama, nim, prodi)")
-    .order("created_at", { ascending: false });
+  const { data, error } = await withGelarFallback((g) =>
+    supabase
+      .from("practicum_requests")
+      .select(`*, requester:users!requester_id(nama${gelarCol(g)}, nim, prodi)`)
+      .order("created_at", { ascending: false })
+  );
 
   if (error) {
     return NextResponse.json({ error: "Gagal memuat data pengajuan." }, { status: 500 });
   }
 
-  const requests = (data as unknown as PracticumRequest[]) ?? [];
+  const requests = withGelarNames((data as unknown as PracticumRequest[]) ?? []);
   const filtered = filterAndSortRequests(requests, {
     jenis,
     lab,
