@@ -7,6 +7,7 @@ import { DeleteLoanButton } from "@/components/loans/DeleteLoanButton";
 import { getSession } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase/server";
 import { loadApprovals } from "@/lib/loans/approvers";
+import { displayName, gelarCol, withGelarFallback } from "@/lib/users/display";
 import { loadLoanReviewer } from "@/lib/loans/access";
 import { LAB_TITLE, approvalTitle, formatTanggalId, sortBidang, type LoanRecord, type LoanStatus } from "@/lib/loans/config";
 
@@ -22,7 +23,7 @@ export const revalidate = 0;
 const linkCls = "border border-petrol px-3 py-1.5 text-xs text-petrol transition-colors hover:bg-petrol hover:text-paper";
 const ORDER: Record<LoanStatus, number> = { menunggu_acc: 0, ditolak: 1, disetujui: 2, menunggu_upload: 3, legacy: 4 };
 
-type Requester = { id: string; nama: string; nim: string | null; nip: string | null; prodi: string | null };
+type Requester = { id: string; nama: string; nama_gelar?: string | null; nim: string | null; nip: string | null; prodi: string | null };
 
 export default async function KelolaPeminjamanPage() {
   const session = await getSession();
@@ -61,7 +62,7 @@ export default async function KelolaPeminjamanPage() {
   const approvals = await loadApprovals(db, loans.map((l) => l.id)).catch(() => new Map());
   const ids = Array.from(new Set(loans.map((l) => l.requester_id)));
   const { data: users } = ids.length
-    ? await db.from("users").select("id, nama, nim, nip, prodi").in("id", ids)
+    ? await withGelarFallback((g) => db.from("users").select(`id, nama${gelarCol(g)}, nim, nip, prodi`).in("id", ids))
     : { data: [] as Requester[] };
   const byId = new Map(((users ?? []) as Requester[]).map((u) => [u.id, u]));
 
@@ -96,7 +97,7 @@ export default async function KelolaPeminjamanPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-medium text-ink">
-                      {u?.nama ?? "—"}
+                      {u ? displayName(u) : "—"}
                       <span className="ml-2 font-mono text-xs font-normal text-core">{u?.nim ?? u?.nip ?? ""}</span>
                     </p>
                     {u?.prodi && <p className="text-xs text-core">{u.prodi}</p>}
