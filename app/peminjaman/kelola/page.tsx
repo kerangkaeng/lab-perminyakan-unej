@@ -138,11 +138,18 @@ export default async function KelolaPeminjamanPage() {
                       Lihat Dokumen Bertanda Tangan
                     </a>
                   )}
-                  {loan.status === "disetujui" && (
-                    <a href={`/api/loans/${loan.id}/pdf?jenis=persetujuan`} target="_blank" rel="noopener noreferrer" className={linkCls}>
-                      Surat Persetujuan
-                    </a>
-                  )}
+                  {loan.status === "disetujui" &&
+                      (sortBidang(loan.bidang).length > 1 ? sortBidang(loan.bidang) : [undefined]).map((b) => (
+                        <a
+                          key={b ?? "all"}
+                          href={`/api/loans/${loan.id}/pdf?jenis=persetujuan${b ? `&bidang=${b}` : ""}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={linkCls}
+                        >
+                          Surat Persetujuan{b ? ` ${LAB_TITLE[b]}` : ""}
+                        </a>
+                      ))}
                 </div>
 
                 {loan.status === "menunggu_upload" && (
