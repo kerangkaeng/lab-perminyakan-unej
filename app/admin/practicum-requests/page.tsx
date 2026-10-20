@@ -1,3 +1,4 @@
+import { applyGelar, gelarCol, withGelarFallback } from "@/lib/users/display";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { AdminRequestsTable } from "@/components/dashboard/AdminRequestsTable";
 import { RequestsFilterBar } from "@/components/dashboard/RequestsFilterBar";
@@ -6,6 +7,11 @@ import { canManagePracticumRequests, canRequestRevision } from "@/lib/admin/perm
 import { supabaseAuthed, supabasePublic } from "@/lib/supabase/authed";
 import { PracticumRequest } from "@/types";
 import { filterAndSortRequests, type SortDirection } from "@/lib/admin/requestFilters";
+
+// Pemohon yang dosen tampil dengan nama + gelar (users.nama_gelar).
+function withGelarNames<T extends { requester?: { nama: string; nama_gelar?: string | null } | null }>(rows: T[]): T[] {
+  return rows.map((r) => (r.requester ? { ...r, requester: applyGelar(r.requester) } : r));
+}
 
 export const revalidate = 0;
 
@@ -48,15 +54,17 @@ export default async function AdminPracticumRequestsPage({ searchParams: searchP
     // dirawat sebagai fungsi biasa daripada query filter bertingkat.
     // Untuk skala jumlah pengajuan lab kampus, ambil semua lalu filter
     // di memori ini tidak masalah dari sisi performa.
-    const { data, error } = await supabase
-      .from("practicum_requests")
-      .select("*, requester:users!requester_id(nama, nim, prodi)")
-      .order("created_at", { ascending: false });
+    const { data, error } = await withGelarFallback((g) =>
+      supabase
+        .from("practicum_requests")
+        .select(`*, requester:users!requester_id(nama${gelarCol(g)}, nim, prodi)`)
+        .order("created_at", { ascending: false })
+    );
 
     if (error) {
       loadError = "Gagal memuat data pengajuan.";
     } else {
-      requests = (data as unknown as PracticumRequest[]) ?? [];
+      requests = withGelarNames((data as unknown as PracticumRequest[]) ?? []);
     }
   }
 
