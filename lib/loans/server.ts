@@ -3,6 +3,7 @@
 // service role & storage privat, jadi JANGAN diimpor dari komponen client.
 import { readFile } from "fs/promises";
 import path from "path";
+import { PDFDocument } from "pdf-lib";
 import { supabaseServer } from "@/lib/supabase/server";
 import { fetchPrivateFileForProxy, isSignatureKey } from "@/lib/storage/b2";
 import {
@@ -113,13 +114,31 @@ export async function generateLoanTemplatePdf(loan: LoanRecord): Promise<Uint8Ar
 
 /**
  * SURAT PERSETUJUAN (setelah semua ACC): surat izin dari Kepala Lab kepada Teknisi/Asisten
- * Laboratorium, hanya ditandatangani Kepala Lab (tanda tangan elektronik) yang BENAR-BENAR menyetujui (diambil dari catatan
- * persetujuan, bukan dari pemegang jabatan saat ini) supaya surat yang sama
- * tetap sah walau jabatan berganti di kemudian hari.
+ * Laboratorium, hanya ditandatangani Kepala Lab (tanda tangan elektronik) yang BENAR-BENAR
+ * menyetujui (diambil dari catatan persetujuan, bukan dari pemegang jabatan saat ini) supaya
+ * surat yang sama tetap sah walau jabatan berganti di kemudian hari.
+ *
+ * Satu surat PER LABORATORIUM: hanya memuat alat milik lab itu, kop dan tanda tangan lab itu.
+ * Peminjaman lintas lab menghasilkan dua surat (formulir pengajuan tetap satu daftar).
+ *   - `bidang` diisi  -> satu surat untuk lab tersebut.
+ *   - `bidang` kosong -> lab tunggal: satu surat; dua lab: kedua surat digabung (satu file, dua bagian).
  */
-export async function generateLoanApprovalPdf(loan: LoanRecord): Promise<Uint8Array> {
+export async function generateLoanApprovalPdf(loan: LoanRecord, bidang?: Bidang): Promise<Uint8Array> {
+  const labs = sortBidang(loan.bidang);
+  if (bidang) return generateApprovalLetter(loan, bidang);
+  if (labs.length === 1) return generateApprovalLetter(loan, labs[0]);
+
+  const merged = await PDFDocument.create();
+  for (const b of labs) {
+    const part = await PDFDocument.load(await generateApprovalLetter(loan, b));
+    const pages = await merged.copyPages(part, part.getPageIndices());
+    pages.forEach((pg) => merged.addPage(pg));
+  }
+  return await merged.save();
+}
+
+async function generateApprovalLetter(loan: LoanRecord, b: Bidang): Promise<Uint8Array> {
   const db = supabaseServer();
-  const bidang = sortBidang(loan.bidang);
   const requester = await loadRequester(loan);
 
   const { data, error } = await db
@@ -140,27 +159,37 @@ export async function generateLoanApprovalPdf(loan: LoanRecord): Promise<Uint8Ar
     approver: Array.isArray(r.approver) ? (r.approver[0] ?? null) : r.approver,
   }));
 
-  const signers: PdfSigner[] = [];
-
-  let first = true;
-  for (const b of bidang) {
-    const u = rows.find((r) => r.role_type === "kepala_lab" && r.bidang === b)?.approver ?? null;
-    signers.push({
-      preLabel: first ? "Jember," : undefined,
+  const u = rows.find((r) => r.role_type === "kepala_lab" && r.bidang === b)?.approver ?? null;
+  const signers: PdfSigner[] = [
+    {
+      preLabel: "Jember,",
       title: `Kepala Laboratorium ${LAB_TITLE[b]}`,
       nama: u?.nama ?? null,
       idNumber: u?.nip ?? null,
       idLabel: "NIP.",
       signature: await loadSignature(u),
-    });
-    first = false;
-  }
+    },
+  ];
 
-  const approvedAt = rows
-    .map((r) => (r.decided_at ? new Date(r.decided_at) : null))
-    .filter((d): d is Date => !!d)
-    .sort((a, b) => b.getTime() - a.getTime())[0] ?? (loan.approved_at ? new Date(loan.approved_at) : null);
+  // Tanggal surat = keputusan Kepala Lab lab ini; cadangan: persetujuan terakhir / waktu approved_at.
+  const decided = (r: Row) => (r.decided_at ? new Date(r.decided_at) : null);
+  const approvedAt =
+    rows.filter((r) => r.role_type === "kepala_lab" && r.bidang === b).map(decided).find((d) => !!d) ??
+    rows.map(decided).filter((d): d is Date => !!d).sort((x, y) => y.getTime() - x.getTime())[0] ??
+    (loan.approved_at ? new Date(loan.approved_at) : null);
 
+  // Hanya alat milik lab ini (alat tanpa bidang jelas mengikuti bidang utama peminjaman).
+  const items = loan.items.filter((it) => it.bidang === b);
   const logoPng = await loadLogo();
-  return buildLoanPdf({ ...baseData(loan, requester, bidang), mode: "approval", approvedAt, signers }, logoPng);
+  return buildLoanPdf(
+    {
+      ...baseData(loan, requester, [b]),
+      headerBidang: b,
+      items: items.length > 0 ? items : loan.items,
+      mode: "approval",
+      approvedAt,
+      signers,
+    },
+    logoPng
+  );
 }
