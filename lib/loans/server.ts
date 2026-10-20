@@ -15,6 +15,7 @@ import {
   type LoanRecord,
 } from "@/lib/loans/config";
 import { buildLoanPdf, type PdfSigner } from "@/lib/loans/pdf";
+import { displayName, gelarCol, withGelarFallback } from "@/lib/users/display";
 import type { Bidang } from "@/lib/lab-roles";
 
 const LOGO_FILE = "logo-unej.png";
@@ -45,13 +46,15 @@ async function loadLogo(): Promise<Uint8Array> {
 type RequesterRow = UserLite;
 
 async function loadRequester(loan: LoanRecord): Promise<RequesterRow> {
-  const { data, error } = await supabaseServer()
-    .from("users")
-    .select("id, nama, nim, nip, prodi, fakultas, user_type, ttd")
-    .eq("id", loan.requester_id)
-    .single();
+  const { data, error } = await withGelarFallback((g) =>
+    supabaseServer()
+      .from("users")
+      .select(`id, nama${gelarCol(g)}, nim, nip, prodi, fakultas, user_type, ttd`)
+      .eq("id", loan.requester_id)
+      .single()
+  );
   if (error || !data) throw new Error("Data pemohon tidak ditemukan.");
-  return data as RequesterRow;
+  return data as unknown as RequesterRow;
 }
 
 function baseData(loan: LoanRecord, requester: RequesterRow, bidang: Bidang[]) {
@@ -60,7 +63,7 @@ function baseData(loan: LoanRecord, requester: RequesterRow, bidang: Bidang[]) {
     headerBidang: primaryBidang(loan.items),
     dospem: loan.dospem_nama ? { nama: loan.dospem_nama, nip: loan.dospem_nip } : null,
     requester: {
-      nama: requester.nama,
+      nama: displayName(requester),
       idNumber: (isMhs ? requester.nim : requester.nip) ?? null,
       idLabel: (isMhs ? "NIM" : "NIP") as "NIM" | "NIP",
       prodi: requester.prodi ?? null,
@@ -102,7 +105,7 @@ export async function generateLoanTemplatePdf(loan: LoanRecord): Promise<Uint8Ar
     {
       preLabel: `Jember, ${formatTanggalId(new Date(loan.created_at))}`,
       title: "Pemohon",
-      nama: requester.nama,
+      nama: displayName(requester),
       idNumber: (isMhs ? requester.nim : requester.nip) ?? null,
       idLabel: isMhs ? "NIM." : "NIP.",
       signature: null,
