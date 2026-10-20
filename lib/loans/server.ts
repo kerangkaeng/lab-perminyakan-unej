@@ -6,7 +6,6 @@ import path from "path";
 import { supabaseServer } from "@/lib/supabase/server";
 import { fetchPrivateFileForProxy, isSignatureKey } from "@/lib/storage/b2";
 import {
-  BIDANG_ORDER,
   LAB_TITLE,
   formatTanggalId,
   primaryBidang,
@@ -89,7 +88,8 @@ export async function generateLoanTemplatePdf(loan: LoanRecord): Promise<Uint8Ar
   const signers: PdfSigner[] = [
     loan.dospem_nama
       ? {
-          title: "Dosen Pembimbing",
+          preLabel: "Mengetahui,",
+          title: "Dosen Pembimbing Penelitian",
           nama: loan.dospem_nama,
           idNumber: loan.dospem_nip,
           idLabel: "NIP.",
@@ -112,8 +112,8 @@ export async function generateLoanTemplatePdf(loan: LoanRecord): Promise<Uint8Ar
 }
 
 /**
- * SURAT PERSETUJUAN (setelah semua ACC): memuat tanda tangan elektronik
- * Kepala Lab dan Laboran yang BENAR-BENAR menyetujui (diambil dari catatan
+ * SURAT PERSETUJUAN (setelah semua ACC): surat izin dari Kepala Lab kepada Teknisi/Asisten
+ * Laboratorium, hanya ditandatangani Kepala Lab (tanda tangan elektronik) yang BENAR-BENAR menyetujui (diambil dari catatan
  * persetujuan, bukan dari pemegang jabatan saat ini) supaya surat yang sama
  * tetap sah walau jabatan berganti di kemudian hari.
  */
@@ -146,8 +146,8 @@ export async function generateLoanApprovalPdf(loan: LoanRecord): Promise<Uint8Ar
   for (const b of bidang) {
     const u = rows.find((r) => r.role_type === "kepala_lab" && r.bidang === b)?.approver ?? null;
     signers.push({
-      preLabel: first ? "Menyetujui," : undefined,
-      title: `Kepala Laboratorium Teknik Perminyakan ${LAB_TITLE[b]}`,
+      preLabel: first ? "Jember," : undefined,
+      title: `Kepala Laboratorium ${LAB_TITLE[b]}`,
       nama: u?.nama ?? null,
       idNumber: u?.nip ?? null,
       idLabel: "NIP.",
@@ -156,30 +156,10 @@ export async function generateLoanApprovalPdf(loan: LoanRecord): Promise<Uint8Ar
     first = false;
   }
 
-  // Laboran: orang yang sama di dua bidang cukup tampil sekali.
-  const laborans: UserLite[] = [];
-  for (const b of BIDANG_ORDER) {
-    if (!bidang.includes(b)) continue;
-    const u = rows.find((r) => r.role_type === "laboran" && r.bidang === b)?.approver ?? null;
-    if (u && !laborans.some((l) => l.id === u.id)) laborans.push(u);
-  }
   const approvedAt = rows
     .map((r) => (r.decided_at ? new Date(r.decided_at) : null))
     .filter((d): d is Date => !!d)
     .sort((a, b) => b.getTime() - a.getTime())[0] ?? (loan.approved_at ? new Date(loan.approved_at) : null);
-
-  const laboranList: (UserLite | null)[] = laborans.length > 0 ? laborans : [null];
-  for (let i = 0; i < laboranList.length; i++) {
-    const u = laboranList[i];
-    signers.push({
-      preLabel: i === 0 ? `Jember, ${formatTanggalId(approvedAt ?? new Date())}` : undefined,
-      title: "Teknisi Laboratorium Teknik Perminyakan",
-      nama: u?.nama ?? null,
-      idNumber: u?.nip ?? null,
-      idLabel: "NIP.",
-      signature: await loadSignature(u),
-    });
-  }
 
   const logoPng = await loadLogo();
   return buildLoanPdf({ ...baseData(loan, requester, bidang), mode: "approval", approvedAt, signers }, logoPng);
