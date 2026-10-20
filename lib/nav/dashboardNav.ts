@@ -20,6 +20,7 @@ export const primaryNavItems: DashboardNavItem[] = [
   // Admin: hanya meninjau. Kepala Lab/Laboran masuk lewat tombol "Kelola Peminjaman" di
   // Status Peminjaman (hak akses dicek di halamannya, dari lab_roles).
   { href: "/peminjaman/kelola", label: "Kelola Peminjaman", roles: ["admin"] },
+  { href: "/admin/nama-gelar", label: "Nama & Gelar Dosen", roles: ["admin"] },
   // asisten ikut ditambahkan di sini — halaman & tombol aksinya sendiri
   // yang menentukan dia cuma bisa lihat, bukan approve/reject (lihat
   // AdminRequestsTable.tsx + canManagePracticumRequests()).
@@ -58,7 +59,7 @@ export type DashboardSection = {
 };
 
 const KEGIATAN = new Set(["/practicum/ajukan", "/practicum/status", "/practicum/jadwal", "/peminjaman", "/peminjaman/status"]);
-const PENGELOLAAN = new Set(["/admin/practicum-requests", "/peminjaman/kelola", "/admin/rekap", "/admin/lab-roles"]);
+const PENGELOLAAN = new Set(["/admin/practicum-requests", "/peminjaman/kelola", "/admin/nama-gelar", "/admin/rekap", "/admin/lab-roles"]);
 
 export function dashboardSectionsFor(role: DashboardNavItem["roles"][number]): DashboardSection[] {
   const visible = (items: DashboardNavItem[]) => items.filter((i) => i.roles.includes(role));
