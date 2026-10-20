@@ -27,6 +27,7 @@ type UserLite = {
   prodi?: string | null;
   fakultas?: string | null;
   user_type?: string | null;
+  nama_gelar?: string | null;
   ttd: string | null;
 };
 
@@ -141,11 +142,15 @@ async function generateApprovalLetter(loan: LoanRecord, b: Bidang): Promise<Uint
   const db = supabaseServer();
   const requester = await loadRequester(loan);
 
-  const { data, error } = await db
-    .from("equipment_loan_approvals")
-    .select("role_type, bidang, status, decided_at, approver:users!approver_id(id, nama, nip, ttd)")
-    .eq("loan_id", loan.id)
-    .eq("status", "approved");
+  const selectApprovals = (cols: string) =>
+    db
+      .from("equipment_loan_approvals")
+      .select(`role_type, bidang, status, decided_at, approver:users!approver_id(${cols})`)
+      .eq("loan_id", loan.id)
+      .eq("status", "approved");
+  let { data, error } = await selectApprovals("id, nama, nama_gelar, nip, ttd");
+  // Kolom nama_gelar belum ada (migrasi 012 belum dijalankan): pakai nama dari SSO.
+  if (error?.code === "42703") ({ data, error } = await selectApprovals("id, nama, nip, ttd"));
   if (error) throw error;
 
   type Row = {
@@ -164,7 +169,7 @@ async function generateApprovalLetter(loan: LoanRecord, b: Bidang): Promise<Uint
     {
       preLabel: "Jember,",
       title: `Kepala Laboratorium ${LAB_TITLE[b]}`,
-      nama: u?.nama ?? null,
+      nama: u?.nama_gelar?.trim() || u?.nama || null,
       idNumber: u?.nip ?? null,
       idLabel: "NIP.",
       signature: await loadSignature(u),
