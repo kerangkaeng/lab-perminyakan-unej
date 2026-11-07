@@ -12,10 +12,11 @@ async function uploadFile(
   file: File,
   table: string,
   fieldName: string,
-  fieldType: "image" | "pdf" | "file"
+  fieldType: "image" | "pdf" | "file",
+  maxMB?: number
 ): Promise<string> {
   // "file" (dipakai lab_documents) boleh gambar ATAU pdf -> deteksi otomatis.
-  assertFileSize(file, fieldType === "file" ? "auto" : fieldType);
+  assertFileSize(file, fieldType === "file" ? "auto" : fieldType, maxMB ? maxMB * 1024 * 1024 : undefined);
   const key = buildKey(`${table}/${fieldName}`, file.name);
   // Tipe divalidasi dari isi berkas sesuai jenis field (lihat uploadPublicFile).
   return uploadPublicFile(file, key, undefined, fieldType);
@@ -82,7 +83,8 @@ export async function upsertRecord(tableName: string, id: string, formData: Form
           file,
           tableName,
           field.name,
-          field.type as "image" | "pdf" | "file"
+          field.type as "image" | "pdf" | "file",
+          field.maxMB
         );
         uploadedNow.push(record[field.name]);
         if (existingRow) replacedOld.push(existingRow[field.name]);
