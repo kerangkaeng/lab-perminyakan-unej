@@ -10,6 +10,8 @@ export interface FieldConfig {
   relationTable?: string;
   relationLabelField?: string;
   required?: boolean;
+  /** Override batas ukuran upload (MB) khusus field ini. Kosong = pakai default (gambar 1 MB, PDF 10 MB). */
+  maxMB?: number;
 }
 
 export interface TableConfig {
@@ -78,7 +80,7 @@ export const adminTables: Record<string, TableConfig> = {
       { name: "title", label: "Judul Modul (mis. Pengukuran Rheologi Lumpur)", type: "text", required: true },
       { name: "facility_id", label: "Laboratorium", type: "relation", relationTable: "facilities", relationLabelField: "name" },
       { name: "description", label: "Deskripsi", type: "textarea" },
-      { name: "file_url", label: "File Modul (PDF)", type: "pdf" },
+      { name: "file_url", label: "File Modul (PDF)", type: "pdf", maxMB: 5 },
       { name: "urutan", label: "Urutan di Struktur Organisasi (angka kecil tampil lebih dulu, mis. semester)", type: "number" },
       STATUS,
     ],
