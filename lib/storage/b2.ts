@@ -54,13 +54,15 @@ function formatSize(bytes: number): string {
  */
 export function assertFileSize(
   file: { size: number; type?: string },
-  kind: "image" | "pdf" | "auto"
+  kind: "image" | "pdf" | "auto",
+  maxBytesOverride?: number
 ) {
   const isImage = kind === "image" || (kind === "auto" && (file.type ?? "").startsWith("image/"));
-  const limit = isImage ? MAX_IMAGE_BYTES : MAX_PDF_BYTES;
+  const limit = maxBytesOverride ?? (isImage ? MAX_IMAGE_BYTES : MAX_PDF_BYTES);
 
   if (file.size > limit) {
-    const label = isImage ? "gambar (maks. 1 MB)" : "PDF (maks. 10 MB)";
+    const limitMB = Number((limit / (1024 * 1024)).toFixed(2));
+    const label = `${isImage ? "gambar" : "PDF"} (maks. ${limitMB} MB)`;
     throw new FileTooLargeError(
       `Ukuran file terlalu besar untuk ${label}. Ukuran file kamu: ${formatSize(file.size)}.`
     );
