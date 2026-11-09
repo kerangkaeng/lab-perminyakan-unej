@@ -1,7 +1,7 @@
 /**
  * Setelah login, pengguna default diarahkan ke beranda ("/") kecuali ada
  * parameter `redirect` yang valid (mis. dari halaman terproteksi).
- * Hanya terima path internal ("/practicum/status"). Menolak URL absolut,
+ * Hanya terima path internal ("/kegiatan/status"). Menolak URL absolut,
  * "//evil.com", "/\evil.com", dan karakter kontrol — supaya parameter
  * `redirect` di alur login tidak bisa dipakai sebagai open redirect.
  */
