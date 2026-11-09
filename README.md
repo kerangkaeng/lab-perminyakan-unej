@@ -87,9 +87,9 @@ update public.users set role = 'admin' where nim = '2110xxxxxxxxx';
 | Route | Access | Description |
 |---|---|---|
 | `/login` | Public | UNEJ SSO login button |
-| `/practicum/ajukan` | Authenticated | Submit a practicum schedule request |
-| `/practicum/status` | Authenticated | View the status of one's own requests |
-| `/practicum/jadwal` | Public | Approved practicum schedule |
+| `/kegiatan/ajukan` | Authenticated | Submit a practicum schedule request |
+| `/kegiatan/status` | Authenticated | View the status of one's own requests |
+| `/kegiatan/jadwal` | Public | Approved practicum schedule |
 | `/admin/practicum-requests` | Admin | Approve/reject incoming requests |
 
 ## Environment Variables
