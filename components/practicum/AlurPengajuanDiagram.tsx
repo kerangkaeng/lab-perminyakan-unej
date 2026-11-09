@@ -270,6 +270,12 @@ export function AlurPengajuanDiagram() {
         (jika belum sesuai, revisi diminta lagi; pengajuan baru belum bisa dibuat selama revisi berjalan)
       </text>
 
+      {/* loop: ACC revisi -> kembali ke SELESAI */}
+      <path d="M750,1785 L810,1785 L810,1640 L540,1640" fill="none" stroke={rig} strokeWidth="2" strokeDasharray="6 4" markerEnd="url(#arrow)" />
+      <text x="822" y="1700" fill={rig} fontSize="11" fontFamily="Inter, sans-serif" fontWeight="600">ACC</text>
+      <text x="822" y="1716" fill={core} fontSize="11" fontFamily="Inter, sans-serif">kembali</text>
+      <text x="822" y="1732" fill={core} fontSize="11" fontFamily="Inter, sans-serif">selesai</text>
+
       <text x="450" y="1900" textAnchor="middle" fill={core} fontSize="12" fontFamily="Inter, sans-serif">
         Semua tahap dilakukan lewat akun SSO UNEJ yang sama: Layanan Lab &rarr; Pengajuan Kegiatan, lalu menu Status Pengajuan.
       </text>
