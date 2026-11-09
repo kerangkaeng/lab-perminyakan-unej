@@ -12,9 +12,9 @@ export const primaryNavItems: DashboardNavItem[] = [
   // mengajukan kegiatannya sendiri, memantau status pengajuannya sendiri,
   // dan melihat jadwal, terpisah dari tugasnya mengelola pengajuan orang
   // lain lewat "Kelola Pengajuan".
-  { href: "/practicum/ajukan", label: "Ajukan Kegiatan", roles: ["mahasiswa", "admin", "asisten"] },
-  { href: "/practicum/status", label: "Status Pengajuan", roles: ["mahasiswa", "admin", "asisten"] },
-  { href: "/practicum/jadwal", label: "Jadwal", roles: ["mahasiswa", "admin", "asisten"] },
+  { href: "/kegiatan/ajukan", label: "Ajukan Kegiatan", roles: ["mahasiswa", "admin", "asisten"] },
+  { href: "/kegiatan/status", label: "Status Pengajuan", roles: ["mahasiswa", "admin", "asisten"] },
+  { href: "/kegiatan/jadwal", label: "Jadwal", roles: ["mahasiswa", "admin", "asisten"] },
   { href: "/peminjaman", label: "Peminjaman Alat", roles: ["mahasiswa", "admin", "asisten", "dosen"] },
   { href: "/peminjaman/status", label: "Status Peminjaman", roles: ["mahasiswa", "admin", "asisten", "dosen"] },
   // Admin: hanya meninjau. Kepala Lab/Laboran masuk lewat tombol "Kelola Peminjaman" di
@@ -58,7 +58,7 @@ export type DashboardSection = {
   items: DashboardNavItem[];
 };
 
-const KEGIATAN = new Set(["/practicum/ajukan", "/practicum/status", "/practicum/jadwal", "/peminjaman", "/peminjaman/status"]);
+const KEGIATAN = new Set(["/kegiatan/ajukan", "/kegiatan/status", "/kegiatan/jadwal", "/peminjaman", "/peminjaman/status"]);
 const PENGELOLAAN = new Set(["/admin/practicum-requests", "/peminjaman/kelola", "/admin/nama-gelar", "/admin/rekap", "/admin/lab-roles"]);
 
 export function dashboardSectionsFor(role: DashboardNavItem["roles"][number]): DashboardSection[] {
