@@ -61,7 +61,7 @@ export default async function PeminjamanPage() {
         Pilih alat atau bahan laboratorium yang ingin dipinjam, lalu buat dokumen peminjaman (PDF) yang
         sudah memuat kop laboratorium dan tanda tangan. Halaman ini khusus peminjaman alat/bahan —
         untuk memakai ruang laboratorium, gunakan{" "}
-        <Link href="/practicum/ajukan" className="text-petrol underline">
+        <Link href="/kegiatan/ajukan" className="text-petrol underline">
           Pengajuan Kegiatan
         </Link>
         .
