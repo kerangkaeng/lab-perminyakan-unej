@@ -9,6 +9,15 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/api/loans/**/*": ["./lib/loans/templates/*.pdf"],
   },
+  // URL lama (/practicum/ajukan dst.) dialihkan permanen ke /kegiatan/* supaya
+  // bookmark & link yang sudah tersebar tidak 404.
+  async redirects() {
+    return [
+      { source: "/practicum/ajukan", destination: "/kegiatan/ajukan", permanent: true },
+      { source: "/practicum/status", destination: "/kegiatan/status", permanent: true },
+      { source: "/practicum/jadwal", destination: "/kegiatan/jadwal", permanent: true },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**.supabase.co" },
