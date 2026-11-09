@@ -2,13 +2,13 @@ import Link from "next/link";
 
 const links = [
   { href: "/practicum/modules", label: "Modul Praktikum", desc: "Unduh modul untuk setiap laboratorium." },
-  { href: "/practicum/jadwal", label: "Jadwal Praktikum", desc: "Jadwal praktikum yang sudah disetujui admin, terupdate otomatis." },
+  { href: "/kegiatan/jadwal", label: "Jadwal Praktikum", desc: "Jadwal praktikum yang sudah disetujui admin, terupdate otomatis." },
   { href: "/practicum/announcements", label: "Pengumuman", desc: "Informasi dan tata tertib terbaru." },
 ];
 
 const accountLinks = [
-  { href: "/practicum/ajukan", label: "Ajukan Kegiatan", desc: "Mahasiswa mengajukan jadwal kegiatan praktikum maupun non-praktikum." },
-  { href: "/practicum/status", label: "Status Pengajuan", desc: "Pantau status pengajuan yang sudah kamu kirim." },
+  { href: "/kegiatan/ajukan", label: "Ajukan Kegiatan", desc: "Mahasiswa mengajukan jadwal kegiatan praktikum maupun non-praktikum." },
+  { href: "/kegiatan/status", label: "Status Pengajuan", desc: "Pantau status pengajuan yang sudah kamu kirim." },
 ];
 
 export default function PracticumPage() {
