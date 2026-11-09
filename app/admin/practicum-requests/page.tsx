@@ -78,7 +78,7 @@ export default async function AdminPracticumRequestsPage({ searchParams: searchP
   // Daftar laboratorium untuk dropdown filter — diambil dari tabel
   // facilities (bukan cuma nilai unik yang ada di data pengajuan saat
   // ini), supaya tetap konsisten dengan daftar lab resmi yang dipakai di
-  // form "Ajukan Kegiatan" (lihat app/practicum/ajukan/page.tsx).
+  // form "Ajukan Kegiatan" (lihat app/kegiatan/ajukan/page.tsx).
   const supabasePublicClient = supabasePublic();
   const { data: facilitiesData } = await supabasePublicClient
     .from("facilities")
