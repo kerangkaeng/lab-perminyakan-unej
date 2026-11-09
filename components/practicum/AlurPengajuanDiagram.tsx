@@ -9,7 +9,7 @@ export function AlurPengajuanDiagram() {
 
   return (
     <svg
-      viewBox="0 0 900 1720"
+      viewBox="0 0 900 1930"
       xmlns="http://www.w3.org/2000/svg"
       className="w-full h-auto"
       role="img"
@@ -29,7 +29,7 @@ export function AlurPengajuanDiagram() {
         </marker>
       </defs>
 
-      <rect width="900" height="1720" fill={paper} />
+      <rect width="900" height="1930" fill={paper} />
 
       {/* 1. Login */}
       <rect x="330" y="20" width="240" height="60" rx="4" fill={petrol} />
@@ -95,10 +95,10 @@ export function AlurPengajuanDiagram() {
       {/* 4. tanggal & jam */}
       <rect x="330" y="460" width="240" height="60" rx="4" fill="white" stroke={line} strokeWidth="1.5" />
       <text x="450" y="484" textAnchor="middle" fill={ink} fontSize="13" fontFamily="Inter, sans-serif" fontWeight="600">
-        Isi Tanggal &amp; Jam
+        Isi Tanggal &amp; Jam Kegiatan
       </text>
-      <text x="450" y="502" textAnchor="middle" fill={core} fontSize="12" fontFamily="Inter, sans-serif">
-        Kegiatan
+      <text x="450" y="502" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
+        (ada peringatan jika jadwal bentrok)
       </text>
       <line x1="450" y1="520" x2="450" y2="560" stroke={core} strokeWidth="2" markerEnd="url(#arrow)" />
 
@@ -110,9 +110,9 @@ export function AlurPengajuanDiagram() {
       <line x1="450" y1="620" x2="450" y2="660" stroke={core} strokeWidth="2" markerEnd="url(#arrow)" />
 
       {/* status pending badge */}
-      <rect x="380" y="660" width="140" height="34" rx="17" fill={mist} stroke={rig} strokeWidth="1.5" />
+      <rect x="365" y="660" width="170" height="34" rx="17" fill={mist} stroke={rig} strokeWidth="1.5" />
       <text x="450" y="682" textAnchor="middle" fill={rig} fontSize="12" fontFamily="Inter, sans-serif" fontWeight="700">
-        STATUS: PENDING
+        STATUS: MENUNGGU
       </text>
       <line x1="450" y1="694" x2="450" y2="730" stroke={core} strokeWidth="2" markerEnd="url(#arrow)" />
 
@@ -167,66 +167,111 @@ export function AlurPengajuanDiagram() {
 
       {/* 9. lengkapi administrasi */}
       <rect x="270" y="1180" width="360" height="60" rx="4" fill={rig} />
-      <text x="450" y="1216" textAnchor="middle" fill={paper} fontSize="15" fontFamily="Inter, sans-serif" fontWeight="600">
+      <text x="450" y="1207" textAnchor="middle" fill={paper} fontSize="15" fontFamily="Inter, sans-serif" fontWeight="600">
         Klik &ldquo;Lengkapi Administrasi&rdquo;
       </text>
-      <line x1="450" y1="1240" x2="450" y2="1280" stroke={core} strokeWidth="2" markerEnd="url(#arrow)" />
+      <text x="450" y="1227" textAnchor="middle" fill={paper} fontSize="11" fontFamily="Inter, sans-serif">
+        (baru bisa setelah kegiatan berakhir)
+      </text>
+      <line x1="450" y1="1240" x2="450" y2="1280" stroke={core} strokeWidth="2" />
 
-      {/* branch: upload dokumentasi + insiden */}
-      <line x1="450" y1="1280" x2="270" y2="1280" stroke={core} strokeWidth="2" />
-      <line x1="270" y1="1280" x2="270" y2="1310" stroke={core} strokeWidth="2" markerEnd="url(#arrow)" />
-      <line x1="450" y1="1280" x2="630" y2="1280" stroke={core} strokeWidth="2" />
-      <line x1="630" y1="1280" x2="630" y2="1310" stroke={core} strokeWidth="2" markerEnd="url(#arrow)" />
+      {/* branch: dokumentasi + insiden + peminjaman */}
+      <line x1="150" y1="1280" x2="750" y2="1280" stroke={core} strokeWidth="2" />
+      <line x1="150" y1="1280" x2="150" y2="1310" stroke={core} strokeWidth="2" markerEnd="url(#arrow)" />
+      <line x1="450" y1="1280" x2="450" y2="1310" stroke={core} strokeWidth="2" markerEnd="url(#arrow)" />
+      <line x1="750" y1="1280" x2="750" y2="1310" stroke={core} strokeWidth="2" markerEnd="url(#arrow)" />
 
-      <rect x="140" y="1310" width="260" height="110" rx="4" fill="white" stroke={line} strokeWidth="1.5" />
-      <text x="270" y="1338" textAnchor="middle" fill={ink} fontSize="13" fontFamily="Inter, sans-serif" fontWeight="600">
+      <rect x="20" y="1310" width="260" height="130" rx="4" fill="white" stroke={line} strokeWidth="1.5" />
+      <text x="150" y="1338" textAnchor="middle" fill={ink} fontSize="13" fontFamily="Inter, sans-serif" fontWeight="600">
         Upload Dokumentasi
       </text>
-      <text x="270" y="1360" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
-        Praktikum: pretest, tes alat,
+      <text x="150" y="1360" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
+        Praktikum: pre test, tes alat,
       </text>
-      <text x="270" y="1376" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
+      <text x="150" y="1376" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
         pelaksanaan praktikum
       </text>
-      <text x="270" y="1398" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
+      <text x="150" y="1396" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
         Non-praktikum: dokumentasi kegiatan
       </text>
-
-      <rect x="500" y="1310" width="260" height="110" rx="4" fill="white" stroke={line} strokeWidth="1.5" />
-      <text x="630" y="1338" textAnchor="middle" fill={ink} fontSize="13" fontFamily="Inter, sans-serif" fontWeight="600">
-        Lapor Insiden (jika ada)
-      </text>
-      <text x="630" y="1360" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
-        Alat rusak/pecah, hilang,
-      </text>
-      <text x="630" y="1376" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
-        tumpah, atau lainnya
-      </text>
-      <text x="630" y="1398" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
-        + penyebab &amp; tanggung jawab
+      <text x="150" y="1418" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
+        (gambar/PDF, maks. 2 berkas @ 1 MB)
       </text>
 
-      <line x1="270" y1="1420" x2="270" y2="1450" stroke={core} strokeWidth="2" />
-      <line x1="270" y1="1450" x2="450" y2="1450" stroke={core} strokeWidth="2" />
-      <line x1="630" y1="1420" x2="630" y2="1450" stroke={core} strokeWidth="2" />
-      <line x1="630" y1="1450" x2="450" y2="1450" stroke={core} strokeWidth="2" />
-      <line x1="450" y1="1450" x2="450" y2="1490" stroke={core} strokeWidth="2" markerEnd="url(#arrow)" />
+      <rect x="320" y="1310" width="260" height="130" rx="4" fill="white" stroke={line} strokeWidth="1.5" />
+      <text x="450" y="1338" textAnchor="middle" fill={ink} fontSize="13" fontFamily="Inter, sans-serif" fontWeight="600">
+        Laporan Insiden (Ya/Tidak)
+      </text>
+      <text x="450" y="1360" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
+        Jika ya: jenis insiden,
+      </text>
+      <text x="450" y="1376" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
+        nama alat/bahan &amp; jumlah,
+      </text>
+      <text x="450" y="1392" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
+        penyebab, pihak terkait,
+      </text>
+      <text x="450" y="1408" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
+        ganti rugi + dokumentasi insiden
+      </text>
+
+      <rect x="620" y="1310" width="260" height="130" rx="4" fill="white" stroke={line} strokeWidth="1.5" />
+      <text x="750" y="1338" textAnchor="middle" fill={ink} fontSize="13" fontFamily="Inter, sans-serif" fontWeight="600">
+        Peminjaman Alat/Bahan (Ya/Tidak)
+      </text>
+      <text x="750" y="1360" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
+        Jika ya: pilih alat dan/atau
+      </text>
+      <text x="750" y="1376" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
+        bahan, lalu isi item,
+      </text>
+      <text x="750" y="1392" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
+        jumlah &amp; satuan
+      </text>
+
+      <line x1="150" y1="1440" x2="150" y2="1470" stroke={core} strokeWidth="2" />
+      <line x1="450" y1="1440" x2="450" y2="1470" stroke={core} strokeWidth="2" />
+      <line x1="750" y1="1440" x2="750" y2="1470" stroke={core} strokeWidth="2" />
+      <line x1="150" y1="1470" x2="750" y2="1470" stroke={core} strokeWidth="2" />
+      <line x1="450" y1="1470" x2="450" y2="1510" stroke={core} strokeWidth="2" markerEnd="url(#arrow)" />
 
       {/* submit completion */}
-      <rect x="330" y="1490" width="240" height="60" rx="4" fill={petrol} />
-      <text x="450" y="1526" textAnchor="middle" fill={paper} fontSize="14" fontFamily="Inter, sans-serif" fontWeight="600">
+      <rect x="330" y="1510" width="240" height="60" rx="4" fill={petrol} />
+      <text x="450" y="1546" textAnchor="middle" fill={paper} fontSize="14" fontFamily="Inter, sans-serif" fontWeight="600">
         Submit Penyelesaian
       </text>
-      <line x1="450" y1="1550" x2="450" y2="1590" stroke={core} strokeWidth="2" markerEnd="url(#arrow)" />
+      <line x1="450" y1="1570" x2="450" y2="1610" stroke={core} strokeWidth="2" markerEnd="url(#arrow)" />
 
       {/* end */}
-      <rect x="360" y="1590" width="180" height="60" rx="30" fill={petrol} />
-      <text x="450" y="1626" textAnchor="middle" fill={paper} fontSize="15" fontFamily="Inter, sans-serif" fontWeight="700">
+      <rect x="360" y="1610" width="180" height="60" rx="30" fill={petrol} />
+      <text x="450" y="1646" textAnchor="middle" fill={paper} fontSize="15" fontFamily="Inter, sans-serif" fontWeight="700">
         STATUS: SELESAI
       </text>
 
-      <text x="450" y="1700" textAnchor="middle" fill={core} fontSize="12" fontFamily="Inter, sans-serif">
-        Semua tahap dilakukan lewat akun SSO UNEJ yang sama, menu Praktikum → Ajukan Kegiatan / Status Pengajuan.
+      {/* optional: revisi administrasi */}
+      <line x1="450" y1="1670" x2="450" y2="1710" stroke={core} strokeWidth="2" strokeDasharray="6 4" markerEnd="url(#arrow)" />
+      <text x="470" y="1696" fill={core} fontSize="12" fontFamily="Inter, sans-serif">
+        Jika admin/asisten meminta revisi
+      </text>
+      <rect x="150" y="1710" width="600" height="150" rx="4" fill="white" stroke={rig} strokeWidth="1.5" strokeDasharray="6 4" />
+      <text x="450" y="1738" textAnchor="middle" fill={rig} fontSize="13" fontFamily="Inter, sans-serif" fontWeight="700">
+        Revisi Administrasi
+      </text>
+      <text x="450" y="1764" textAnchor="middle" fill={core} fontSize="12" fontFamily="Inter, sans-serif">
+        1. Klik &ldquo;Revisi Administrasi&rdquo; &mdash; form terisi data sebelumnya
+      </text>
+      <text x="450" y="1786" textAnchor="middle" fill={core} fontSize="12" fontFamily="Inter, sans-serif">
+        2. Perbaiki &amp; kirim ulang &rarr; STATUS: MENUNGGU VERIFIKASI
+      </text>
+      <text x="450" y="1808" textAnchor="middle" fill={core} fontSize="12" fontFamily="Inter, sans-serif">
+        3. Admin/asisten ACC &rarr; kembali ke STATUS: SELESAI
+      </text>
+      <text x="450" y="1834" textAnchor="middle" fill={core} fontSize="11" fontFamily="Inter, sans-serif">
+        (jika belum sesuai, revisi diminta lagi; pengajuan baru belum bisa dibuat selama revisi berjalan)
+      </text>
+
+      <text x="450" y="1900" textAnchor="middle" fill={core} fontSize="12" fontFamily="Inter, sans-serif">
+        Semua tahap dilakukan lewat akun SSO UNEJ yang sama: Layanan Lab &rarr; Pengajuan Kegiatan, lalu menu Status Pengajuan.
       </text>
     </svg>
   );
