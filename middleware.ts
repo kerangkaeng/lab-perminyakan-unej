@@ -28,13 +28,13 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const isAdminRoute = pathname.startsWith("/admin");
-  const isProtectedPracticumRoute =
-    pathname.startsWith("/practicum/ajukan") || pathname.startsWith("/practicum/status");
+  const isProtectedKegiatanRoute =
+    pathname.startsWith("/kegiatan/ajukan") || pathname.startsWith("/kegiatan/status");
   const isProtectedProfileRoute = pathname.startsWith("/profile");
   // Peminjaman alat/bahan wajib login SSO (tanda tangan & identitas pemohon ikut ke dokumen).
   const isProtectedLoanRoute = pathname.startsWith("/peminjaman");
 
-  if (!isAdminRoute && !isProtectedPracticumRoute && !isProtectedProfileRoute && !isProtectedLoanRoute) {
+  if (!isAdminRoute && !isProtectedKegiatanRoute && !isProtectedProfileRoute && !isProtectedLoanRoute) {
     return NextResponse.next();
   }
 
@@ -62,12 +62,12 @@ export async function middleware(req: NextRequest) {
       if (allowed) return NextResponse.next();
       return NextResponse.redirect(new URL("/admin/announcements", req.nextUrl.origin));
     }
-    return NextResponse.redirect(new URL("/practicum/status", req.nextUrl.origin));
+    return NextResponse.redirect(new URL("/kegiatan/status", req.nextUrl.origin));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-    matcher: ["/admin/:path*", "/practicum/ajukan/:path*", "/practicum/status/:path*", "/profile/:path*", "/peminjaman/:path*"],
+    matcher: ["/admin/:path*", "/kegiatan/ajukan/:path*", "/kegiatan/status/:path*", "/profile/:path*", "/peminjaman/:path*"],
 };
