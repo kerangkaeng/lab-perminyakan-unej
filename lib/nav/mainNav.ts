@@ -52,13 +52,13 @@ export const mainNav: NavEntry[] = [
   // Jadwal kegiatan lab (praktikum maupun non-praktikum) adalah fitur utama
   // untuk mahasiswa/dosen internal MAUPUN pihak eksternal, jadi berdiri
   // sendiri di menu atas dan terbuka untuk umum.
-  { label: "Jadwal", href: "/practicum/jadwal" },
+  { label: "Jadwal", href: "/kegiatan/jadwal" },
   {
     label: "Layanan Lab",
     highlight: true,
     items: [
       // Belum login -> middleware mengarahkan ke halaman login lalu kembali ke sini.
-      { href: "/practicum/ajukan", label: "Pengajuan Kegiatan" },
+      { href: "/kegiatan/ajukan", label: "Pengajuan Kegiatan" },
       // Halaman baru, belum diimplementasikan (placeholder).
       { href: "/peminjaman", label: "Pengajuan Peminjaman" },
       // Pusat informasi praktikum (modul, jadwal, pengumuman).
